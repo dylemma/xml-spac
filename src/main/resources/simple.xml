@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<stuff>
+    <a foo="doo" bar="flar">This is my A</a>
+    <b>This is my B</b>
+    <cs>
+        <c>This is the first C</c>
+        <c>This is the second C</c>
+    </cs>
+</stuff>
