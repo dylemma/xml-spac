@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<comments>
+    <comment user="alice">This is a pretty excellent comment</comment>
+    <comment user="bob">I'm reading a book and typing at the same time!</comment>
+    <comment user="carl">That sounds... difficult</comment>
+    <comment user="dylan">I'm writing example XML</comment>
+    <comment user="ellen">Whatever floats your boat</comment>
+    <comment user="fred">This forum is weird.</comment>
+</comments>

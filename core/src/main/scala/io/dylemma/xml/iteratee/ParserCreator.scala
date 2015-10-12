@@ -7,14 +7,16 @@ import scala.concurrent.ExecutionContext
 import play.api.libs.iteratee.{ Enumeratee, Iteratee }
 
 trait ParserCreator[T] {
-	def toEnumeratee(implicit ec: ExecutionContext): Enumeratee[XMLEvent, ParserResult[T]]
+	import Parser._
+
+	def toEnumeratee(implicit ec: ExecutionContext): Enumeratee[XMLEvent, Result[T]]
 
 	// create a parser from a 'consumer' iteratee
-	def asParser[M](consumer: Iteratee[ParserResult[T], ParserResult[M]]): Parser[M] = new Parser[M] {
+	def asParser[M](consumer: Iteratee[Result[T], Result[M]]): Parser[M] = new Parser[M] {
 		def toIteratee(implicit ec: ExecutionContext) = toEnumeratee &>> consumer
 	}
 	// create a parser from a 'consumer' iteratee that is constructed with an ExecutionContext available
-	def asParser[M](makeConsumer: ExecutionContext => Iteratee[ParserResult[T], ParserResult[M]]): Parser[M] = new Parser[M] {
+	def asParser[M](makeConsumer: ExecutionContext => Iteratee[Result[T], Result[M]]): Parser[M] = new Parser[M] {
 		def toIteratee(implicit ec: ExecutionContext) = toEnumeratee &>> makeConsumer(ec)
 	}
 
@@ -36,7 +38,7 @@ trait ParserCreator[T] {
 	// (returns an Error if any of the results were an error)
 	def parseList: Parser[List[T]] = asParser { implicit ec =>
 		Iteratee.getChunks.map { chunks =>
-			chunks.foldRight[ParserResult[List[T]]](Success(Nil)) { (next, accum) =>
+			chunks.foldRight[Result[List[T]]](Success(Nil)) { (next, accum) =>
 				next match {
 					case Empty => accum
 					case e: Error => e
@@ -55,7 +57,7 @@ trait ParserCreator[T] {
 	}
 
 	// creates a parser that passes results to the consumer which executes a side-effect
-	def parseSideEffect(consumer: Iteratee[ParserResult[T], Unit]): Parser[Nothing] = asParser { implicit ec =>
+	def parseSideEffect(consumer: Iteratee[Result[T], Unit]): Parser[Nothing] = asParser { implicit ec =>
 		consumer.map(_ => Empty)
 	}
 }

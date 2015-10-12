@@ -6,13 +6,18 @@ import scala.concurrent.ExecutionContext
 
 import io.dylemma.xml.event._
 import io.dylemma.xml.iteratee.IterateeHelpers._
-import play.api.libs.functional.{ FunctionalCanBuild, Functor, ~ }
+import play.api.libs.functional.{ FunctionalBuilderOps, FunctionalCanBuild, Functor, ~ }
 import play.api.libs.iteratee.{ Enumeratee, Iteratee }
 
 /**
  * Created by dylan on 10/10/2015.
  */
 object ParsingDSL {
+
+	// re-export the Parser type and companion object to save clients an import
+	val Parser = io.dylemma.xml.iteratee.Parser
+	type Parser[T] = io.dylemma.xml.iteratee.Parser[T]
+	import Parser._
 
 	/*
 	Eventually want to support wildcard paths e.g.
@@ -28,20 +33,26 @@ object ParsingDSL {
 
 		def \(segment: String): PathSpecification
 
-		def \(text: Text.type): Parser[String] = new PreTextParser(this).parseConsume() //makeConcatParser
-		def \(text: Text.asList.type): Parser[List[String]] = new PreTextParser(this).parseList //makeListParser
+		def \(text: Text.type): Parser[String] = new PreTextParser(this).parseConsume()
+		def \(text: Text.asList.type): Parser[List[String]] = new PreTextParser(this).parseList
+		def consumeText(consumer: Iteratee[Result[String], Unit]) = new PreTextParser(this).parseSideEffect(consumer)
 
-		def %(attribute: String): Parser[String] = new MandatoryAttributeParser(this, attribute).parseSingle
-		def %?(attribute: String): Parser[Option[String]] = new OptionalAttributeParser(this, attribute).parseSingle
+		def %(attribute: String): Parser[String] = MandatoryAttributeParser(this, attribute).parseSingle
+		def %?(attribute: String): Parser[Option[String]] = OptionalAttributeParser(this, attribute).parseSingle
 
 		def as[T: Parser] = DelegateParser[T](this, implicitly).parseSingle
 		def asOptional[T: Parser] = DelegateParser[T](this, implicitly).parseOptional
 		def asList[T: Parser] = DelegateParser[T](this, implicitly).parseList
-		def asProducer[T: Parser](consumer: Iteratee[ParserResult[T], Unit]) = DelegateParser[T](this, implicitly).parseSideEffect(consumer)
+		def consumeAs[T: Parser](consumer: Iteratee[Result[T], Unit]) = DelegateParser[T](this, implicitly).parseSideEffect(consumer)
 
 		def asEnumeratee[To](consumer: Iteratee[XMLEvent, To])(implicit ec: ExecutionContext): Enumeratee[XMLEvent, To] = {
 			subdivideOnState(TagStackAccumulator, asFilter).combineWith(consumer)
 		}
+	}
+
+	// See PathSpecification's `def \(Text)` and `def \(Text.asList)`
+	object Text {
+		object asList
 	}
 
 	class SimplePathSpec(startingSegments: List[String]) extends PathSpecification {
@@ -49,7 +60,6 @@ object ParsingDSL {
 		def asFilter = _ startsWith startingSegments
 		def \(segment: String): PathSpecification = new SimplePathSpec(startingSegments :+ segment)
 	}
-
 
 	class SkipOnePathSpec(startingSegments: List[String]) extends PathSpecification {
 		def lastSegment = startingSegments.last
@@ -60,7 +70,7 @@ object ParsingDSL {
 		def \(segment: String): PathSpecification = new SkipOnePathSpec(startingSegments :+ segment)
 	}
 
-	object XML extends SimplePathSpec(Nil)
+	object Root extends SimplePathSpec(Nil)
 	object Elem extends SkipOnePathSpec(Nil)
 
 	/** This object allows a Parser to be combined with other parsers via
@@ -68,7 +78,7 @@ object ParsingDSL {
 		*/
 	implicit object FunctionCanBuildParser extends FunctionalCanBuild[Parser] {
 		def apply[A, B](pa: Parser[A], pb: Parser[B]) = new Parser[A ~ B]{
-			def toIteratee(implicit ec: ExecutionContext): Iteratee[XMLEvent, ParserResult[A ~ B]] = {
+			def toIteratee(implicit ec: ExecutionContext): Iteratee[XMLEvent, Result[A ~ B]] = {
 				Enumeratee.zipWith(pa.toIteratee, pb.toIteratee) { (ra, rb) =>
 					import play.api.libs.functional.{ ~ => Tilde }
 					//println(s"Combine $ra + $rb")
@@ -86,21 +96,12 @@ object ParsingDSL {
 		}
 	}
 
-	case class ParserExample(attrThing: String, fooText: String, barText: String)
-	object ParserExample {
-		import play.api.libs.functional.syntax._
+	/** This is essentially a shortcut for `play.api.libs.functional.syntax.toParserBuilderOps` for Parsers. */
+	implicit def toParserBuilderOps[A](parser: Parser[A]) = new FunctionalBuilderOps(parser)
 
-		val parser: Parser[ParserExample] = (
-			(XML \ "foo" % "attrThing") and
-			(XML \ "foo" \ Text) and
-			(XML \ "bar" \ Text)
-		)(ParserExample.apply _)
-
-	}
-
-	class OptionalAttributeParser(pathSpec: PathSpecification, attribute: String) extends ParserCreator[Option[String]] {
+	case class OptionalAttributeParser(pathSpec: PathSpecification, attribute: String) extends ParserCreator[Option[String]] {
 		def toEnumeratee(implicit ec: ExecutionContext) = {
-			subdivideOnState(TagStackAccumulator, pathSpec.asFilter).combineWith[ParserResult[Option[String]]] {
+			subdivideOnState(TagStackAccumulator, pathSpec.asFilter).combineWith[Result[Option[String]]] {
 				val lookupAttr = Enumeratee.collect[XMLEvent] { case StartElement(_, attrs) => Success(attrs get attribute) }
 				lookupAttr &>> Iteratee.head.map {
 					// if the *head* was None, it means we never even encountered an element, so give an `Empty` result
@@ -112,9 +113,9 @@ object ParsingDSL {
 		}
 	}
 
-	class MandatoryAttributeParser(pathSpec: PathSpecification, attribute: String) extends ParserCreator[String] {
+	case class MandatoryAttributeParser(pathSpec: PathSpecification, attribute: String) extends ParserCreator[String] {
 		def toEnumeratee(implicit ec: ExecutionContext) = {
-			subdivideOnState(TagStackAccumulator, pathSpec.asFilter).combineWith[ParserResult[String]] {
+			subdivideOnState(TagStackAccumulator, pathSpec.asFilter).combineWith[Result[String]] {
 				val lookupAttr = Enumeratee.collect[XMLEvent]{
 					case e @ StartElement(_, attrs) => attrs.get(attribute) match {
 						case None =>
@@ -128,10 +129,6 @@ object ParsingDSL {
 				lookupAttr &>> Iteratee.head.map { _ getOrElse Empty }
 			}
 		}
-	}
-
-	object Text {
-		object asList
 	}
 
 	class PreTextParser(pathSpec: PathSpecification) extends ParserCreator[String] {
