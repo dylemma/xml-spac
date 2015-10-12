@@ -6,7 +6,7 @@ object XmlStreamBuild extends Build {
 
 	lazy val commonSettings = Seq(
 		version := "0.1-SNAPSHOT",
-		scalaVersion := "2.11.6",
+		crossScalaVersions := Seq("2.10.4", "2.11.6"),
 		scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
 	)
 
