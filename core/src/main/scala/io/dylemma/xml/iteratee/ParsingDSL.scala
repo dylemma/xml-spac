@@ -35,6 +35,7 @@ object ParsingDSL {
 		def \(segment: String): PathSpecification
 
 		def \(text: Text.type): Parser[String] = new PreTextParser(this).parseConsume()
+		def \(text: Text.asOption.type): Parser[Option[String]] = new PreTextParser(this).parseOptional
 		def \(text: Text.asList.type): Parser[List[String]] = new PreTextParser(this).parseList
 		def consumeText(consumer: Iteratee[Result[String], Unit]) = new PreTextParser(this).parseSideEffect(consumer)
 
@@ -54,6 +55,7 @@ object ParsingDSL {
 	// See PathSpecification's `def \(Text)` and `def \(Text.asList)`
 	object Text {
 		object asList
+		object asOption
 	}
 
 	class SimplePathSpec(startingSegments: List[String]) extends PathSpecification {
@@ -98,7 +100,7 @@ object ParsingDSL {
 	}
 
 	/** This is essentially a shortcut for `play.api.libs.functional.syntax.toParserBuilderOps` for Parsers. */
-	implicit def toParserBuilderOps[A](parser: Parser[A]) = new FunctionalBuilderOps(parser)
+	implicit def toParserBuilderOps[A](parser: Parser[A]) = new FunctionalBuilderOps[Parser, A](parser)
 
 	case class OptionalAttributeParser(pathSpec: PathSpecification, attribute: String) extends ParserCreator[Option[String]] {
 		def toEnumeratee(implicit ec: ExecutionContext) = {
