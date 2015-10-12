@@ -8,7 +8,7 @@ import play.api.libs.iteratee.Execution.Implicits.trampoline
 /**
  * Created by dylan on 10/11/2015.
  */
-object ExampleComposedParser extends App {
+object ExampleComments extends App {
 
 	// simple class to represent a comment
 	case class Comment(user: String, body: String)
@@ -28,8 +28,7 @@ object ExampleComposedParser extends App {
 
 	val source = XMLEventEnumerator(() => getClass.getResourceAsStream("/example-comments.xml"))
 
-	val printlnConsumer = Iteratee.foreach[Parser.Result[Comment]](println)
-	val printlnParser = (Root \ "comments" \ "comment").consumeAs[Comment](printlnConsumer)
+	val printlnParser = (Root \ "comments" \ "comment").consumeAs[Comment](Iteratee.foreach(println))
 
 	source |>>> printlnParser.toIteratee
 }

@@ -38,8 +38,7 @@ object ExampleComplex {
 
 	def main (args: Array[String]) {
 		implicit val context = Execution.trampoline
-		val handleFinding = Iteratee.foreach[Parser.Result[Finding]](println)
-		val parser = (Root \ "findings" \ "finding").consumeAs[Finding](handleFinding)
+		val parser = (Root \ "findings" \ "finding").consumeAs[Finding](Iteratee.foreach(println))
 		val xmlSource = XMLEventEnumerator{ () =>
 			getClass.getResourceAsStream("/example-complex.xml")
 		}
