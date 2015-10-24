@@ -16,22 +16,22 @@ object ExampleComments2 {
 
 	// Parser for User
 	implicit val UserParser = (
-		(Elem % "name") ~
-		(Elem % "id")
+		(* % "name") ~
+		(* % "id")
 	)(User.apply _)
 
 	// Parser for Stats
 	implicit val StatsParser = (
-		(Elem % "upvote-count") ~
-		(Elem % "downvote-count")
+		(* % "upvote-count") ~
+		(* % "downvote-count")
 	)(Stats.apply _)
 
 	// Parser for Comment
 	implicit val CommentParser = (
-		(Elem % "date") ~
-		(Elem \ "user").as[User] ~
-		(Elem \ "stats").as[Stats] ~
-		(Elem \ "body" \ Text)
+		(* % "date") ~
+		(* \ "user").as[User] ~
+		(* \ "stats").as[Stats] ~
+		(* \ "body" \ Text)
 	)(Comment.apply _)
 
 

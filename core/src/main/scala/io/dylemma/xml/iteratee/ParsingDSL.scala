@@ -7,6 +7,7 @@ import scala.language.implicitConversions
 
 import io.dylemma.xml.event._
 import io.dylemma.xml.iteratee.IterateeHelpers._
+import io.dylemma.xml.iteratee.PathMatching.{ ExactSegmentMatch, WildcardSegmentMatch, SegmentMatch }
 import play.api.libs.functional.{ FunctionalBuilderOps, FunctionalCanBuild, Functor, ~ }
 import play.api.libs.iteratee.{ Enumeratee, Iteratee }
 
@@ -28,11 +29,8 @@ object ParsingDSL {
 	__ \ foo \ **
 	 */
 
-	trait PathSpecification {
-		def lastSegment: String
-		def asFilter: List[String] => Boolean
-
-		def \(segment: String): PathSpecification
+	trait PathSpecification[C] {
+		def matchContext(tagStack: TagStack): Option[C]
 
 		def \(text: Text.type): Parser[String] = new PreTextParser(this).parseConsume()
 		def \(text: Text.asOption.type): Parser[Option[String]] = new PreTextParser(this).parseOptional
@@ -42,13 +40,13 @@ object ParsingDSL {
 		def %(attribute: String): Parser[String] = MandatoryAttributeParser(this, attribute).parseSingle
 		def %?(attribute: String): Parser[Option[String]] = OptionalAttributeParser(this, attribute).parseSingle
 
-		def as[T: Parser] = DelegateParser[T](this, implicitly).parseSingle
-		def asOptional[T: Parser] = DelegateParser[T](this, implicitly).parseOptional
-		def asList[T: Parser] = DelegateParser[T](this, implicitly).parseList
-		def consumeAs[T: Parser](consumer: Iteratee[Result[T], Unit]) = DelegateParser[T](this, implicitly).parseSideEffect(consumer)
+		def as[T: Parser] = DelegateParser[C, T](this, implicitly).parseSingle
+		def asOptional[T: Parser] = DelegateParser[C, T](this, implicitly).parseOptional
+		def asList[T: Parser] = DelegateParser[C, T](this, implicitly).parseList
+		def consumeAs[T: Parser](consumer: Iteratee[Result[T], Unit]) = DelegateParser[C, T](this, implicitly).parseSideEffect(consumer)
 
-		def asEnumeratee[To](consumer: Iteratee[XMLEvent, To])(implicit ec: ExecutionContext): Enumeratee[XMLEvent, To] = {
-			subdivideOnState(TagStackAccumulator, asFilter).combineWith(consumer)
+		def asEnumeratee[To](consumer: Iteratee[XMLEvent, To])(implicit ec: ExecutionContext): Enumeratee[XMLEvent, Option[To]] = {
+			subdivideXml(matchContext).combineWith(consumer)
 		}
 	}
 
@@ -58,23 +56,41 @@ object ParsingDSL {
 		object asOption
 	}
 
-	class SimplePathSpec(startingSegments: List[String]) extends PathSpecification {
-		def lastSegment = startingSegments.last
-		def asFilter = _ startsWith startingSegments
-		def \(segment: String): PathSpecification = new SimplePathSpec(startingSegments :+ segment)
+	object Root extends PathMatcherBySegments(Nil)
+	val * = WildcardSegmentMatch
+
+	implicit def upgradeSegmentToPathMatcher(segment: SegmentMatch): PathMatcherBySegments = {
+		PathMatcherBySegments(segment :: Nil)
 	}
 
-	class SkipOnePathSpec(startingSegments: List[String]) extends PathSpecification {
-		def lastSegment = startingSegments.last
-		def asFilter = {
-			case Nil => false
-			case _ :: path => path startsWith startingSegments
+	implicit def stringToSegmentMatcher(s: String): SegmentMatch = ExactSegmentMatch(s)
+
+	case class PathMatcherBySegments(segments: List[SegmentMatch]) extends PathSpecification[Unit]{
+
+		def matchContext(stack: TagStack) = cmp(segments, stack)
+		def \(segment: SegmentMatch) = PathMatcherBySegments(segments :+ segment)
+
+		protected def cmp(segs: List[SegmentMatch], stack: TagStack): Option[Unit] = (segs, stack) match {
+			case (Nil, s) => Some(()) // reached the end of the required path; we're in match zone
+			case (list, Nil) => None // reached the end of the path but still have more required
+			case (headSeg :: tailSegs, headTag :: tailTags) =>
+				if(headSeg matches headTag) cmp(tailSegs, tailTags) // current segment matches; recurse
+				else None // mismatch
 		}
-		def \(segment: String): PathSpecification = new SkipOnePathSpec(startingSegments :+ segment)
 	}
 
-	object Root extends SimplePathSpec(Nil)
-	object Elem extends SkipOnePathSpec(Nil)
+	case class XPathContextMatcher(path: List[String]) extends PathSpecification[TagStack]{
+		def matchContext(stack: TagStack) = cmp(path, stack)
+		def \(segment: String) = XPathContextMatcher(path :+ segment)
+
+		protected def cmp(p: List[String], s: TagStack): Option[TagStack] = (p, s) match {
+			case (Nil, s) => Some(s) // reached the end of the path without failure; match!
+			case (list, Nil) => None // there is more path, but no more stack
+			case (ph :: pt, OpenTag(Name(sh), _) :: st) =>
+				if(ph == sh) cmp(pt, st) // current segment matches; check remaining segments
+				else None // mismatch
+		}
+	}
 
 	/** This object allows a Parser to be combined with other parsers via
 		* `and` or `~` when you import `play.api.libs.functional.syntax._`
@@ -102,9 +118,14 @@ object ParsingDSL {
 	/** This is essentially a shortcut for `play.api.libs.functional.syntax.toParserBuilderOps` for Parsers. */
 	implicit def toParserBuilderOps[A](parser: Parser[A]) = new FunctionalBuilderOps[Parser, A](parser)
 
-	case class OptionalAttributeParser(pathSpec: PathSpecification, attribute: String) extends ParserCreator[Option[String]] {
+	def getOrElseEmpty[T](implicit ec: ExecutionContext) = Enumeratee.map[Option[Result[T]]]{
+		case None => Empty
+		case Some(result) => result
+	}
+
+	case class OptionalAttributeParser[C](pathSpec: PathSpecification[C], attribute: String) extends ParserCreator[Option[String]] {
 		def toEnumeratee(implicit ec: ExecutionContext) = {
-			subdivideOnState(TagStackAccumulator, pathSpec.asFilter).combineWith[Result[Option[String]]] {
+			subdivideXml(pathSpec.matchContext).combineWith[Result[Option[String]]] {
 				val lookupAttr = Enumeratee.collect[XMLEvent] { case StartElement(_, attrs) => Success(attrs get attribute) }
 				lookupAttr &>> Iteratee.head.map {
 					// if the *head* was None, it means we never even encountered an element, so give an `Empty` result
@@ -112,13 +133,13 @@ object ParsingDSL {
 					// otherwise, some element was encountered, and the result is whatever optional attribute value was there
 					case Some(result) => result
 				}
-			}
+			} ><> getOrElseEmpty
 		}
 	}
 
-	case class MandatoryAttributeParser(pathSpec: PathSpecification, attribute: String) extends ParserCreator[String] {
+	case class MandatoryAttributeParser[C](pathSpec: PathSpecification[C], attribute: String) extends ParserCreator[String] {
 		def toEnumeratee(implicit ec: ExecutionContext) = {
-			subdivideOnState(TagStackAccumulator, pathSpec.asFilter).combineWith[Result[String]] {
+			subdivideXml(pathSpec.matchContext).combineWith[Result[String]] {
 				val lookupAttr = Enumeratee.collect[XMLEvent]{
 					case e @ StartElement(_, attrs) => attrs.get(attribute) match {
 						case None =>
@@ -130,30 +151,22 @@ object ParsingDSL {
 				}
 				// if no elements were found, return Empty rather than an error
 				lookupAttr &>> Iteratee.head.map { _ getOrElse Empty }
-			}
+			} ><> getOrElseEmpty
 		}
 	}
 
-	class PreTextParser(pathSpec: PathSpecification) extends ParserCreator[String] {
-		def toEnumeratee(implicit ec: ExecutionContext) = subdivideOnState(TagStackAccumulator, pathSpec.asFilter).combineWith{
+	class PreTextParser[C](pathSpec: PathSpecification[C]) extends ParserCreator[String] {
+		def toEnumeratee(implicit ec: ExecutionContext) = subdivideXml(pathSpec.matchContext).combineWith{
 			val collectText = Enumeratee.collect[XMLEvent] { case Characters(text) => text.trim }
-			val consumeTextAsSuccess = Iteratee.consume[String]().map(Success(_))
+			val consumeTextAsSuccess = Iteratee.consume[String]().map[Result[String]](Success(_))
 			collectText &>> consumeTextAsSuccess
-		}
+		} ><> getOrElseEmpty[String]
 	}
 
-	case class DelegateParser[T](pathSpec: PathSpecification, innerParser: Parser[T]) extends ParserCreator[T] {
+	case class DelegateParser[C, T](pathSpec: PathSpecification[C], innerParser: Parser[T]) extends ParserCreator[T] {
 		def toEnumeratee(implicit ec: ExecutionContext) = {
-			subdivideOnState(TagStackAccumulator, pathSpec.asFilter).combineWith(innerParser.toIteratee)
+			subdivideXml(pathSpec.matchContext).combineWith(innerParser.toIteratee) ><> getOrElseEmpty
 		}
 	}
 
-	object TagStackAccumulator extends StateAccumulator[List[String], XMLEvent] {
-		def init = Nil
-		def update(stack: List[String], event: XMLEvent) = event match {
-			case StartElement(Name(tag), _) => stack :+ tag
-			case EndElement(_) => stack dropRight 1
-			case _ => stack
-		}
-	}
 }

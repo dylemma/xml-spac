@@ -22,8 +22,8 @@ object ExampleComments extends App {
 		* need to specify it as `Root \ "comment" ...`.
 		*/
 	implicit val CommentParser = (
-		(Elem % "user") ~
-		(Elem \ Text)
+		(* % "user") ~
+		(* \ Text)
 	)(Comment.apply _)
 
 	val source = XMLEventEnumerator(() => getClass.getResourceAsStream("/example-comments.xml"))
