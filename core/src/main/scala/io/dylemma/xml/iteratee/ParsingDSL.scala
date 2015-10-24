@@ -79,19 +79,6 @@ object ParsingDSL {
 		}
 	}
 
-	case class XPathContextMatcher(path: List[String]) extends PathSpecification[TagStack]{
-		def matchContext(stack: TagStack) = cmp(path, stack)
-		def \(segment: String) = XPathContextMatcher(path :+ segment)
-
-		protected def cmp(p: List[String], s: TagStack): Option[TagStack] = (p, s) match {
-			case (Nil, s) => Some(s) // reached the end of the path without failure; match!
-			case (list, Nil) => None // there is more path, but no more stack
-			case (ph :: pt, OpenTag(Name(sh), _) :: st) =>
-				if(ph == sh) cmp(pt, st) // current segment matches; check remaining segments
-				else None // mismatch
-		}
-	}
-
 	/** This object allows a Parser to be combined with other parsers via
 		* `and` or `~` when you import `play.api.libs.functional.syntax._`
 		*/
