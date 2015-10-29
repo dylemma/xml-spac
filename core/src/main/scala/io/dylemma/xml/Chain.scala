@@ -4,7 +4,7 @@ package io.dylemma.xml
  * Created by dylan on 10/27/2015.
  */
 case class Chain[+H, +T](head: H, tail: T){
-	def ~[U](newTail: U) = Chain(this, newTail)
+	def ~[U](newTail: U): Chain[this.type, U] = Chain(this, newTail)
 
 	override def toString = s"$head ~ $tail"
 }
