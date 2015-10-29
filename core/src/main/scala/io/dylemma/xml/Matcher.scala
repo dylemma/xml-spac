@@ -3,7 +3,7 @@ package io.dylemma.xml
 import javax.xml.namespace.QName
 import scala.language.implicitConversions
 
-case class OpenTag(name: QName, attrs: Map[QName, String])
+import io.dylemma.xml.iteratee.IterateeHelpers.OpenTag
 
 object TagMatcherSemantics extends MatcherSemantics[OpenTag] {
 	import event._
