@@ -86,9 +86,7 @@ object ParsingDSL {
 		def apply[A, B](pa: Parser[A], pb: Parser[B]) = new Parser[A ~ B]{
 			def toIteratee(implicit ec: ExecutionContext): Iteratee[XMLEvent, Result[A ~ B]] = {
 				Enumeratee.zipWith(pa.toIteratee, pb.toIteratee) { (ra, rb) =>
-					import play.api.libs.functional.{ ~ => Tilde }
-					//println(s"Combine $ra + $rb")
-					for (a <- ra; b <- rb) yield Tilde(a, b)
+					for (a <- ra; b <- rb) yield new ~(a, b)
 				}
 			}
 		}
