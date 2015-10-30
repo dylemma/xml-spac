@@ -57,7 +57,7 @@ trait ParserCreator[T] {
 	}
 
 	// creates a parser that passes results to the consumer which executes a side-effect
-	def parseSideEffect(consumer: Iteratee[Result[T], Unit]): Parser[Nothing] = asParser { implicit ec =>
-		consumer.map(_ => Empty)
+	def parseSideEffect(consumer: Iteratee[Result[T], Unit]): Parser[Unit] = asParser { implicit ec =>
+		consumer.map{ Success(_) }
 	}
 }

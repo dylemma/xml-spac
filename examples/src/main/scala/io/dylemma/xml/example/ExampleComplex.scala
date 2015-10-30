@@ -10,35 +10,35 @@ import play.api.libs.iteratee.{ Execution, Iteratee }
 object ExampleComplex {
 
 	case class LocRange(start: String, end: Option[String])
-	implicit val LocRangeParser = (
+	implicit val LocRangeParser: Parser[LocRange] = (
 		(* % "start") ~
 		(* %? "end")
 	)(LocRange.apply _)
 
 	case class Location(path: String, line: Option[LocRange], col: Option[LocRange])
-	implicit val LocationParser = (
+	implicit val LocationParser: Parser[Location] = (
 		(* % "path") ~
-		(* \ "line").asOptional[LocRange] ~
-		(* \ "column").asOptional[LocRange]
+		(* / "line").asOptional[LocRange] ~
+		(* / "column").asOptional[LocRange]
 	)(Location.apply _)
 
 	case class Comment(user: String, body: String)
-	implicit val CommentParser = (
+	implicit val CommentParser: Parser[Comment] = (
 		(* % "user") ~
-		(* \ Text)
+		(* % Text)
 	)(Comment.apply _)
 
 	case class Finding(severity: String, status: String, loc: Location, comments: List[Comment])
-	implicit val FindingParser = (
+	implicit val FindingParser: Parser[Finding] = (
 		(* % "severity") ~
 		(* % "status") ~
-		(* \ "location").as[Location] ~
-		(* \ "comments" \ "comment").asList[Comment]
+		(* / "location").as[Location] ~
+		(* / "comments" / "comment").asList[Comment]
 	)(Finding.apply _)
 
 	def main (args: Array[String]) {
 		implicit val context = Execution.trampoline
-		val parser = (Root \ "findings" \ "finding").consumeAs[Finding](Iteratee.foreach(println))
+		val parser = (Root / "findings" / "finding").foreach[Finding](println)
 		val xmlSource = XMLEventEnumerator{ () =>
 			getClass.getResourceAsStream("/example-complex.xml")
 		}

@@ -2,7 +2,6 @@ package io.dylemma.xml.example
 
 import io.dylemma.xml.XMLEventEnumerator
 import io.dylemma.xml.iteratee.ParsingDSL._
-import play.api.libs.iteratee.Iteratee
 import play.api.libs.iteratee.Execution.Implicits.trampoline
 
 /**
@@ -21,14 +20,16 @@ object ExampleComments extends App {
 		* Note the use of `Elem` instead of `Root`. If you used `Root`, you'd
 		* need to specify it as `Root \ "comment" ...`.
 		*/
-	implicit val CommentParser = (
+	implicit val CommentParser: Parser[Comment] = (
 		(* % "user") ~
-		(* \ Text)
+		(* % Text)
 	)(Comment.apply _)
+
+	val ops = makeContextMatcherOps(*) //% "user"
 
 	val source = XMLEventEnumerator(() => getClass.getResourceAsStream("/example-comments.xml"))
 
-	val printlnParser = (Root \ "comments" \ "comment").consumeAs[Comment](Iteratee.foreach(println))
+	val printlnParser = (Root / "comments" / "comment").foreach[Comment](println)
 
 	source |>>> printlnParser.toIteratee
 }

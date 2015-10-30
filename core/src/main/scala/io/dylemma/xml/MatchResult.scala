@@ -9,6 +9,24 @@ object MatchResult {
 	case class ChainValues[T <: Chain[_, _]](values: T) extends MatchResult[T]
 }
 
+trait MatchResultSimplifier[M <: MatchResult[_], R]{
+	def simplify(m: M): R
+}
+object MatchResultSimplifier {
+	import MatchResult._
+
+	// base functionality for result simplifiers
+	private def simplifier[M <: MatchResult[_], R](f: M => R): MatchResultSimplifier[M, R] = {
+		new MatchResultSimplifier[M, R] {
+			def simplify(m: M): R = f(m)
+		}
+	}
+
+	implicit val okSimplifier: MatchResultSimplifier[Ok.type, Unit] = simplifier(_ => ())
+	implicit def singleValueSimplifier[T]: MatchResultSimplifier[SingleValue[T], T] = simplifier(_.value)
+	implicit def chainValuesSimplifier[T <: Chain[_, _]]: MatchResultSimplifier[ChainValues[T], T] = simplifier(_.values)
+}
+
 trait MatchResultCombiner[T1 <: MatchResult[_], T2 <: MatchResult[_], R <: MatchResult[_]]{
 	def combine(result1:T1, result2: T2): R
 }

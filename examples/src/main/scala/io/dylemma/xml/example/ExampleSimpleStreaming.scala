@@ -29,7 +29,7 @@ object ExampleSimpleStreaming {
 		// Create a parser similar to the one in `ExampleSimple`, but instead of
 		// collecting results to a List, this one will `println` each Parser.Result
 		// as it is encountered.
-		val parser = (Root \ "library" \ "book").consumeText(Iteratee.foreach(println))
+		val parser = (Root / "library" / "book" ).asTextParserFactory.parseSideEffect(Iteratee.foreach(println))
 
 		// Run the parser on the XMLEvent Enumerator. The parser doesn't result in
 		// any values (just side effects), so we don't look at the resulting future

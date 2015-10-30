@@ -16,6 +16,7 @@ object TagMatcherSemantics extends MatcherSemantics[OpenTag] {
 		tag.attrs get qname
 	}
 
+	implicit def matcherAsListMatcher[M <: MatchResult[_]](matcher: Matcher[M]): ListMatcher[M] = matcher.asListMatcher
 	def main(args: Array[String]) {
 		val matcher1 = tag("finding") & attr("id") & attr("stuff")
 		val matcher2 = tag("foo")
@@ -57,9 +58,12 @@ trait MatcherSemantics[Input] {
 		): Matcher[R] = new CombinedMatcher(this, that)
 
 		def asListMatcher: ListMatcher[M] = new SingleListMatcher[M](this)
-	}
 
-	implicit def matcherAsListMatcher[M <: MatchResult[_]](matcher: Matcher[M]): ListMatcher[M] = matcher.asListMatcher
+		def /[N <: MatchResult[_], MN <: MatchResult[_]](nextMatcher: Matcher[N])(
+			implicit combiner: MatchResultCombiner[M, N, MN]): ListMatcher[MN] = {
+			asListMatcher / nextMatcher
+		}
+	}
 
 	private class CombinedMatcher[A <: MatchResult[_], B <: MatchResult[_], R <: MatchResult[_]]
 		(a: Matcher[A], b: Matcher[B])

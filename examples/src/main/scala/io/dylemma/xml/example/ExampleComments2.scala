@@ -15,33 +15,30 @@ object ExampleComments2 {
 	case class Stats(upvoteCount: String, downvoteCount: String)
 
 	// Parser for User
-	implicit val UserParser = (
+	implicit val UserParser: Parser[User] = (
 		(* % "name") ~
 		(* % "id")
 	)(User.apply _)
 
 	// Parser for Stats
-	implicit val StatsParser = (
+	implicit val StatsParser: Parser[Stats] = (
 		(* % "upvote-count") ~
 		(* % "downvote-count")
 	)(Stats.apply _)
 
 	// Parser for Comment
-	implicit val CommentParser = (
+	implicit val CommentParser: Parser[Comment] = (
 		(* % "date") ~
-		(* \ "user").as[User] ~
-		(* \ "stats").as[Stats] ~
-		(* \ "body" \ Text)
+		(* / "user").as[User] ~
+		(* / "stats").as[Stats] ~
+		(* / "body").text
 	)(Comment.apply _)
-
 
 	def main(args: Array[String]) {
 
 		val source = XMLEventEnumerator(() => getClass.getResourceAsStream("/example-comments2.xml"))
 
-		val mainParser = (Root \ "comments" \ "comment").consumeAs[Comment](//printlnConsumer)
-			Iteratee.foreach(println)
-		)
+		val mainParser = (Root / "comments" / "comment").foreach[Comment](println)
 
 		source |>>> mainParser.toIteratee
 	}

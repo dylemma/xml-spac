@@ -18,7 +18,7 @@ object ExampleSimple {
 		| <book>And Then There Were None</book>
 		|</library>""".stripMargin
 
-	val parser = (Root \ "library" \ "book" \ Text.asList)
+	val parser = (Root / "library" / "book" % Text.asList)
 
 	def main(args: Array[String]): Unit = {
 
