@@ -168,6 +168,8 @@ object ChainSyntaxTesting extends App {
 		case i ~ s ~ b ~ list ~ opt ~ map ~ d ~ t =>
 	}
 
+	val covariantChain: Option[Int] ~ Option[String] = None ~ None
+
 	val pa = 7.3 ~: a
 	val pb = 7.3 ~: b
 	println(pa)

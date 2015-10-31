@@ -1,151 +1,111 @@
 package io.dylemma.xml
 
-import javax.xml.namespace.QName
-import scala.language.implicitConversions
-
-import io.dylemma.xml.iteratee.IterateeHelpers.OpenTag
-
-object TagMatcherSemantics extends MatcherSemantics[OpenTag] {
-	import event._
-
-	def tag(name: String) = Matcher.predicate {
-		case OpenTag(Name(n), _) => name == n
-	}
-	def attr(name: String) = Matcher { tag =>
-		val qname = new QName(name)
-		tag.attrs get qname
-	}
-
-	implicit def matcherAsListMatcher[M <: MatchResult[_]](matcher: Matcher[M]): ListMatcher[M] = matcher.asListMatcher
-	def main(args: Array[String]) {
-		val matcher1 = tag("finding") & attr("id") & attr("stuff")
-		val matcher2 = tag("foo")
-		val matcher3 = tag("toolResult") & attr("id")
-
-		val listMatcher = matcher1 / matcher2 / matcher3
-
-		def Tag(name: String, attrs: (String, String)*) = {
-			val qName = new QName(name)
-			val attrsMap = (for {(k, v) <- attrs} yield (new QName(k), v)).toMap
-			OpenTag(qName, attrsMap)
-		}
-
-		val tag1 = Tag("finding", "id" -> "123", "stuff" -> "foof", "things" -> "blarg")
-		val tag2 = Tag("foo", "id" -> "asdf")
-		val tag3 = Tag("toolResult", "id" -> "abc", "stuff" -> "eokjd")
-		val tag4 = Tag("things", "content" -> "bad")
-		val tag5 = Tag("thing", "format" -> "markdown")
-
-		val tagsList = tag1 :: tag2 :: tag3 :: tag4 :: tag5 :: Nil
-		val result = listMatcher(tagsList)
-		println(result)
-
-		val wrongList = tag1 :: tag2 :: tag5 :: Nil
-		println(listMatcher(wrongList))
-
-		val wrongList2 = tag1 :: Nil
-		println(listMatcher(wrongList2))
-	}
-}
-
 trait MatcherSemantics[Input] {
 
-	trait Matcher[M <: MatchResult[_]] {
-		def apply(input: Input): Option[M]
+	trait Matcher[+A]{
+		def apply(input: Input): Option[A]
 
-		def &[N <: MatchResult[_], R <: MatchResult[_]](that: Matcher[N])(
-			implicit combiner: MatchResultCombiner[M, N, R]
-		): Matcher[R] = new CombinedMatcher(this, that)
+		def &[B, AB](that: Matcher[B])(implicit rc: ResultCombiner[A, B, AB]): Matcher[AB] = Matcher.combine(this, that)
+		def /[B, AB](that: Matcher[B])(implicit rc: ResultCombiner[A, B, AB]): ListMatcher[AB] = {
+			ListMatcher.inductive(ListMatcher.single(this), ListMatcher.single(that))
+		}
 
-		def asListMatcher: ListMatcher[M] = new SingleListMatcher[M](this)
-
-		def /[N <: MatchResult[_], MN <: MatchResult[_]](nextMatcher: Matcher[N])(
-			implicit combiner: MatchResultCombiner[M, N, MN]): ListMatcher[MN] = {
-			asListMatcher / nextMatcher
+		def matchContext(context: List[Input]): Option[A] = context match {
+			case Nil => None
+			case head :: tail => apply(head)
 		}
 	}
 
-	private class CombinedMatcher[A <: MatchResult[_], B <: MatchResult[_], R <: MatchResult[_]]
-		(a: Matcher[A], b: Matcher[B])
-			(implicit combiner: MatchResultCombiner[A, B, R])
-		extends Matcher[R] {
-		def apply(input: Input): Option[R] = {
-			for {
-				resultA <- a(input)
-				resultB <- b(input)
-			} yield combiner.combine(resultA, resultB)
+	trait ListMatcher[+A]{
+		def apply(inputs: List[Input]): Option[(A, List[Input])]
+		def /[B, AB](next: Matcher[B])(implicit rc: ResultCombiner[A, B, AB]): ListMatcher[AB] = {
+			ListMatcher.inductive(this, ListMatcher.single(next))
 		}
+
+		def matchContext(context: List[Input]): Option[A] = apply(context).map(_._1)
 	}
 
 	object Matcher {
-		import MatchResult._
-
-		def apply[A](f: Input => Option[A]): Matcher[SingleValue[A]] = new Matcher[SingleValue[A]] {
-			def apply(elem: Input) = f(elem) map {SingleValue(_)}
+		def apply[A](f: Input => Option[A]): Matcher[A] = new Matcher[A] {
+			def apply(elem: Input) = f(elem)
 		}
-		def predicate(f: Input => Boolean): Matcher[Ok.type] = new Matcher[Ok.type] {
-			def apply(elem: Input) = if (f(elem)) Some(Ok) else None
+		def predicate(f: Input => Boolean): Matcher[Unit] = new Matcher[Unit] {
+			def apply(elem: Input) = if (f(elem)) Some(()) else None
 		}
-	}
-
-	trait ListMatcher[M <: MatchResult[_]] {
-		/** Consumes some number of inputs from the beginning of the `inputs` list,
-			* optionally returning a result value and the remaining inputs as a pair.
-			*
-			* @param inputs
-			* @return
-			*/
-		def apply(inputs: List[Input]): Option[(M, List[Input])]
-
-		def /[N <: MatchResult[_], MN <: MatchResult[_]](nextMatcher: Matcher[N])(
-			implicit combiner: MatchResultCombiner[M, N, MN]): ListMatcher[MN] = {
-			new InductiveListMatcher(this, nextMatcher.asListMatcher)
-		}
-	}
-
-	class SingleListMatcher[H <: MatchResult[_]](headMatcher: Matcher[H]) extends ListMatcher[H] {
-		def apply(inputs: List[Input]) = inputs match {
-			case Nil => None
-			case head :: tail =>
-				val headMatch = headMatcher(head)
-				headMatch.map(_ -> tail)
-		}
-	}
-
-	class InductiveListMatcher[A <: MatchResult[_], B <: MatchResult[_], AB <: MatchResult[_]]
-		(leadMatcher: ListMatcher[A], secondMatcher: ListMatcher[B])
-			(implicit combiner: MatchResultCombiner[A, B, AB])
-		extends ListMatcher[AB] {
-
-		def apply(inputs: List[Input]) = {
-			for {
-				(leadMatch, leadTail) <- leadMatcher(inputs)
-				(secondMatch, remaining) <- secondMatcher(leadTail)
-			} yield {
-				val combinedMatch = combiner.combine(leadMatch, secondMatch)
-				combinedMatch -> remaining
+		def combine[A, B, AB](left: Matcher[A], right: Matcher[B])(implicit rc: ResultCombiner[A, B, AB]): Matcher[AB] = {
+			new Matcher[AB] {
+				def apply(input: Input) = for(a <- left(input); b <- right(input)) yield rc.combine(a, b)
 			}
 		}
 	}
 
-	/*
-	Matcher[A] / Matcher[B] / Matcher[C]
-	thingA :: thingB :: thingC :: otherThings :: Nil
-	= (Matcher[A] / Matcher[B]) / Matcher[C]
-	= Matcher[AB] / Matcher[C]
-	= Matcher[ABC]
+	object ListMatcher {
+		def single[A](matcher: Matcher[A]): ListMatcher[A] = new ListMatcher[A] {
+			def apply(inputs: List[Input]) = inputs match {
+				case Nil => None
+				case head :: tail => matcher(head).map(_ -> tail)
+			}
+		}
 
-	(Input, Matcher[A])
-	(Input, Matcher[B])
+		def inductive[A, B, AB](leading: ListMatcher[A], next: ListMatcher[B])(
+			implicit rc: ResultCombiner[A, B, AB]): ListMatcher[AB] = new ListMatcher[AB] {
+			def apply(inputs: List[Input]) = for {
+				(leadMatch, leadTail) <- leading(inputs)
+				(nextMatch, nextTail) <- next(leadTail)
+			} yield rc.combine(leadMatch, nextMatch) -> nextTail
+		}
+	}
 
-	def apply(inputs: List[Input]) = inputs match {
-		case Nil => fail
-		case head :: tail =>
-			val headResult = headMatcher(head)
-			tailMatcher(tail) match {
-				case tailResult + remainingStuff =>
-					val ab = combine(headResult, tailResult)
-					tailResult.fold(ab)
+	/** Typeclass to witness that a type `T` is *not* a Chain */
+	final class NonChain[-T] private()
+	object NonChain {
+		implicit def provideAnyNonChain[T] = new NonChain[T]
+		implicit def ambiguousChainNonChain[C <: Chain[_, _]] = new NonChain[C]
+	}
+	/** Typeclass to witness that a type `T` is *not* a Unit */
+	final class NonUnit[-T] private()
+	object NonUnit {
+		implicit def provideAnyNonUnit[T] = new NonUnit[T]
+		implicit val ambiguousUnitNonUnit1 = new NonUnit[Unit]
+		implicit val ambiguousUnitNonUnit2 = new NonUnit[Unit]
+	}
 
-	 */
+	trait ResultCombiner[-A, -B, +AB]{
+		def combine(left: A, right: B): AB
+	}
+	object ResultCombiner {
+		import ChainSyntax._
+
+		private def makeCombiner[A, B, AB](f: (A, B) => AB): ResultCombiner[A, B, AB] = new ResultCombiner[A, B, AB] {
+			def combine(left: A, right: B) = f(left, right)
+		}
+
+		/* Note the use of the NonUnit and NonChain typeclasses here.
+		 * This is to disambiguate the generic cases like Any+Any where
+		 * there is a more specialized case like Chain+Chain.
+		 */
+
+		// Unit + T = T
+		implicit def provideUnitAnyCombiner[T]: ResultCombiner[Unit, T, T] = makeCombiner{ (u, t) => t }
+
+		// T + Unit = T
+		implicit def provideAnyUnitCombiner[T: NonUnit]: ResultCombiner[T, Unit, T] = makeCombiner{ (t, u) => t }
+
+		// A + B = A ~ B
+		implicit def provideAnyAnyCombiner[A: NonUnit: NonChain, B: NonUnit: NonChain]
+		: ResultCombiner[A, B, A ~ B] = makeCombiner{ _ ~ _ }
+
+		// A + C:Chain = A ~: C
+		implicit def provideAnyChainCombiner[A: NonUnit: NonChain, C <: Chain[_,_], R <: Chain[_, _]](
+			implicit prepender: ChainPrepend[A, C, R]): ResultCombiner[A, C, R] = makeCombiner{ _ ~: _ }
+
+		// This case *should* be covered by the AnyAnyCombiner
+		// C:Chain + A = C ~ A
+		implicit def provideChainAnyCombiner[C <: Chain[_, _], A: NonUnit: NonChain]: ResultCombiner[C, A, C ~ A] = makeCombiner{ _ ~ _ }
+
+		// A:Chain + B:Chain = A ++ B
+		implicit def provideChainChainCombiner[A <: Chain[_, _], B <: Chain[_, _], AB <: Chain[_, _]](
+			implicit concat: ChainConcat[A, B, AB]): ResultCombiner[A, B, AB] = makeCombiner{ _ ++ _ }
+	}
+
 }

@@ -25,8 +25,6 @@ object ExampleComments extends App {
 		(* % Text)
 	)(Comment.apply _)
 
-	val ops = makeContextMatcherOps(*) //% "user"
-
 	val source = XMLEventEnumerator(() => getClass.getResourceAsStream("/example-comments.xml"))
 
 	val printlnParser = (Root / "comments" / "comment").foreach[Comment](println)

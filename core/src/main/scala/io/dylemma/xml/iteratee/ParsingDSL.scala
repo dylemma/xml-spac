@@ -6,8 +6,7 @@ import javax.xml.stream.events.XMLEvent
 import scala.concurrent.ExecutionContext
 import scala.language.implicitConversions
 
-import io.dylemma.xml.MatchResult._
-import io.dylemma.xml.{ MatchResultSimplifier, MatchResult, MatcherSemantics }
+import io.dylemma.xml.MatcherSemantics
 import io.dylemma.xml.event._
 import io.dylemma.xml.iteratee.IterateeHelpers._
 import play.api.libs.functional.{ FunctionalBuilderOps, FunctionalCanBuild, Functor, ~ }
@@ -66,21 +65,12 @@ object ParsingDSL extends MatcherSemantics[OpenTag] {
 		}
 	}
 
-	implicit def makeContextMatcherOps[M <: MatchResult[_], C](matcher: ListMatcher[M])(
-		implicit simplifier: MatchResultSimplifier[M, C]
-	): ContextMatcherOps[C] = new ContextMatcherOps({ stack =>
-		for{ (r, _) <- matcher(stack) } yield simplifier.simplify(r)
-	})
-
-	implicit def makeContextMatcherOps[M <: MatchResult[_], C](matcher: Matcher[M])(
-		implicit simplifier: MatchResultSimplifier[M, C]
-	): ContextMatcherOps[C] = makeContextMatcherOps(matcher.asListMatcher)
-
-//	implicit def makeContextMatcherOps[M, R <: MatchResult[_], C](matcher: M)(
-//		implicit toListMatcher: M => ListMatcher[R], simplifier: MatchResultSimplifier[R, C]
-//	): ContextMatcherOps[C] = new ContextMatcherOps({ stack =>
-//		for{ (r, _) <- toListMatcher(matcher)(stack) } yield simplifier.simplify(r)
-//	})
+	implicit def makeMatcherParserOps[C](matcher: Matcher[C]): ContextMatcherOps[C] = {
+		new ContextMatcherOps(matcher.matchContext)
+	}
+	implicit def makeListMatcherParserOps[C](matcher: ListMatcher[C]): ContextMatcherOps[C] = {
+		new ContextMatcherOps[C](matcher.matchContext)
+	}
 
 	object Text {
 		object asList
@@ -114,8 +104,8 @@ object ParsingDSL extends MatcherSemantics[OpenTag] {
 	/** Base context matcher that will match all contexts without
 		* actually consuming any of the tag stack
 		*/
-	object Root extends ListMatcher[Ok.type] {
-		def apply(inputs: List[OpenTag]) = Some(Ok -> inputs)
+	object Root extends ListMatcher[Unit] {
+		def apply(inputs: List[OpenTag]) = Some(() -> inputs)
 	}
 	/** Tag matcher that always matches
 		*/
@@ -123,10 +113,10 @@ object ParsingDSL extends MatcherSemantics[OpenTag] {
 
 	def tag(qname: QName) = Matcher.predicate{ _.name == qname }
 	def tag(name: String) = Matcher.predicate { _.name.getLocalPart == name }
-	implicit def stringToTagMatcher(name: String): Matcher[Ok.type] = tag(name)
+	implicit def stringToTagMatcher(name: String): Matcher[Unit] = tag(name)
 
 	def attr(qname: QName) = Matcher{ _.attrs get qname }
-	def attr(name: String): Matcher[SingleValue[String]] = attr(new QName(name))
+	def attr(name: String): Matcher[String] = attr(new QName(name))
 
 //	implicit def upgradeSegmentToPathMatcher(segment: SegmentMatch): PathMatcherBySegments = {
 //		PathMatcherBySegments(segment :: Nil)
