@@ -22,14 +22,6 @@ object ParsingDSL extends MatcherSemantics[OpenTag] {
 	type Parser[T] = io.dylemma.xml.iteratee.Parser[T]
 	import Parser._
 
-	/*
-	Eventually want to support wildcard paths e.g.
-	__ \ foo \ * \ bar
-	__ \ foo \ ** \ baz
-	__ \ ** \ baz
-	__ \ foo \ **
-	 */
-
 	class ContextMatcherOps[C](matchContext: TagStack => Option[C]) {
 
 		// make parsers that handle text from matched elements
@@ -77,30 +69,6 @@ object ParsingDSL extends MatcherSemantics[OpenTag] {
 		object asOption
 	}
 
-//	implicit class MatcherParserOps[M <: MatchResult[_], C](matcher: Matcher[M])(implicit simplifier: MatchResultSimplifier[M, C])
-//		extends ListMatcherParserOps(matcher.asListMatcher)
-
-//	trait OldPathSpecification[C] {
-//		def pathSpec(tagStack: TagStack): Option[C]
-//
-//		def \(text: Text.type): Parser[String] = new PreTextParser(pathSpec).parseConsume()
-//		def \(text: Text.asOption.type): Parser[Option[String]] = new PreTextParser(pathSpec).parseOptional
-//		def \(text: Text.asList.type): Parser[List[String]] = new PreTextParser(pathSpec).parseList
-//		def consumeText(consumer: Iteratee[Result[String], Unit]) = new PreTextParser(pathSpec).parseSideEffect(consumer)
-//
-//		def %(attribute: String): Parser[String] = MandatoryAttributeParser(pathSpec, attribute).parseSingle
-//		def %?(attribute: String): Parser[Option[String]] = OptionalAttributeParser(pathSpec, attribute).parseSingle
-//
-//		def as[T: Parser] = DelegateParser[C, T](pathSpec, implicitly).parseSingle
-//		def asOptional[T: Parser] = DelegateParser[C, T](pathSpec, implicitly).parseOptional
-//		def asList[T: Parser] = DelegateParser[C, T](pathSpec, implicitly).parseList
-//		def consumeAs[T: Parser](consumer: Iteratee[Result[T], Unit]) = DelegateParser[C, T](pathSpec, implicitly).parseSideEffect(consumer)
-//
-//		def asEnumeratee[To](consumer: Iteratee[XMLEvent, To])(implicit ec: ExecutionContext): Enumeratee[XMLEvent, Option[To]] = {
-//			subdivideXml(pathSpec).combineWith(consumer)
-//		}
-//	}
-
 	/** Base context matcher that will match all contexts without
 		* actually consuming any of the tag stack
 		*/
@@ -117,26 +85,6 @@ object ParsingDSL extends MatcherSemantics[OpenTag] {
 
 	def attr(qname: QName) = Matcher{ _.attrs get qname }
 	def attr(name: String): Matcher[String] = attr(new QName(name))
-
-//	implicit def upgradeSegmentToPathMatcher(segment: SegmentMatch): PathMatcherBySegments = {
-//		PathMatcherBySegments(segment :: Nil)
-//	}
-//
-//	implicit def stringToSegmentMatcher(s: String): SegmentMatch = ExactSegmentMatch(s)
-//
-//	case class PathMatcherBySegments(segments: List[SegmentMatch]) extends PathSpecification[Unit]{
-//
-//		def apply(stack: TagStack) = cmp(segments, stack)
-//		def \(segment: SegmentMatch) = PathMatcherBySegments(segments :+ segment)
-//
-//		protected def cmp(segs: List[SegmentMatch], stack: TagStack): Option[Unit] = (segs, stack) match {
-//			case (Nil, s) => Some(()) // reached the end of the required path; we're in match zone
-//			case (list, Nil) => None // reached the end of the path but still have more required
-//			case (headSeg :: tailSegs, headTag :: tailTags) =>
-//				if(headSeg matches headTag) cmp(tailSegs, tailTags) // current segment matches; recurse
-//				else None // mismatch
-//		}
-//	}
 
 	/** This object allows a Parser to be combined with other parsers via
 		* `and` or `~` when you import `play.api.libs.functional.syntax._`
