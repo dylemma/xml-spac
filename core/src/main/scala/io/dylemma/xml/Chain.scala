@@ -48,31 +48,21 @@ object ChainSyntax {
 		def ~[B](tail: B) = Chain(head, tail)
 	}
 
-	/** Typeclass that witnesses that a type `T` is not a `Chain`. */
-	sealed trait IsNotAChain[T]
-	final class AnyIsNotAChain[T] extends IsNotAChain[T]
-	implicit def anythingIsNotAChain[T]: IsNotAChain[T] = new AnyIsNotAChain[T]
-
-	// provide two separate implicits that say a Chain is not a Chain, creating
-	// ambiguity so that the compiler can't prove that a Chain is not a Chain.
-	implicit def chainIsNotAChainForAmbiguity[T <: Chain[_, _]]: IsNotAChain[T] = ???
-	implicit def chainIsNotAChainForAmbiguity2[T <: Chain[_, _]]: IsNotAChain[T] = ???
-
 	/** ChainConcat implementation that handles concatenation of a two-item chain
 		* by appending the head item, then appending the tail item.
 		*
 		* P ++ (A ~ B) = P ~ A ~ B
 	 */
-	class SimpleChainConcat[P <: Chain[_, _], SH, ST](shNotChain: IsNotAChain[SH], stNotAChain: IsNotAChain[ST])
+	class SimpleChainConcat[P <: Chain[_, _], SH, ST]
 		extends ChainConcat[P, Chain[SH, ST], Chain[Chain[P, SH], ST]] {
 
 		def concat(prefix: P, suffix: Chain[SH, ST]) = {
 			Chain(Chain(prefix, suffix.head), suffix.tail)
 		}
 	}
-	implicit def provideSimpleChainConcat[P <: Chain[_, _], SH: IsNotAChain, ST: IsNotAChain]
+	implicit def provideSimpleChainConcat[P <: Chain[_, _], SH, ST]
 		: ChainConcat[P, Chain[SH, ST], Chain[Chain[P, SH], ST]] = {
-		new SimpleChainConcat(implicitly, implicitly)
+		new SimpleChainConcat
 	}
 
 	/** ChainConcat implementation that handles concatenation of a longer chain
@@ -81,7 +71,7 @@ object ChainSyntax {
 		*
 		* P ++ (Chain ~ ST) = (P ++ Chain) ~ ST
 	 */
-	class InductiveChainConcat[P <: Chain[_, _], SH <: Chain[_, _], ST, R <: Chain[_, _]](
+	case class InductiveChainConcat[P <: Chain[_, _], SH <: Chain[_, _], ST, R <: Chain[_, _]](
 		pstConcat: ChainConcat[P, SH, R]
 	) extends ChainConcat[P, Chain[SH, ST], Chain[R, ST]] {
 		def concat(prefix: P, suffix: Chain[SH, ST]) = {
@@ -120,12 +110,12 @@ object ChainSyntax {
 		*
 		* P ~: (A ~ B) = P ~ A ~ B
 		*/
-	class SimpleChainPrepend[P, A: IsNotAChain, B] extends ChainPrepend[P, Chain[A, B], Chain[Chain[P, A], B]]{
+	class SimpleChainPrepend[P, A, B] extends ChainPrepend[P, Chain[A, B], Chain[Chain[P, A], B]]{
 		def prepend(value: P, chain: Chain[A, B]) = {
 			Chain(Chain(value, chain.head), chain.tail)
 		}
 	}
-	implicit def provideSimpleChainPrepend[P, A: IsNotAChain, B]: ChainPrepend[P, Chain[A, B], Chain[Chain[P, A], B]] = {
+	implicit def provideSimpleChainPrepend[P, A, B]: ChainPrepend[P, Chain[A, B], Chain[Chain[P, A], B]] = {
 		new SimpleChainPrepend[P, A, B]
 	}
 
@@ -156,6 +146,13 @@ object ChainSyntax {
 
 object ChainSyntaxTesting extends App {
 	import ChainSyntax._
+
+	val simpleConcatter = implicitly[ChainConcat[Int ~ String, Char ~ Double, Int ~ String ~ Char ~ Double]]
+	println(s"simple concat with: $simpleConcatter")
+
+	val longerConcatter = implicitly[ChainConcat[Int ~ String, Char ~ Double ~ Boolean ~ Int,
+		Int ~ String ~ Char ~ Double ~ Boolean ~ Int]]
+	println(s"longer concat with: $longerConcatter")
 
 	val a = 1 ~ "hello" ~ true ~ List(1,2,3) ~ Option(3) ~ Map(1->'c', 2->'d')
 	val b = 5.234 ~ false
