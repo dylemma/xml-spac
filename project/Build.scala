@@ -1,8 +1,8 @@
 import sbt._
 import Keys._
+import spray.boilerplate.BoilerplatePlugin.Boilerplate
 
 object XmlStreamBuild extends Build {
-
 
 	lazy val commonSettings = Seq(
 		version := "0.1-SNAPSHOT",
@@ -10,14 +10,10 @@ object XmlStreamBuild extends Build {
 		scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
 	)
 
-	lazy val core = (project in file("core")) //Project("xml-stream", file("core"))
+	lazy val core = (project in file("core"))
 		.settings(commonSettings: _*)
-		.settings(
-			libraryDependencies ++= Seq(
-				"com.typesafe.play" %% "play-iteratees" % "2.4.3",
-				"com.typesafe.play" %% "play-functional" % "2.4.3"
-			)
-		)
+		.settings(libraryDependencies += "com.typesafe.play" %% "play-iteratees" % "2.4.3")
+		.settings(Boilerplate.settings: _*)
 
 	lazy val examples = (project in file("examples"))
 		.settings(commonSettings: _*)

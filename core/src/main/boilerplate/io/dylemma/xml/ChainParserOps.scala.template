@@ -1,0 +1,29 @@
+package io.dylemma.xml
+
+import io.dylemma.xml.{Chain => ~}
+
+/** This mixin adds the `tupled` and `apply` methods to Parsers with
+  * chain-like result types.
+  */
+trait ChainParserOps {
+
+	[2..22#/** Provides the `tupled` and `apply` methods to any Parser
+	  * whose result type is a chain of 1 elements.
+	  */
+	implicit class Chain1ParserOps[C, [#A1#]](parser: Parser[C, [#A1# ~ ]]){
+		/** Maps the results of this parser from a chain to a corresponding tuple */
+		def tupled: Parser[C, ([#A1#])] = parser.map {
+			case [#a1# ~ ] => ([#a1#])
+		}
+
+		/** Maps the results of this parser by passing the elements of its result
+		  * chain into the provided function `f`.
+		  */
+		def join[M](f: ([#A1#]) => M): Parser[C, M] = parser.map {
+			case [#a1# ~ ] => f([#a1#])
+		}
+	}#
+
+	]
+
+}

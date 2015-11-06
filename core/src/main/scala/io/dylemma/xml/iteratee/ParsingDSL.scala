@@ -6,49 +6,49 @@ import javax.xml.stream.events.XMLEvent
 import scala.concurrent.ExecutionContext
 import scala.language.implicitConversions
 
-import io.dylemma.xml.MatcherSemantics
 import io.dylemma.xml.event._
 import io.dylemma.xml.iteratee.IterateeHelpers._
-import play.api.libs.functional.{ FunctionalBuilderOps, FunctionalCanBuild, Functor, ~ }
+import io.dylemma.xml.{ ChainParserOps, MatcherSemantics, ParserCombinerOps }
 import play.api.libs.iteratee.{ Enumeratee, Iteratee }
 
 /**
  * Created by dylan on 10/10/2015.
  */
-object ParsingDSL extends MatcherSemantics[OpenTag] {
+object ParsingDSL extends MatcherSemantics[OpenTag] with ParserCombinerOps with ChainParserOps {
 
 	// re-export the Parser type and companion object to save clients an import
-	val Parser = io.dylemma.xml.iteratee.Parser
-	type Parser[T] = io.dylemma.xml.iteratee.Parser[T]
+	val Parser = io.dylemma.xml.Parser
+	type Parser[-C, +T] = io.dylemma.xml.Parser[C, T]
+	type AnyContextParser[+T] = io.dylemma.xml.Parser[Any, T]
 	import Parser._
 
 	class ContextMatcherOps[C](matchContext: TagStack => Option[C]) {
 
 		// make parsers that handle text from matched elements
 		def asTextParserFactory: ParserCreator[String] = PreTextParser(matchContext)
-		def text: Parser[String] = asTextParserFactory.parseConsume()
-		def textOpt: Parser[Option[String]] = asTextParserFactory.parseOptional
-		def textList: Parser[List[String]] = asTextParserFactory.parseList
+		def text: Parser[Any, String] = asTextParserFactory.parseConsume()
+		def textOpt: Parser[Any, Option[String]] = asTextParserFactory.parseOptional
+		def textList: Parser[Any, List[String]] = asTextParserFactory.parseList
 		def %(t: Text.type) = text
 		def %(t: Text.asOption.type) = textOpt
 		def %(t: Text.asList.type) = textList
 
 		// make parsers that handle attributes from matched elements
-		def attr(attribute: String): Parser[String] = MandatoryAttributeParser(matchContext, attribute).parseSingle
-		def attrOpt(attribute: String): Parser[Option[String]] = OptionalAttributeParser(matchContext, attribute).parseSingle
+		def attr(attribute: String): Parser[Any, String] = MandatoryAttributeParser(matchContext, attribute).parseSingle
+		def attrOpt(attribute: String): Parser[Any, Option[String]] = OptionalAttributeParser(matchContext, attribute).parseSingle
 		def %(attribute: String) = attr(attribute)
 		def %?(attribute: String) = attrOpt(attribute)
 
 		// make parsers that build the matched elements into new values
-		def asParserFactory[T: Parser]: ParserCreator[T] = DelegateParser[C, T](matchContext, implicitly)
-		def as[T: Parser]: Parser[T] = asParserFactory[T].parseSingle
-		def asOptional[T: Parser]: Parser[Option[T]] = asParserFactory[T].parseOptional
-		def asList[T: Parser]: Parser[List[T]] = asParserFactory[T].parseList
+		def asParserFactory[T](implicit innerParser: Parser[C, T]): ParserCreator[T] = DelegateParser[C, T](matchContext, innerParser)
+		def as[T](implicit innerParser: Parser[C, T]): Parser[Any, T] = asParserFactory[T].parseSingle
+		def asOptional[T](implicit innerParser: Parser[C, T]): Parser[Any, Option[T]] = asParserFactory[T].parseOptional
+		def asList[T](implicit innerParser: Parser[C, T]): Parser[Any, List[T]] = asParserFactory[T].parseList
 
 		// make parsers that just do side-effects when a result passes through
-		def foreach[T: Parser](f: T => Unit)(implicit ec: ExecutionContext): Parser[Unit] =
+		def foreach[T](f: T => Unit)(implicit innerParser: Parser[C, T], ec: ExecutionContext): Parser[Any, Unit] =
 			asParserFactory[T].parseSideEffect(Iteratee.foreach[Result[T]]{ _.foreach(f) })
-		def foreachResult[T: Parser](f: Result[T] => Unit)(implicit ec: ExecutionContext): Parser[Unit] =
+		def foreachResult[T](f: Result[T] => Unit)(implicit innerParser: Parser[C, T], ec: ExecutionContext): Parser[Any, Unit] =
 			asParserFactory[T].parseSideEffect(Iteratee.foreach[Result[T]](f))
 
 		// provide an Iteratee to consume events within the matched context and produce values
@@ -81,34 +81,10 @@ object ParsingDSL extends MatcherSemantics[OpenTag] {
 
 	def tag(qname: QName) = Matcher.predicate{ _.name == qname }
 	def tag(name: String) = Matcher.predicate { _.name.getLocalPart == name }
-	implicit def stringToTagMatcher(name: String): Matcher[Unit] = tag(name)
+	implicit def stringToTagMatcher(name: String): Matcher[Any] = tag(name)
 
 	def attr(qname: QName) = Matcher{ _.attrs get qname }
 	def attr(name: String): Matcher[String] = attr(new QName(name))
-
-	/** This object allows a Parser to be combined with other parsers via
-		* `and` or `~` when you import `play.api.libs.functional.syntax._`
-		*/
-	implicit object FunctionCanBuildParser extends FunctionalCanBuild[Parser] {
-		def apply[A, B](pa: Parser[A], pb: Parser[B]) = new Parser[A ~ B]{
-			def toIteratee(implicit ec: ExecutionContext): Iteratee[XMLEvent, Result[A ~ B]] = {
-				Enumeratee.zipWith(pa.toIteratee, pb.toIteratee) { (ra, rb) =>
-					for (a <- ra; b <- rb) yield new ~(a, b)
-				}
-			}
-		}
-	}
-
-	implicit object FunctorForParser extends Functor[Parser] {
-		def fmap[A, B](m: Parser[A], f: A => B): Parser[B] = new Parser[B] {
-			def toIteratee(implicit ec: ExecutionContext) = {
-				m.toIteratee.map{ result => result.map(f) }
-			}
-		}
-	}
-
-	/** This is essentially a shortcut for `play.api.libs.functional.syntax.toParserBuilderOps` for Parsers. */
-	implicit def toParserBuilderOps[A](parser: Parser[A]) = new FunctionalBuilderOps[Parser, A](parser)
 
 	def getOrElseEmpty[T](implicit ec: ExecutionContext) = Enumeratee.map[Option[Result[T]]]{
 		case None => Empty
@@ -157,9 +133,9 @@ object ParsingDSL extends MatcherSemantics[OpenTag] {
 		} ><> getOrElseEmpty[String]
 	}
 
-	case class DelegateParser[C, T](pathSpec: PathSpecification[C], innerParser: Parser[T]) extends ParserCreator[T] {
+	case class DelegateParser[C, T](pathSpec: PathSpecification[C], innerParser: Parser[C, T]) extends ParserCreator[T] {
 		def toEnumeratee(implicit ec: ExecutionContext) = {
-			subdivideXml(pathSpec).combineWith(innerParser.toIteratee) ><> getOrElseEmpty
+			subdivideXml(pathSpec).combineWith(innerParser.toIteratee(_)) ><> getOrElseEmpty
 		}
 	}
 

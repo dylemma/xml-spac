@@ -15,24 +15,24 @@ object ExampleComments2 {
 	case class Stats(upvoteCount: String, downvoteCount: String)
 
 	// Parser for User
-	implicit val UserParser: Parser[User] = (
-		(* % "name") ~
+	implicit val UserParser: AnyContextParser[User] = (
+		(* % "name") &
 		(* % "id")
-	)(User.apply _)
+	).join(User)
 
 	// Parser for Stats
-	implicit val StatsParser: Parser[Stats] = (
-		(* % "upvote-count") ~
+	implicit val StatsParser: AnyContextParser[Stats] = (
+		(* % "upvote-count") &
 		(* % "downvote-count")
-	)(Stats.apply _)
+	).join(Stats)
 
 	// Parser for Comment
-	implicit val CommentParser: Parser[Comment] = (
-		(* % "date") ~
-		(* / "user").as[User] ~
-		(* / "stats").as[Stats] ~
+	implicit val CommentParser: AnyContextParser[Comment] = (
+		(* % "date") &
+		(* / "user").as[User] &
+		(* / "stats").as[Stats] &
 		(* / "body").text
-	)(Comment.apply _)
+	).join(Comment)
 
 	def main(args: Array[String]) {
 
@@ -40,7 +40,7 @@ object ExampleComments2 {
 
 		val mainParser = (Root / "comments" / "comment").foreach[Comment](println)
 
-		source |>>> mainParser.toIteratee
+		source |>>> mainParser.toIteratee()
 	}
 
 }

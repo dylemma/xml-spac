@@ -26,7 +26,7 @@ object ExampleSimple {
 		val source = XMLEventEnumerator(libraryXml)
 
 		// Run the parser on the XMLEvent Enumerator, returning a Future
-		val parseResultFuture = XMLEventEnumerator(libraryXml) |>>> parser.toIteratee
+		val parseResultFuture = XMLEventEnumerator(libraryXml) |>>> parser.toIteratee()
 
 		// Since we're using play's `trampoline` ExecutionContext, the Future will
 		// have run in the current thread, so we don't need to wait for it.

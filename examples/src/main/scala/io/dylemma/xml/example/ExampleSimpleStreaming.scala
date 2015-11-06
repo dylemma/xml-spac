@@ -33,7 +33,7 @@ object ExampleSimpleStreaming {
 
 		// Run the parser on the XMLEvent Enumerator. The parser doesn't result in
 		// any values (just side effects), so we don't look at the resulting future
-		XMLEventEnumerator(libraryXml) |>>> parser.toIteratee
+		XMLEventEnumerator(libraryXml) |>>> parser.toIteratee()
 
 	}
 }

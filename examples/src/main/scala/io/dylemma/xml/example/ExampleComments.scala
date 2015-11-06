@@ -20,14 +20,14 @@ object ExampleComments extends App {
 		* Note the use of `Elem` instead of `Root`. If you used `Root`, you'd
 		* need to specify it as `Root \ "comment" ...`.
 		*/
-	implicit val CommentParser: Parser[Comment] = (
-		(* % "user") ~
+	implicit val CommentParser = (
+		(* % "user") &
 		(* % Text)
-	)(Comment.apply _)
+	).join(Comment)
 
 	val source = XMLEventEnumerator(() => getClass.getResourceAsStream("/example-comments.xml"))
 
 	val printlnParser = (Root / "comments" / "comment").foreach[Comment](println)
 
-	source |>>> printlnParser.toIteratee
+	source |>>> printlnParser.toIteratee()
 }

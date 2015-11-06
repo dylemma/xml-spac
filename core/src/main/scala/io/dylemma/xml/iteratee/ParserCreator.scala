@@ -3,7 +3,7 @@ package io.dylemma.xml.iteratee
 import javax.xml.stream.events.XMLEvent
 import scala.collection.generic.CanBuildFrom
 import scala.concurrent.ExecutionContext
-
+import io.dylemma.xml.Parser
 import play.api.libs.iteratee.{ Enumeratee, Iteratee }
 
 trait ParserCreator[T] {
@@ -12,21 +12,21 @@ trait ParserCreator[T] {
 	def toEnumeratee(implicit ec: ExecutionContext): Enumeratee[XMLEvent, Result[T]]
 
 	// create a parser from a 'consumer' iteratee
-	def asParser[M](consumer: Iteratee[Result[T], Result[M]]): Parser[M] = new Parser[M] {
-		def toIteratee(implicit ec: ExecutionContext) = toEnumeratee &>> consumer
+	def asParser[M](consumer: Iteratee[Result[T], Result[M]]): Parser[Any, M] = new Parser[Any, M] {
+		def toIteratee(context: Any)(implicit ec: ExecutionContext) = toEnumeratee &>> consumer
 	}
 	// create a parser from a 'consumer' iteratee that is constructed with an ExecutionContext available
-	def asParser[M](makeConsumer: ExecutionContext => Iteratee[Result[T], Result[M]]): Parser[M] = new Parser[M] {
-		def toIteratee(implicit ec: ExecutionContext) = toEnumeratee &>> makeConsumer(ec)
+	def asParser[M](makeConsumer: ExecutionContext => Iteratee[Result[T], Result[M]]): Parser[Any, M] = new Parser[Any, M] {
+		def toIteratee(context: Any)(implicit ec: ExecutionContext) = toEnumeratee &>> makeConsumer(ec)
 	}
 
 	// creates a parser that gets the first result, or else an Empty
-	def parseSingle: Parser[T] = asParser { implicit ec =>
+	def parseSingle: Parser[Any, T] = asParser { implicit ec =>
 		Iteratee.head.map { headOpt => headOpt getOrElse Empty }
 	}
 
 	// creates a parser that gets the optional first result
-	def parseOptional: Parser[Option[T]] = asParser { implicit ec =>
+	def parseOptional: Parser[Any, Option[T]] = asParser { implicit ec =>
 		Iteratee.head.map {
 			case None => Success(None)
 			case Some(Empty) => Success(None)
@@ -36,7 +36,7 @@ trait ParserCreator[T] {
 
 	// creates a parser that gathers all of the results in a list
 	// (returns an Error if any of the results were an error)
-	def parseList: Parser[List[T]] = asParser { implicit ec =>
+	def parseList: Parser[Any, List[T]] = asParser { implicit ec =>
 		Iteratee.getChunks.map { chunks =>
 			chunks.foldRight[Result[List[T]]](Success(Nil)) { (next, accum) =>
 				next match {
@@ -48,7 +48,7 @@ trait ParserCreator[T] {
 		}
 	}
 
-	def parseConsume[B, That]()(implicit t: T => TraversableOnce[B], bf: CanBuildFrom[T, B, That]): Parser[That] = {
+	def parseConsume[B, That]()(implicit t: T => TraversableOnce[B], bf: CanBuildFrom[T, B, That]): Parser[Any, That] = {
 		parseList.map { list =>
 			val builder = bf()
 			list.foreach(builder ++= _)
@@ -57,7 +57,7 @@ trait ParserCreator[T] {
 	}
 
 	// creates a parser that passes results to the consumer which executes a side-effect
-	def parseSideEffect(consumer: Iteratee[Result[T], Unit]): Parser[Unit] = asParser { implicit ec =>
+	def parseSideEffect(consumer: Iteratee[Result[T], Unit]): Parser[Any, Unit] = asParser { implicit ec =>
 		consumer.map{ Success(_) }
 	}
 }
