@@ -27,6 +27,13 @@ trait Parser[-C, +T] { self =>
 	def mapR[U](f: Result[T] => Result[U]) = new Parser[C, U] {
 		def toIteratee(context: C)(implicit ec: ExecutionContext) = self.toIteratee(context).map(f)
 	}
+
+	/** Create a parser that adapts to another context type (`C1`) by mapping
+		* values from that type to an appropriate context value for this parser.
+		*/
+	def mapContext[C1](f: C1 => C) = new Parser[C1, T] {
+		def toIteratee(context: C1)(implicit ec: ExecutionContext) = self.toIteratee(f(context))
+	}
 }
 
 

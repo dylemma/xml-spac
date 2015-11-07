@@ -9,7 +9,7 @@ import scala.language.implicitConversions
 import io.dylemma.xml.event._
 import io.dylemma.xml.iteratee.IterateeHelpers._
 import io.dylemma.xml.{ ChainParserOps, MatcherSemantics, ParserCombinerOps }
-import play.api.libs.iteratee.{ Enumeratee, Iteratee }
+import play.api.libs.iteratee.{ Done, Enumeratee, Iteratee }
 
 /**
  * Created by dylan on 10/10/2015.
@@ -81,10 +81,16 @@ object ParsingDSL extends MatcherSemantics[OpenTag] with ParserCombinerOps with 
 
 	def tag(qname: QName) = Matcher.predicate{ _.name == qname }
 	def tag(name: String) = Matcher.predicate { _.name.getLocalPart == name }
-	implicit def stringToTagMatcher(name: String): Matcher[Any] = tag(name)
+	implicit def stringToTagMatcher(name: String): Matcher[Unit] = tag(name)
 
 	def attr(qname: QName) = Matcher{ _.attrs get qname }
 	def attr(name: String): Matcher[String] = attr(new QName(name))
+
+	def inContext[C]: Parser[C, C] = new Parser[C, C] {
+		override def toIteratee(context: C)(implicit ec: ExecutionContext): Iteratee[XMLEvent, Result[C]] = {
+			Done(Parser.Success(context))
+		}
+	}
 
 	def getOrElseEmpty[T](implicit ec: ExecutionContext) = Enumeratee.map[Option[Result[T]]]{
 		case None => Empty

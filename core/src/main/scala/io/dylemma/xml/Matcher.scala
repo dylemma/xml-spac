@@ -29,7 +29,7 @@ trait MatcherSemantics[Input] {
 		def apply[A](f: Input => Option[A]): Matcher[A] = new Matcher[A] {
 			def apply(elem: Input) = f(elem)
 		}
-		def predicate(f: Input => Boolean): Matcher[Any] = new Matcher[Unit] {
+		def predicate(f: Input => Boolean): Matcher[Unit] = new Matcher[Unit] {
 			def apply(elem: Input) = if (f(elem)) Some(()) else None
 		}
 		def combine[A, B, AB](left: Matcher[A], right: Matcher[B])(implicit rc: ResultCombiner[A, B, AB]): Matcher[AB] = {
