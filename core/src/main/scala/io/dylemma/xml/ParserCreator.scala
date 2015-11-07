@@ -1,9 +1,9 @@
-package io.dylemma.xml.iteratee
+package io.dylemma.xml
 
 import javax.xml.stream.events.XMLEvent
 import scala.collection.generic.CanBuildFrom
 import scala.concurrent.ExecutionContext
-import io.dylemma.xml.Parser
+
 import play.api.libs.iteratee.{ Enumeratee, Iteratee }
 
 trait ParserCreator[T] {

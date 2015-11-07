@@ -1,4 +1,4 @@
-package io.dylemma.xml.iteratee
+package io.dylemma.xml
 
 import javax.xml.namespace.QName
 import javax.xml.stream.events.XMLEvent

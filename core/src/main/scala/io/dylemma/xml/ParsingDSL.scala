@@ -1,4 +1,4 @@
-package io.dylemma.xml.iteratee
+package io.dylemma.xml
 
 import javax.xml.namespace.QName
 import javax.xml.stream.XMLStreamException
@@ -6,9 +6,8 @@ import javax.xml.stream.events.XMLEvent
 import scala.concurrent.ExecutionContext
 import scala.language.implicitConversions
 
+import io.dylemma.xml.IterateeHelpers._
 import io.dylemma.xml.event._
-import io.dylemma.xml.iteratee.IterateeHelpers._
-import io.dylemma.xml.{ ChainParserOps, MatcherSemantics, ParserCombinerOps }
 import play.api.libs.iteratee.{ Done, Enumeratee, Iteratee }
 
 /**

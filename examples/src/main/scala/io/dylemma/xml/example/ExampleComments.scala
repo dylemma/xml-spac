@@ -1,7 +1,7 @@
 package io.dylemma.xml.example
 
-import io.dylemma.xml.XMLEventEnumerator
-import io.dylemma.xml.iteratee.ParsingDSL._
+import io.dylemma.xml.{ ParsingDSL, XMLEventEnumerator }
+import ParsingDSL._
 import play.api.libs.iteratee.Execution.Implicits.trampoline
 
 /**
