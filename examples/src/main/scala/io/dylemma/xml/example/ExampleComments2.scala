@@ -31,7 +31,7 @@ object ExampleComments2 {
 		(* % "date") &
 		(* / "user").as[User] &
 		(* / "stats").as[Stats] &
-		(* / "body").text
+		(* / "body" % Text)
 	).join(Comment)
 
 	def main(args: Array[String]) {
