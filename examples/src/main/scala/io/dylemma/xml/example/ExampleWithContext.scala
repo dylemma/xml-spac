@@ -1,7 +1,6 @@
 package io.dylemma.xml.example
 
-import io.dylemma.xml.{ ParsingDSL, XMLEventEnumerator }
-import ParsingDSL._
+import io.dylemma.xml.ParsingDSL._
 import play.api.libs.iteratee.Execution.Implicits.trampoline
 
 /**
@@ -30,9 +29,7 @@ object ExampleWithContext extends App {
 
 	val contextMatcher = Root / "blog" / ("post" & attr("id")) / "comment"
 
-	val source = XMLEventEnumerator(rawXml)
-
 	val handler = contextMatcher.foreach[Comment](println)
 
-	source |>>> handler.toIteratee()
+	handler parse rawXml
 }

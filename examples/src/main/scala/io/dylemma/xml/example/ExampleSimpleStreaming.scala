@@ -1,8 +1,6 @@
 package io.dylemma.xml.example
 
-
-import io.dylemma.xml.{ ParsingDSL, XMLEventEnumerator }
-import ParsingDSL._
+import io.dylemma.xml.ParsingDSL._
 import play.api.libs.iteratee.Execution.Implicits.trampoline
 import play.api.libs.iteratee.Iteratee
 
@@ -23,17 +21,14 @@ object ExampleSimpleStreaming {
 
 	def main(args: Array[String]): Unit = {
 
-		// Create an Enumerator of XMLEvents based on the `libraryXML` string
-		val source = XMLEventEnumerator(libraryXml)
-
 		// Create a parser similar to the one in `ExampleSimple`, but instead of
 		// collecting results to a List, this one will `println` each Parser.Result
 		// as it is encountered.
-		val parser = (Root / "library" / "book" ).asTextParserFactory.parseSideEffect(Iteratee.foreach(println))
+		val parser = (Root / "library" / "book").asTextParserFactory.parseSideEffect(Iteratee.foreach(println))
 
-		// Run the parser on the XMLEvent Enumerator. The parser doesn't result in
-		// any values (just side effects), so we don't look at the resulting future
-		XMLEventEnumerator(libraryXml) |>>> parser.toIteratee()
+		// Run the parser on the xml. The parser doesn't result in any values
+		// (just side effects), so we don't look at the resulting future
+		parser parse libraryXml
 
 	}
 }

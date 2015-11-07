@@ -1,8 +1,7 @@
 package io.dylemma.xml.example
 
-import io.dylemma.xml.{ ParsingDSL, XMLEventEnumerator }
-import ParsingDSL._
-import play.api.libs.iteratee.{ Execution, Iteratee }
+import io.dylemma.xml.ParsingDSL._
+import play.api.libs.iteratee.Execution.Implicits.trampoline
 
 /**
  * Created by dylan on 10/11/2015.
@@ -37,11 +36,7 @@ object ExampleComplex {
 	).join(Finding)
 
 	def main (args: Array[String]) {
-		implicit val context = Execution.trampoline
 		val parser = (Root / "findings" / "finding").foreach[Finding](println)
-		val xmlSource = XMLEventEnumerator{ () =>
-			getClass.getResourceAsStream("/example-complex.xml")
-		}
-		xmlSource |>>> parser.toIteratee()
+		parser parse getClass.getResourceAsStream("/example-complex.xml")
 	}
 }

@@ -1,9 +1,9 @@
 package io.dylemma.xml
 
 import javax.xml.stream.events.XMLEvent
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ Future, ExecutionContext }
 
-import play.api.libs.iteratee.Iteratee
+import play.api.libs.iteratee.{ Enumerator, Iteratee }
 
 /**
  * Created by dylan on 11/5/2015.
@@ -13,6 +13,15 @@ trait Parser[-C, +T] { self =>
 	import Parser._
 
 	def toIteratee(context: C)(implicit ec: ExecutionContext): Iteratee[XMLEvent, Result[T]]
+
+	def parse[In: AsInputStream](input: In)(implicit ec: ExecutionContext, ev: Unit <:< C): Future[Parser.Result[T]] = {
+		parse(XMLEventEnumerator(input))
+	}
+
+	def parse(stream: Enumerator[XMLEvent])(implicit ec: ExecutionContext, ev: Unit <:< C): Future[Parser.Result[T]] = {
+		val consumer = toIteratee(())
+		stream run consumer
+	}
 
 	/** Creates a new Parser that passes successful results through a
 		* transformation function (`f`)

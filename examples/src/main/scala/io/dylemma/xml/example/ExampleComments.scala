@@ -1,7 +1,6 @@
 package io.dylemma.xml.example
 
-import io.dylemma.xml.{ ParsingDSL, XMLEventEnumerator }
-import ParsingDSL._
+import io.dylemma.xml.ParsingDSL._
 import play.api.libs.iteratee.Execution.Implicits.trampoline
 
 /**
@@ -25,9 +24,9 @@ object ExampleComments extends App {
 		(* % Text)
 	).join(Comment)
 
-	val source = XMLEventEnumerator(() => getClass.getResourceAsStream("/example-comments.xml"))
+	val parser = (Root / "comments" / "comment").foreach[Comment](println)
 
-	val printlnParser = (Root / "comments" / "comment").foreach[Comment](println)
+	val stream = getClass.getResourceAsStream("/example-comments.xml")
 
-	source |>>> printlnParser.toIteratee()
+	val result = parser parse stream
 }

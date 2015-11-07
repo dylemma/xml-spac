@@ -1,7 +1,6 @@
 package io.dylemma.xml.example
 
-import io.dylemma.xml.{ ParsingDSL, XMLEventEnumerator }
-import ParsingDSL._
+import io.dylemma.xml.ParsingDSL._
 import play.api.libs.iteratee.Execution.Implicits.trampoline
 
 /**
@@ -22,11 +21,9 @@ object ExampleSimple {
 
 	def main(args: Array[String]): Unit = {
 
-		// Create an Enumerator of XMLEvents based on the `libraryXML` string
-		val source = XMLEventEnumerator(libraryXml)
-
-		// Run the parser on the XMLEvent Enumerator, returning a Future
-		val parseResultFuture = XMLEventEnumerator(libraryXml) |>>> parser.toIteratee()
+		// Parsers can parse anything belonging to the `AsInputStream` type class,
+		// e.g. Strings, InputStreams, and Files
+		val parseResultFuture = parser parse libraryXml
 
 		// Since we're using play's `trampoline` ExecutionContext, the Future will
 		// have run in the current thread, so we don't need to wait for it.
