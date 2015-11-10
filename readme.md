@@ -1,7 +1,9 @@
 xml-stream
 ==========
 
-This library leverages Play Framework's Iteratee library to create declarative, composable parsers for XML.
+This library lets you create declarative, composable parsers that work on streaming XML,
+without all of the boilerplate that comes with SAX or StAX. The syntax for creating parsers is similar to that of
+[play-json's `Reads`](https://www.playframework.com/documentation/2.5.x/ScalaJsonCombinators#Putting-it-all-together)
 
 ```scala
 case class Comment(date: String, user: User, stats: Stats, body: String)
@@ -19,15 +21,19 @@ You can handle results on-the-fly, or collect them to a List/Option/single item.
 
 ```scala
 // collect results to a List
-val consumer: AnyContextParser[List[Comment]] = (Root / "comments" / "comment").asList[Comment]
+val consumer1: AnyContextParser[List[Comment]] = 
+  (Root / "comments" / "comment").asList[Comment]
 
 // on-the-fly handling via foreach
-val consumer: AnyContextParser[Unit] = (Root / "comments" / "comment").foreach[Comment](println)
+val consumer2: AnyContextParser[Unit] = 
+  (Root / "comments" / "comment").foreach[Comment](println)
 ```
 
 Then you run your consumer on an XML stream (`Enumerator[XMLEvent]`)
 
 ```scala
-val stream = XMLEventEnumerator(() => openInputStream)
-val result = stream |>>> consumer.toIteratee
+val stream = ... // e.g. an InputStream, File, String
+val result: Future[Parser.Result[Unit]] = parser2 parse stream 
 ```
+
+Check out [the examples](tree/master/examples/src/main/scala/io/dylemma/xml/example) for more!
