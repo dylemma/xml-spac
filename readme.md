@@ -21,11 +21,11 @@ You can handle results on-the-fly, or collect them to a List/Option/single item.
 
 ```scala
 // collect results to a List
-val consumer1: AnyContextParser[List[Comment]] = 
+val parser1: AnyContextParser[List[Comment]] = 
   (Root / "comments" / "comment").asList[Comment]
 
 // on-the-fly handling via foreach
-val consumer2: AnyContextParser[Unit] = 
+val parser2: AnyContextParser[Unit] = 
   (Root / "comments" / "comment").foreach[Comment](println)
 ```
 
