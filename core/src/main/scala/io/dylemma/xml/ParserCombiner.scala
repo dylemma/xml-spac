@@ -4,7 +4,6 @@ import javax.xml.stream.events.XMLEvent
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 
-import io.dylemma.xml.Parser.Result
 import play.api.libs.iteratee.{ Enumeratee, Iteratee }
 
 /** A Parser Combiner is able to combine two parsers into a single parser,

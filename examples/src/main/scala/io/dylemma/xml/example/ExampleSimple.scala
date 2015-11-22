@@ -1,6 +1,7 @@
 package io.dylemma.xml.example
 
 import io.dylemma.xml.ParsingDSL._
+import io.dylemma.xml.Result
 import play.api.libs.iteratee.Execution.Implicits.trampoline
 
 /**
@@ -31,9 +32,9 @@ object ExampleSimple {
 
 		// The `parseResult` is a Parser.Result containing the list of titles
 		parseResult match {
-			case Parser.Error(cause) => cause.printStackTrace()
-			case Parser.Empty => println("no results")
-			case Parser.Success(titles) =>
+			case Result.Error(cause) => cause.printStackTrace()
+			case Result.Empty => println("no results")
+			case Result.Success(titles) =>
 				for (title <- titles) println(s"book: $title")
 		}
 

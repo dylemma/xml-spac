@@ -7,6 +7,7 @@ import scala.concurrent.ExecutionContext
 import scala.language.implicitConversions
 
 import io.dylemma.xml.IterateeHelpers._
+import io.dylemma.xml.Result._
 import io.dylemma.xml.event._
 import play.api.libs.iteratee.{ Done, Enumeratee, Iteratee }
 
@@ -16,10 +17,8 @@ import play.api.libs.iteratee.{ Done, Enumeratee, Iteratee }
 object ParsingDSL extends MatcherSemantics[OpenTag] with ParserCombinerOps with ChainParserOps {
 
 	// re-export the Parser type and companion object to save clients an import
-	val Parser = io.dylemma.xml.Parser
 	type Parser[-C, +T] = io.dylemma.xml.Parser[C, T]
 	type AnyContextParser[+T] = io.dylemma.xml.Parser[Any, T]
-	import Parser._
 
 	class ContextMatcherOps[C](matchContext: TagStack => Option[C]) {
 
@@ -87,7 +86,7 @@ object ParsingDSL extends MatcherSemantics[OpenTag] with ParserCombinerOps with 
 
 	def inContext[C]: Parser[C, C] = new Parser[C, C] {
 		override def toIteratee(context: C)(implicit ec: ExecutionContext): Iteratee[XMLEvent, Result[C]] = {
-			Done(Parser.Success(context))
+			Done(Success(context))
 		}
 	}
 

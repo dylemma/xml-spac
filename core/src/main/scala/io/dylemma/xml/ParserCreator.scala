@@ -7,7 +7,7 @@ import scala.concurrent.ExecutionContext
 import play.api.libs.iteratee.{ Enumeratee, Iteratee }
 
 trait ParserCreator[T] {
-	import Parser._
+	import Result._
 
 	def toEnumeratee(implicit ec: ExecutionContext): Enumeratee[XMLEvent, Result[T]]
 
