@@ -14,7 +14,7 @@ import play.api.libs.iteratee.{ Done, Enumeratee, Iteratee }
 /**
  * Created by dylan on 10/10/2015.
  */
-object ParsingDSL extends MatcherSemantics[OpenTag] with ParserCombinerOps with ChainParserOps {
+object ParsingDSL extends ParserCombinerOps with ChainParserOps {
 
 	// re-export the Parser type and companion object to save clients an import
 	type Parser[-C, +T] = io.dylemma.xml.Parser[C, T]
