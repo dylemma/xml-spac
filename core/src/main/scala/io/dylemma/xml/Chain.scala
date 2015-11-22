@@ -42,7 +42,7 @@ object ChainSyntax {
 	}
 
 	val ~ = Chain
-	type ~[A, B] = Chain[A, B]
+	type ~[+A, +B] = Chain[A, B]
 
 	implicit class anyChainAssoc[A](head: A) {
 		def ~[B](tail: B) = Chain(head, tail)
