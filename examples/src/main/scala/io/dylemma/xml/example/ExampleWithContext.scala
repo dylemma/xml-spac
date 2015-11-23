@@ -1,5 +1,6 @@
 package io.dylemma.xml.example
 
+import io.dylemma.xml.ParserForContext
 import io.dylemma.xml.ParsingDSL._
 import play.api.libs.iteratee.Execution.Implicits.trampoline
 
@@ -19,15 +20,15 @@ object ExampleWithContext extends App {
 		| </post>
 		|</blog>"""
 
-	case class Comment(postId: String, user: String, text: String)
+	case class Comment(postId: Int, user: String, text: String)
 
-	implicit val CommentParser: Parser[String, Comment] = (
-		inContext[String] &
+	implicit val CommentParser: ParserForContext[Int, Comment] = (
+		inContext[Int] &
 		(* % "user") &
 		(* % Text)
 	).join(Comment)
 
-	val contextMatcher = Root / "blog" / ("post" & attr("id")) / "comment"
+	val contextMatcher = Root / "blog" / ("post" & attr("id")) / "comment" mapContext(_.toInt)
 
 	val handler = contextMatcher.foreach[Comment](println)
 

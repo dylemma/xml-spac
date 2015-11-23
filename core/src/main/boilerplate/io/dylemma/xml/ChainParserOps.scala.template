@@ -10,20 +10,55 @@ trait ChainParserOps {
 	[2..22#/** Provides the `tupled` and `apply` methods to any Parser
 	  * whose result type is a chain of 1 elements.
 	  */
-	implicit class Chain1ParserOps[C, [#A1#]](parser: Parser[C, [#A1# ~ ]]){
+	implicit class Chain1ParserOps[C, [#A1#]](parser: Parser[C, [#A1# ~ ]]) {
 		/** Maps the results of this parser from a chain to a corresponding tuple */
-		def tupled: Parser[C, ([#A1#])] = parser.map {
+		def tupled: Parser[C, ([#A1#])] = parser map {
 			case [#a1# ~ ] => ([#a1#])
 		}
 
 		/** Maps the results of this parser by passing the elements of its result
 		  * chain into the provided function `f`.
 		  */
-		def join[M](f: ([#A1#]) => M): Parser[C, M] = parser.map {
+		def join[M](f: ([#A1#]) => M): Parser[C, M] = parser map {
 			case [#a1# ~ ] => f([#a1#])
 		}
 	}#
 
 	]
+	[2..22#/** Provides the `tupled` and `apply` methods to any AppliedParser
+	  * whose result type is a chain of 1 elements.
+	  */
+	implicit class Chain1AppliedParserOps[[#A1#]](parser: AppliedParser[[#A1# ~ ]]) {
+		/** Maps the results of this parser from a chain to a corresponding tuple */
+		def tupled: AppliedParser[([#A1#])] = parser map {
+			case [#a1# ~ ] => ([#a1#])
+		}
 
+		/** Maps the results of this parser by passing the elements of its result
+		  * chain into the provided function `f`.
+		  */
+		def join[M](f: ([#A1#]) => M): AppliedParser[M] = parser map {
+			case [#a1# ~ ] => f([#a1#])
+		}
+	}#
+
+	]
+	[2..22#/** Provides the `tupledContext` and `joinContext` methods to any Splitter
+	  * whose result type is a chain of 1 elements.
+	  */
+	implicit class Chain1SplitterOps[[#A1#]](splitter: Splitter[[#A1# ~ ]]) {
+		/** Maps the context from a chain to a corresponding tuple */
+		def tupledContext: Splitter[([#A1#])] = splitter mapContext {
+			case [#a1# ~ ] => ([#a1#])
+		}
+
+		/** Maps the context by passing the elements of its chain into
+		  * the provided function `f`
+		  */
+		def joinContext[M](f: ([#A1#]) => M): Splitter[M] = splitter mapContext {
+			case [#a1# ~ ] => f([#a1#])
+		}
+	}#
+
+	]
 }

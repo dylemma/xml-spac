@@ -2,7 +2,7 @@ package io.dylemma.xml
 
 import io.dylemma.xml.IterateeHelpers.OpenTag
 
-trait Matcher[+A]{
+trait Matcher[+A] extends ContextMatchSplitter[A] { self =>
 	def apply(input: OpenTag): Option[A]
 
 	def &[B, AB](that: Matcher[B])(implicit rc: ContextCombiner[A, B, AB]): Matcher[AB] = Matcher.combine(this, that)
@@ -14,15 +14,23 @@ trait Matcher[+A]{
 		case Nil => None
 		case head :: tail => apply(head)
 	}
+	def map[B](f: (A) => B): Matcher[B] = new Matcher[B] {
+		def apply(input: OpenTag) = self.apply(input).map(f)
+	}
 }
 
-trait ListMatcher[+A]{
+trait ListMatcher[+A] extends ContextMatchSplitter[A] { self =>
 	def apply(inputs: List[OpenTag]): Option[(A, List[OpenTag])]
 	def /[B, AB](next: Matcher[B])(implicit rc: ContextCombiner[A, B, AB]): ListMatcher[AB] = {
 		ListMatcher.inductive(this, ListMatcher.single(next))
 	}
 
 	def matchContext(context: List[OpenTag]): Option[A] = apply(context).map(_._1)
+	def map[B](f: (A) => B): ListMatcher[B] = new ListMatcher[B] {
+		def apply(inputs: List[OpenTag]) = self.apply(inputs).map{
+			case (a, tail) => f(a) -> tail
+		}
+	}
 }
 
 object Matcher {

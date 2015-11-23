@@ -1,5 +1,6 @@
 package io.dylemma.xml.example
 
+import io.dylemma.xml.Parser
 import io.dylemma.xml.ParsingDSL._
 import play.api.libs.iteratee.Execution.Implicits.trampoline
 
@@ -13,19 +14,19 @@ object ExampleComments2 {
 	case class Stats(upvoteCount: String, downvoteCount: String)
 
 	// Parser for User
-	implicit val UserParser: AnyContextParser[User] = (
+	implicit val UserParser: Parser[User] = (
 		(* % "name") &
 		(* % "id")
 	).join(User)
 
 	// Parser for Stats
-	implicit val StatsParser: AnyContextParser[Stats] = (
+	implicit val StatsParser: Parser[Stats] = (
 		(* % "upvote-count") &
 		(* % "downvote-count")
 	).join(Stats)
 
 	// Parser for Comment
-	implicit val CommentParser: AnyContextParser[Comment] = (
+	implicit val CommentParser: Parser[Comment] = (
 		(* % "date") &
 		(* / "user").as[User] &
 		(* / "stats").as[Stats] &

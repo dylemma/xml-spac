@@ -1,5 +1,6 @@
 package io.dylemma.xml.example
 
+import io.dylemma.xml.Parser
 import io.dylemma.xml.ParsingDSL._
 import play.api.libs.iteratee.Execution.Implicits.trampoline
 
@@ -9,26 +10,26 @@ import play.api.libs.iteratee.Execution.Implicits.trampoline
 object ExampleComplex {
 
 	case class LocRange(start: String, end: Option[String])
-	implicit val LocRangeParser: AnyContextParser[LocRange] = (
+	implicit val LocRangeParser: Parser[LocRange] = (
 		(* % "start") &
 		(* %? "end")
 	).join(LocRange)
 
 	case class Location(path: String, line: Option[LocRange], col: Option[LocRange])
-	implicit val LocationParser: AnyContextParser[Location] = (
+	implicit val LocationParser: Parser[Location] = (
 		(* % "path") &
 		(* / "line").asOptional[LocRange] &
 		(* / "column").asOptional[LocRange]
 	).join(Location)
 
 	case class Comment(user: String, body: String)
-	implicit val CommentParser: AnyContextParser[Comment] = (
+	implicit val CommentParser: Parser[Comment] = (
 		(* % "user") &
 		(* % Text)
 	).join(Comment)
 
 	case class Finding(severity: String, status: String, loc: Location, comments: List[Comment])
-	implicit val FindingParser: AnyContextParser[Finding] = (
+	implicit val FindingParser: Parser[Finding] = (
 		(* % "severity") &
 		(* % "status") &
 		(* / "location").as[Location] &

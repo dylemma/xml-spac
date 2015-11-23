@@ -30,11 +30,11 @@ import play.api.libs.iteratee.{ Enumeratee, Iteratee }
   */
 @implicitNotFound("Parser contexts of ${C1} and ${C2} cannot be combined")
 trait ParserCombiner[C1, C2, C] {
-	def combine[T1, T2](parser1: Parser[C1, T1], parser2: Parser[C2, T2]): Parser[C, Chain[T1, T2]]
+	def combine[T1, T2](parser1: ParserForContext[C1, T1], parser2: ParserForContext[C2, T2]): ParserForContext[C, Chain[T1, T2]]
 }
 object ParserCombiner {
 	private def makeCombiner[C1, C2, C](conv1: C => C1, conv2: C => C2): ParserCombiner[C1, C2, C] = new ParserCombiner[C1, C2, C] {
-		override def combine[T1, T2](parser1: Parser[C1, T1], parser2: Parser[C2, T2]): Parser[C, Chain[T1, T2]] = new Parser[C, Chain[T1, T2]] {
+		override def combine[T1, T2](parser1: ParserForContext[C1, T1], parser2: ParserForContext[C2, T2]): ParserForContext[C, Chain[T1, T2]] = new ParserForContext[C, Chain[T1, T2]] {
 			override def toIteratee(context: C)(implicit ec: ExecutionContext): Iteratee[XMLEvent, Result[Chain[T1, T2]]] = {
 				val itr1 = parser1 toIteratee conv1(context)
 				val itr2 = parser2 toIteratee conv2(context)
@@ -65,14 +65,23 @@ object ParserCombiner {
 
 object ParserCombinerOps extends ParserCombinerOps
 trait ParserCombinerOps {
-	implicit class ParserWithCombine[C1, T1](parser1: Parser[C1, T1]){
+	implicit class ParserWithCombine[C1, T1](parser1: ParserForContext[C1, T1]){
 		/** Combine this parser with a second parser.
 		  * The resulting parser's context type will be the most specific type between this
 		  * parser's context and the second parser's context.
 		  * The resulting parser's result type will be a chain of the two inner parser's results.
 		  */
-		def &[C2, T2, C](parser2: Parser[C2, T2])(implicit combiner: ParserCombiner[C1, C2, C]): Parser[C, Chain[T1, T2]] = {
+		def &[C2, T2, C](parser2: ParserForContext[C2, T2])(implicit combiner: ParserCombiner[C1, C2, C]): ParserForContext[C, Chain[T1, T2]] = {
 			combiner.combine(parser1, parser2)
 		}
+
+		def &[T2](parser2: Parser[T2]): ParserForContext[C1, Chain[T1, T2]] = new ParserForContext[C1, Chain[T1, T2]] {
+			def toIteratee(context: C1)(implicit ec: ExecutionContext) = {
+				Enumeratee.zipWith(parser1 toIteratee context, parser2.toIteratee) { (r1, r2) =>
+					for(t1 <- r1; t2 <- r2) yield Chain(t1, t2)
+				}
+			}
+		}
 	}
+
 }
