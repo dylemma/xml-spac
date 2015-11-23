@@ -77,7 +77,8 @@ collect them all to a list, or do something else entirely!
 
 # Examples in Code
 
-The [examples project](tree/master/examples/src/main/scala/io/dylemma/xml/example) has a collection of small examples.
+The [examples project](https://github.com/dylemma/xml-stream/tree/master/examples/src/main/scala/io/dylemma/xml/example)
+has a collection of small examples.
 
 # Writing a Parser by Example
 
