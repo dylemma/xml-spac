@@ -1,5 +1,8 @@
 package io.dylemma.xml.example
 
+import java.text.SimpleDateFormat
+import java.util.Date
+
 import io.dylemma.xml.Parser
 import io.dylemma.xml.ParsingDSL._
 import play.api.libs.iteratee.Execution.Implicits.trampoline
@@ -9,9 +12,9 @@ import play.api.libs.iteratee.Execution.Implicits.trampoline
  */
 object ExampleComments2 {
 
-	case class Comment(date: String, user: User, stats: Stats, body: String)
+	case class Comment(date: Date, user: User, stats: Stats, body: String)
 	case class User(id: String, name: String)
-	case class Stats(upvoteCount: String, downvoteCount: String)
+	case class Stats(upvoteCount: Int, downvoteCount: Int)
 
 	// Parser for User
 	implicit val UserParser: Parser[User] = (
@@ -21,13 +24,15 @@ object ExampleComments2 {
 
 	// Parser for Stats
 	implicit val StatsParser: Parser[Stats] = (
-		(* % "upvote-count") &
-		(* % "downvote-count")
+		(* % "upvote-count").map(_.toInt) &
+		(* % "downvote-count").map(_.toInt)
 	).join(Stats)
 
+	// note that SimpleDateFormat isn't thread-safe. You should use Joda time instead
+	val commentDateFormat = new SimpleDateFormat("yyyy-MM-dd")
 	// Parser for Comment
 	implicit val CommentParser: Parser[Comment] = (
-		(* % "date") &
+		(* % "date").map(commentDateFormat.parse) &
 		(* / "user").as[User] &
 		(* / "stats").as[Stats] &
 		(* / "body" % Text)
@@ -35,7 +40,7 @@ object ExampleComments2 {
 
 	def main(args: Array[String]) {
 
-		val mainParser = (Root / "comments" / "comment").foreach[Comment](println)
+		val mainParser = (Root / "comments" / "comment").foreachResult[Comment](println)
 
 		mainParser parse getClass.getResourceAsStream("/example-comments2.xml")
 	}
