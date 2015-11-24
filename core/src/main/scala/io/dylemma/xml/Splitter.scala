@@ -3,8 +3,8 @@ package io.dylemma.xml
 import scala.concurrent.ExecutionContext
 
 import io.dylemma.xml.IterateeHelpers.OpenTag
-import io.dylemma.xml.Result.Empty
-import play.api.libs.iteratee.Enumeratee
+import io.dylemma.xml.Result.{ Error, Empty }
+import play.api.libs.iteratee.{ Iteratee, Enumeratee }
 
 trait Splitter[+In] { self =>
 	def through[Out](innerParser: ParserBase[In, Out]): Transformer[Out]
@@ -42,13 +42,16 @@ trait Splitter[+In] { self =>
 	*/
 trait ContextMatchSplitter[+In] extends Splitter[In] {
 
-	def matchContext(tagStack: List[OpenTag]): Option[In]
+	def matchContext(tagStack: List[OpenTag]): Result[In]
 
 	def through[Out](innerParser: ParserBase[In, Out]): Transformer[Out] = {
 		new Transformer[Out] {
 			def toEnumeratee(implicit ec: ExecutionContext) = IterateeHelpers
 				.subdivideXml(matchContext)
-				.combineWith(in => innerParser.toIteratee(in))
+				.combineWith{
+					case scala.util.Success(in) => innerParser.toIteratee(in)
+					case scala.util.Failure(err) => Iteratee.skipToEof.map(_ => Error(err))
+				}
 				.compose(Enumeratee.map(_ getOrElse Empty))
 		}
 	}

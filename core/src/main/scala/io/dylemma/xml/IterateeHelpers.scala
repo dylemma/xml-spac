@@ -3,7 +3,9 @@ package io.dylemma.xml
 import javax.xml.namespace.QName
 import javax.xml.stream.events.XMLEvent
 import scala.concurrent.ExecutionContext
+import scala.util.Try
 
+import io.dylemma.xml.Result.Success
 import io.dylemma.xml.event.{ EndElement, StartElement }
 import play.api.libs.iteratee.{ Done, Enumeratee, Input, Iteratee }
 
@@ -58,9 +60,7 @@ trait IterateeHelpers {
 		* will represent a stream of values, represented by an Enumeratee.
 		*/
 	trait Subdivided[E, Ctx] {
-		def combineWith[To](makeCombiner: Ctx => Iteratee[E, To]): Enumeratee[E, Option[To]]
-
-		def combineWith[To](combiner: Iteratee[E, To]): Enumeratee[E, Option[To]] = combineWith(_ => combiner)
+		def combineWith[To](makeCombiner: Try[Ctx] => Iteratee[E, To]): Enumeratee[E, Option[To]]
 	}
 
 	/** Creates an Enumeratee that divides the incoming stream into substreams of consecutive events
@@ -81,7 +81,7 @@ trait IterateeHelpers {
 		*/
 	def subdivide[E, State, Ctx](
 		stateAccum: StateAccumulator[State, E],
-		matchContext: State => Option[Ctx])(
+		matchContext: State => Result[Ctx])(
 		implicit ec: ExecutionContext
 	): Subdivided[E, Ctx] = {
 
@@ -89,23 +89,23 @@ trait IterateeHelpers {
 		val withContext = zipWithState(stateAccum) ><> Enumeratee.map{ case (state, e) => matchContext(state) -> e }
 
 		// type alias to clean up some enumeratee definitions
-		type ContextEvent = (Option[Ctx], E)
+		type ContextEvent = (Result[Ctx], E)
 
-		// enumeratee that takes events until the context is gone
-		val takeMatches = Enumeratee.takeWhile[ContextEvent](_._1.isDefined) ><> Enumeratee.map(_._2)
+		// enumeratee that takes events while the context result is not `Empty` (including errors)
+		val takeMatches = Enumeratee.takeWhile[ContextEvent](!_._1.isEmpty) ><> Enumeratee.map(_._2)
 
 		// iteratee that ignores all events until a context is provided
 		val ignoreNonMatches = Enumeratee.takeWhile[ContextEvent](_._1.isEmpty) &>> Iteratee.ignore
 
 		new Subdivided[E, Ctx] {
-			def combineWith[To](makeCombiner: Ctx => Iteratee[E, To]): Enumeratee[E, Option[To]] = {
+			def combineWith[To](makeCombiner: Try[Ctx] => Iteratee[E, To]): Enumeratee[E, Option[To]] = {
 
 				val consumeSubstream = for {
 					_ <- ignoreNonMatches
 					firstMatch <- Enumeratee.take[ContextEvent](1) &>> Iteratee.head
 					results <- firstMatch match {
-						case Some((Some(context), event)) =>
-							val combiner = makeCombiner(context)
+						case Some((contextResult, event)) if !contextResult.isEmpty =>
+							val combiner = makeCombiner(contextResult.toTry)
 							takeMatches ><> prepend(event) &>> combiner.map(Some(_))
 						case _ =>
 							Done[ContextEvent, Option[To]](None)
@@ -139,7 +139,7 @@ trait IterateeHelpers {
 		*/
 	def subdivide[E](filter: E => Boolean)(implicit ec: ExecutionContext): Subdivided[E, E] = {
 		val stateAccum = new IdentityStateAccumulator[E]
-		val matchContext = Some(_: E).filter(filter)
+		val matchContext = Result(_: E).filter(filter)
 		subdivide(stateAccum, matchContext)
 	}
 
@@ -176,7 +176,7 @@ trait IterateeHelpers {
 		* @tparam C
 		* @return
 		*/
-	def subdivideXml[C](matchContext: TagStack => Option[C])(implicit ec: ExecutionContext): Subdivided[XMLEvent, C] = {
+	def subdivideXml[C](matchContext: TagStack => Result[C])(implicit ec: ExecutionContext): Subdivided[XMLEvent, C] = {
 		subdivide(TagStackAccumulator, matchContext)
 	}
 }

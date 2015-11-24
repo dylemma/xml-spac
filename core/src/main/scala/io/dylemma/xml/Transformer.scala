@@ -82,11 +82,7 @@ object Transformer {
 
 	def consumeList[A](implicit ec: ExecutionContext): Iteratee[Result[A], Result[List[A]]] = {
 		Iteratee.getChunks map { chunks =>
-			chunks.foldRight[Result[List[A]]](Success(Nil)){
-				case (Success(value), accum) => accum map { value :: _ }
-				case (Empty, accum) => accum
-				case (e: Error, _) => e
-			}
+			Result.list(chunks)
 		}
 	}
 

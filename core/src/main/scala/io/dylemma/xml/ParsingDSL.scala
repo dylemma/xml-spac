@@ -29,7 +29,7 @@ object ParsingDSL extends ParserCombinerOps with ChainParserOps {
 		* actually consuming any of the tag stack
 		*/
 	object Root extends ListMatcher[Unit] {
-		def apply(inputs: List[OpenTag]) = Some(() -> inputs)
+		def apply(inputs: List[OpenTag]) = Success(() -> inputs)
 	}
 	/** Tag matcher that always matches
 		*/

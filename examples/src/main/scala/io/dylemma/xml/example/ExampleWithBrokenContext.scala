@@ -4,13 +4,13 @@ import io.dylemma.xml.ParserForContext
 import io.dylemma.xml.ParsingDSL._
 import play.api.libs.iteratee.Execution.Implicits.trampoline
 
-/**
- * Created by dylan on 11/6/2015.
- */
-object ExampleWithContext extends App {
+object ExampleWithBrokenContext extends App {
 
+	// note the post id="D" - we are calling `_.toInt` on this context value,
+	// which will throw an exception, which will end up wrapped in Error results
+	// by the parser
 	val rawXml = s"""<blog>
-		| <post id="1">
+		| <post id="D">
 		|  <comment user="bob">Hello there</comment>
 		|  <comment user="alice">Oh, hi</comment>
 		| </post>
@@ -24,13 +24,13 @@ object ExampleWithContext extends App {
 
 	implicit val CommentParser: ParserForContext[Int, Comment] = (
 		inContext[Int] &
-		(* % "user") &
-		(* % Text)
-	).join(Comment)
+			(* % "user") &
+			(* % Text)
+		).join(Comment)
 
 	val contextMatcher = Root / "blog" / ("post" & attr("id")) / "comment" mapContext (_.toInt)
 
-	val handler = contextMatcher.foreach[Comment](println)
+	val handler = contextMatcher.foreachResult[Comment](println)
 
 	handler parse rawXml
 }
