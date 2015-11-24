@@ -1,12 +1,11 @@
 package io.dylemma.xml.example
 
 import javax.xml.stream.events.XMLEvent
-
 import scala.concurrent.Future
 
 import io.dylemma.xml.ParsingDSL._
 import io.dylemma.xml._
-import play.api.libs.iteratee.{ Iteratee, Enumerator }
+import play.api.libs.iteratee.{ Enumerator, Iteratee }
 
 /*
  * The `trampoline` execution context runs everything on the current thread,
@@ -25,7 +24,7 @@ object AnnotatedExample extends App {
 		|  <comment user="carla">Test comment!</comment>
 		|  <comment user="dylan">I'm testing too!</comment>
 		| </post>
-		|</blog>"""
+		|</blog>""".stripMargin
 
 	/** This creates an Enumerator (stream) of XMLEvents from the `rawXml` String.
 		* The `XMLEventEnumerator` constructor uses the `AsInputStream` typeclass to

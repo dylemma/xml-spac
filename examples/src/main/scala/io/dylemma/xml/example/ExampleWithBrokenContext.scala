@@ -18,7 +18,7 @@ object ExampleWithBrokenContext extends App {
 		|  <comment user="carla">Test comment!</comment>
 		|  <comment user="dylan">I'm testing too!</comment>
 		| </post>
-		|</blog>"""
+		|</blog>""".stripMargin
 
 	case class Comment(postId: Int, user: String, text: String)
 
