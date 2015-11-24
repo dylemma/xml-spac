@@ -60,13 +60,11 @@ object XMLEventEnumerator {
 					Future.successful(None)
 				}
 			} onDoneEnumerating {
-				println("Done enumerating; closing the stream")
 				provider.closeResource(resource)
 			}
 
 		} catch {
 			case e: Throwable =>
-				println("Something went wrong; closing the stream")
 				provider.closeResource(resource)
 				throw e
 		}
