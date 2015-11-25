@@ -44,7 +44,7 @@ object ParsingDSL extends ParserCombinerOps with ChainParserOps {
 
 	def inContext[C]: ParserForContext[C, C] = new ParserForContext[C, C] {
 		override def toIteratee(context: C)(implicit ec: ExecutionContext): Iteratee[XMLEvent, Result[C]] = {
-			Done(Success(context))
+			Iteratee.skipToEof.map(_ => Success(context))
 		}
 	}
 
