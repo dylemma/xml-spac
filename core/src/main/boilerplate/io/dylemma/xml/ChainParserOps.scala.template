@@ -5,7 +5,7 @@ import io.dylemma.xml.{Chain => ~}
 /** This mixin adds the `tupled` and `apply` methods to Parsers with
   * chain-like result types.
   */
-trait ChainParserOps {
+trait ChainParserOps extends MapROps {
 
 	[2..22#/** Provides the `tupled` and `apply` methods to any Parser
 	  * whose result type is a chain of 1 elements.

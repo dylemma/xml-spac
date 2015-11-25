@@ -40,7 +40,7 @@ trait Transformer[A] {
 	}
 }
 
-trait TransformerForContext[In, A] {
+trait TransformerForContext[In, A] { self =>
 	def toEnumeratee(in: In)(implicit ec: ExecutionContext): Enumeratee[XMLEvent, Result[A]]
 
 	def parseWith[B](getIteratee: ExecutionContext => Iteratee[Result[A], Result[B]]): ParserForContext[In, B] = {
@@ -68,6 +68,15 @@ trait TransformerForContext[In, A] {
 }
 
 object Transformer {
+
+	implicit object TransformerMapR extends MapR[Transformer] {
+		def mapR[A, B](ma: Transformer[A], f: Result[A] => Result[B]): Transformer[B] = new Transformer[B] {
+			def toEnumeratee(implicit ec: ExecutionContext) = {
+				ma.toEnumeratee ><> Enumeratee.map(f)
+			}
+		}
+	}
+
 	def consumeSingle[A](implicit ec: ExecutionContext): Iteratee[Result[A], Result[A]] = {
 		Iteratee.head map { headOpt => headOpt getOrElse Empty }
 	}
@@ -100,5 +109,15 @@ object Transformer {
 
 	def runSideEffect[A](thunk: Result[A] => Unit)(implicit ec: ExecutionContext): Iteratee[Result[A], Result[Unit]] = {
 		Iteratee.foreach(thunk) map Success.apply
+	}
+}
+
+object TransformerForContext {
+	implicit object TransformerForContextMapper extends MapRC[TransformerForContext] {
+		override def mapR[X, A, B](m: TransformerForContext[X, A], f: (Result[A]) => Result[B]): TransformerForContext[X, B] = new TransformerForContext[X, B] {
+			def toEnumeratee(in: X)(implicit ec: ExecutionContext) = {
+				m.toEnumeratee(in) ><> Enumeratee.map(f)
+			}
+		}
 	}
 }

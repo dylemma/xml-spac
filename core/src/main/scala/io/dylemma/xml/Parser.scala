@@ -25,18 +25,11 @@ trait ParserBase[-In, +Out] { self =>
 	}
 }
 
-trait ParserForContext[-C, +T] extends ParserBase[C, T] with MapRC[C, T, ParserForContext]{ self =>
+trait ParserForContext[-C, +T] extends ParserBase[C, T] { self =>
 
 
 	def inContext(context: C): Parser[T] = new Parser[T] {
 		def toIteratee(implicit ec: ExecutionContext) = self.toIteratee(context)
-	}
-
-	/** Creates a new Parser that transforms each result according to
-		* a transformation function (`f`).
-		*/
-	@inline def mapR[U](f: Result[T] => Result[U]) = new ParserForContext[C, U] {
-		def toIteratee(context: C)(implicit ec: ExecutionContext) = self.toIteratee(context).map(f)
 	}
 
 	/*
@@ -54,7 +47,15 @@ trait ParserForContext[-C, +T] extends ParserBase[C, T] with MapRC[C, T, ParserF
 
 }
 
-trait Parser[+T] extends ParserBase[Any, T] with MapR[T, Parser] { self =>
+object ParserForContext {
+	implicit object ParserForContextMapper extends MapRC[ParserForContext] {
+		def mapR[X, A, B](m: ParserForContext[X, A], f: (Result[A]) => Result[B]): ParserForContext[X, B] = new ParserForContext[X, B] {
+			def toIteratee(context: X)(implicit ec: ExecutionContext) = m.toIteratee(context).map(f)
+		}
+	}
+}
+
+trait Parser[+T] extends ParserBase[Any, T] { self =>
 	def toIteratee(implicit ec: ExecutionContext): Iteratee[XMLEvent, Result[T]]
 
 	def toIteratee(context: Any)(implicit ec: ExecutionContext) = toIteratee
@@ -66,10 +67,6 @@ trait Parser[+T] extends ParserBase[Any, T] with MapR[T, Parser] { self =>
 	def parse(stream: Enumerator[XMLEvent])(implicit ec: ExecutionContext): Future[Result[T]] = {
 		val consumer = toIteratee
 		stream run consumer
-	}
-
-	@inline def mapR[U](f: Result[T] => Result[U]): Parser[U] = new Parser[U] {
-		def toIteratee(implicit ec: ExecutionContext) = self.toIteratee.map(f)
 	}
 
 	def &[U](parser2: Parser[U]): Parser[Chain[T, U]] = new Parser[Chain[T, U]] {
@@ -90,6 +87,12 @@ trait Parser[+T] extends ParserBase[Any, T] with MapR[T, Parser] { self =>
 }
 
 object Parser {
+
+	implicit object ParserMapR extends MapR[Parser] {
+		def mapR[A, B](ma: Parser[A], f: Result[A] => Result[B]): Parser[B] = new Parser[B] {
+			def toIteratee(implicit ec: ExecutionContext) = ma.toIteratee.map(f)
+		}
+	}
 
 	def fromIteratee[A](f: ExecutionContext => Iteratee[XMLEvent, Result[A]]): Parser[A] = {
 		new Parser[A] {

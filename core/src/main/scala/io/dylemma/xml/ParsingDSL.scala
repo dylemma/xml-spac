@@ -12,7 +12,7 @@ import play.api.libs.iteratee.{ Done, Iteratee }
 /**
  * Created by dylan on 10/10/2015.
  */
-object ParsingDSL extends ParserCombinerOps with ChainParserOps {
+object ParsingDSL extends ParserCombinerOps with ChainParserOps with MapROps {
 
 	object Text {
 		object asList

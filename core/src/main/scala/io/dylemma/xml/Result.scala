@@ -30,33 +30,6 @@ sealed trait Result[+T] {
 	def toTry: Try[T]
 }
 
-/** For any class that deals with results, as long as a `mapR` can
-	* be implemented in terms of a result transformation function, this
-	* mixin adds several convenience methods based off of that `mapR`.
-	*
-	* @tparam A The type of results generated in this class
-	* @tparam M A class parameterized on A that generates Result[A] values
-	*/
-trait MapR[+A, M[+A]] {
-	def mapR[B](f: Result[A] => Result[B]): M[B]
-
-	def map[B](f: A => B): M[B] = mapR(_ map f)
-	def flatMap[B](f: A => Result[B]): M[B] = mapR(_ flatMap f)
-	def recover[A1 >: A](f: PartialFunction[Throwable, A1]): M[A1] = mapR(_ recover f)
-	def recoverWith[A1 >: A](f: PartialFunction[Throwable, Result[A1]]): M[A1] = mapR(_ recoverWith f)
-}
-
-/** Like `MapR` but with an added "context" type parameter which is contravariant */
-trait MapRC[-In, +A, M[-In, +A]] {
-	def mapR[B](f: Result[A] => Result[B]): M[In, B]
-
-	def map[B](f: A => B): M[In, B] = mapR(_ map f)
-	def flatMap[B](f: A => Result[B]): M[In, B] = mapR(_ flatMap f)
-	def recover[A1 >: A](f: PartialFunction[Throwable, A1]): M[In, A1] = mapR(_ recover f)
-	def recoverWith[A1 >: A](f: PartialFunction[Throwable, Result[A1]]): M[In, A1] = mapR(_ recoverWith f)
-}
-
-
 object Result {
 	case object Empty extends Result[Nothing] {
 		def map[U](f: Nothing => U): Result[U] = this
