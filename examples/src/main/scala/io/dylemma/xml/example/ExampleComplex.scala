@@ -25,7 +25,7 @@ object ExampleComplex {
 	case class Comment(user: String, body: String)
 	implicit val CommentParser: Parser[Comment] = (
 		(* % "user") &
-		(* % Text)
+		(* % Text).map(_.trim)
 	).join(Comment)
 
 	case class Finding(severity: String, status: String, loc: Location, comments: List[Comment])

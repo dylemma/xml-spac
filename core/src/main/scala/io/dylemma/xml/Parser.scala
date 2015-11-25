@@ -124,7 +124,7 @@ object Parser {
 	}
 
 	val parseText = fromIteratee { implicit ec =>
-		val collectText = Enumeratee.collect[XMLEvent] { case Characters(text) => text.trim }
+		val collectText = Enumeratee.collect[XMLEvent] { case Characters(text) => text}
 		val consumeTextAsSuccess = Iteratee.consume[String]().map[Result[String]](Success(_))
 		collectText &>> consumeTextAsSuccess
 	}
