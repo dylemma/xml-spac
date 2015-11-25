@@ -17,6 +17,7 @@ sealed trait Result[+T] {
 	def foreach[U](f: T => U): Unit
 	def recover[U >: T](f: PartialFunction[Throwable, U]): Result[U]
 	def recoverWith[U >: T](f: PartialFunction[Throwable, Result[U]]): Result[U]
+	def orElse[U >: T](that: Result[U]): Result[U]
 
 	def isEmpty: Boolean
 	def isError: Boolean
@@ -64,6 +65,7 @@ object Result {
 		def foreach[U](f: Nothing => U): Unit = ()
 		def recover[U >: Nothing](f: PartialFunction[Throwable, U]) = this
 		def recoverWith[U >: Nothing](f: PartialFunction[Throwable, Result[U]]) = this
+		def orElse[U >: Nothing](that: Result[U]) = that
 		def isEmpty = true
 		def isError = false
 		def isSuccess = false
@@ -88,6 +90,7 @@ object Result {
 				else this
 			}
 		}
+		def orElse[U >: Nothing](that: Result[U]) = that
 		def isEmpty = false
 		def isError = true
 		def isSuccess = false
@@ -103,7 +106,7 @@ object Result {
 		def foreach[U](f: T => U): Unit = f(result)
 		def recover[U >: T](f: PartialFunction[Throwable, U]) = this
 		def recoverWith[U >: T](f: PartialFunction[Throwable, Result[U]]) = this
-
+		def orElse[U >: T](that: Result[U]) = this
 		def isEmpty = false
 		def isError = false
 		def isSuccess = true

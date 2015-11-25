@@ -6,11 +6,6 @@ import io.dylemma.xml.Result._
 trait Matcher[+A] extends MapR[A, Matcher] with ContextMatchSplitter[A] { self =>
 	def apply(input: OpenTag): Result[A]
 
-	def &[B, AB](that: Matcher[B])(implicit rc: ContextCombiner[A, B, AB]): Matcher[AB] = Matcher.combine(this, that)
-	def /[B, AB](that: Matcher[B])(implicit rc: ContextCombiner[A, B, AB]): ListMatcher[AB] = {
-		ListMatcher.inductive(ListMatcher.single(this), ListMatcher.single(that))
-	}
-
 	def matchContext(context: List[OpenTag]): Result[A] = context match {
 		case Nil => Empty
 		case head :: tail => apply(head)
@@ -19,6 +14,12 @@ trait Matcher[+A] extends MapR[A, Matcher] with ContextMatchSplitter[A] { self =
 	def mapR[B](f: Result[A] => Result[B]): Matcher[B] = new Matcher[B] {
 		def apply(input: OpenTag) = f(self.apply(input))
 	}
+
+	def &[B, AB](that: Matcher[B])(implicit rc: ContextCombiner[A, B, AB]): Matcher[AB] = Matcher.combine(this, that)
+	def /[B, AB](that: Matcher[B])(implicit rc: ContextCombiner[A, B, AB]): ListMatcher[AB] = {
+		ListMatcher.inductive(ListMatcher.single(this), ListMatcher.single(that))
+	}
+	def |[A1 >: A](that: Matcher[A1]): Matcher[A1] = Matcher.or(this, that)
 
 	/** Creates a tag matcher that, as long as this matcher gets a successful match,
 		* will throw out the successful result and replace it with the name of the
@@ -78,6 +79,9 @@ object Matcher {
 		new Matcher[AB] {
 			def apply(input: OpenTag) = for(a <- left(input); b <- right(input)) yield rc.combine(a, b)
 		}
+	}
+	def or[A](left: Matcher[A], right: Matcher[A]): Matcher[A] = new Matcher[A] {
+		def apply(elem: OpenTag) = left(elem) orElse right(elem)
 	}
 }
 
