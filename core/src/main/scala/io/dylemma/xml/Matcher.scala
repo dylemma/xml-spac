@@ -19,6 +19,33 @@ trait Matcher[+A] extends MapR[A, Matcher] with ContextMatchSplitter[A] { self =
 	def mapR[B](f: Result[A] => Result[B]): Matcher[B] = new Matcher[B] {
 		def apply(input: OpenTag) = f(self.apply(input))
 	}
+
+	/** Creates a tag matcher that, as long as this matcher gets a successful match,
+		* will throw out the successful result and replace it with the name of the
+		* element being matched.
+		*/
+	def extractName: Matcher[String] = new Matcher[String] {
+		def apply(input: OpenTag) = {
+			val innerResult = self(input)
+			// throw out the actual result and return the tag's name
+			innerResult map { _ => input.name.getLocalPart }
+		}
+	}
+
+	/** Creates a tag matcher that will additionally return the name of the matched tag.
+		* Uses `ContextCombiner` rules to determine the returned matcher's type by combining
+		* this matcher's type with `String` (the name of the tag).
+		*
+		* @param rc The result combiner for this matcher's type and String
+		* @tparam AB The output type when combining `A` and `String`
+		*/
+	def andExtractName[AB](implicit rc: ContextCombiner[A, String, AB]): Matcher[AB] = new Matcher[AB] {
+		def apply(input: OpenTag) = {
+			val innerResult = self(input)
+			val nameResult = Result(input.name.getLocalPart)
+			for(a <- innerResult; b <- nameResult) yield rc.combine(a, b)
+		}
+	}
 }
 
 trait ListMatcher[+A] extends MapR[A, ListMatcher] with ContextMatchSplitter[A] { self =>
