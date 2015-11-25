@@ -129,4 +129,42 @@ object Parser {
 		collectText &>> consumeTextAsSuccess
 	}
 
+	def done[T](result: Result[T]) = fromIteratee { implicit ec =>
+		Iteratee.skipToEof.map(_ => result)
+	}
+
+	/** Shortcut for creating a `MultiplexedParser`. Example usage:
+		* {{{
+		* // the resulting parser will use the `fooParser` when used
+		* // in the "foo" context, and `barParser` in the "bar" context
+		* Parser.multiplex[String] {
+		*   case "foo" => fooParser
+		*   case "bar" => barParser
+		* }
+		* }}}
+		* @tparam In The context type being matched
+		* @return An object whose `apply` method takes the actual `mux` function.
+		*         The two are separated since the `In` type cannot be inferred by
+		*         the compiler but the `Out` type can. This way you can avoid
+		*         having to specify both.
+		*/
+	def multiplex[In] = new Multiplexed[In]
+
+	class Multiplexed[In] {
+		def apply[Out](mux: In => ParserBase[In, Out]) = new MultiplexedParser(mux)
+	}
+
+	/** A parser that delegates to an inner parser chosen by the `mux` function. The context
+		* passed to this parser will be used as the input to `mux`, as well as be passed to the
+		* resulting parser as context.
+		*/
+	class MultiplexedParser[-In, +Out](mux: In => ParserBase[In, Out]) extends ParserForContext[In, Out] {
+		def toIteratee(context: In)(implicit ec: ExecutionContext) = {
+			try {
+				mux(context).toIteratee(context)
+			} catch {
+				case NonFatal(err) => Iteratee.skipToEof.map(_ => Error(err))
+			}
+		}
+	}
 }
