@@ -18,7 +18,8 @@ sealed trait Result[+T] {
 	def recover[U >: T](f: PartialFunction[Throwable, U]): Result[U]
 	def recoverWith[U >: T](f: PartialFunction[Throwable, Result[U]]): Result[U]
 	def orElse[U >: T](that: Result[U]): Result[U]
-
+	def collect[U](pf: PartialFunction[T, U]): Result[U]
+	def flatten[U](implicit ev: T <:< Result[U]): Result[U] = flatMap(ev)
 	def isEmpty: Boolean
 	def isError: Boolean
 	def isSuccess: Boolean
@@ -39,6 +40,7 @@ object Result {
 		def recover[U >: Nothing](f: PartialFunction[Throwable, U]) = this
 		def recoverWith[U >: Nothing](f: PartialFunction[Throwable, Result[U]]) = this
 		def orElse[U >: Nothing](that: Result[U]) = that
+		def collect[U](pf: PartialFunction[Nothing, U]) = this
 		def isEmpty = true
 		def isError = false
 		def isSuccess = false
@@ -64,6 +66,7 @@ object Result {
 			}
 		}
 		def orElse[U >: Nothing](that: Result[U]) = that
+		def collect[U](pf: PartialFunction[Nothing, U]) = this
 		def isEmpty = false
 		def isError = true
 		def isSuccess = false
@@ -80,6 +83,10 @@ object Result {
 		def recover[U >: T](f: PartialFunction[Throwable, U]) = this
 		def recoverWith[U >: T](f: PartialFunction[Throwable, Result[U]]) = this
 		def orElse[U >: T](that: Result[U]) = this
+		def collect[U](pf: PartialFunction[T, U]) = tryDo {
+			if(pf isDefinedAt result) Success(pf(result))
+			else Empty
+		}
 		def isEmpty = false
 		def isError = false
 		def isSuccess = true
