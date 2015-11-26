@@ -7,7 +7,7 @@ import scala.concurrent.ExecutionContext
 import io.dylemma.xml.Result._
 import play.api.libs.iteratee.{ Enumeratee, Iteratee }
 
-trait Transformer[A] {
+trait Transformer[A] { self =>
 	def toEnumeratee(implicit ec: ExecutionContext): Enumeratee[XMLEvent, Result[A]]
 
 	def parseWith[B](getIteratee: ExecutionContext => Iteratee[Result[A], Result[B]]): Parser[B] = {
@@ -15,6 +15,15 @@ trait Transformer[A] {
 			def toIteratee(implicit ec: ExecutionContext) = toEnumeratee transform getIteratee(ec)
 		}
 	}
+
+	def transformWith[B](enumeratee: Enumeratee[Result[A], Result[B]]): Transformer[B] = transformWith(_ => enumeratee)
+
+	def transformWith[B](getEnumeratee: ExecutionContext => Enumeratee[Result[A], Result[B]]): Transformer[B] = new Transformer[B] {
+		def toEnumeratee(implicit ec: ExecutionContext) = {
+			self.toEnumeratee ><> getEnumeratee(ec)
+		}
+	}
+
 	@inline def parseSingle: Parser[A] = {
 		parseWith { implicit ec => Transformer.consumeSingle[A] }
 	}
