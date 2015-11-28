@@ -4,7 +4,6 @@ import javax.xml.stream.events.XMLEvent
 import scala.collection.generic.CanBuildFrom
 import scala.concurrent.ExecutionContext
 
-import io.dylemma.xml.Result._
 import play.api.libs.iteratee.{ Enumeratee, Iteratee }
 
 trait TransformerCommon[A] {
@@ -17,17 +16,17 @@ trait TransformerCommon[A] {
 	@inline def parseWith[B](iteratee: Iteratee[Result[A], Result[B]]): P[B] = parseWith(_ => iteratee)
 	@inline def transformWith[B](enumeratee: Enumeratee[Result[A], Result[B]]): T[B] = transformWith(_ => enumeratee)
 
-	@inline def parseSingle: P[A] = parseWith { implicit ec => Transformer.consumeSingle[A] }
-	@inline def parseOptional: P[Option[A]] = parseWith { implicit ec => Transformer.consumeOptional[A] }
-	@inline def parseList: P[List[A]] = parseWith { implicit ec => Transformer.consumeList[A] }
+	@inline def parseSingle: P[A] = parseWith { implicit ec => IterateeHelpers.consumeSingle[A] }
+	@inline def parseOptional: P[Option[A]] = parseWith { implicit ec => IterateeHelpers.consumeOptional[A] }
+	@inline def parseList: P[List[A]] = parseWith { implicit ec => IterateeHelpers.consumeList[A] }
 	@inline def parseConcat[B, That]()(implicit t: A => TraversableOnce[B], bf: CanBuildFrom[A, B, That]): P[That] = {
-		parseWith { implicit ec => Transformer.consumeConcat }
+		parseWith { implicit ec => IterateeHelpers.consumeConcat }
 	}
 	@inline def foreach(thunk: A => Unit): P[Unit] = {
-		parseWith { implicit ec => Transformer.runSideEffect(_ foreach thunk) }
+		parseWith { implicit ec => IterateeHelpers.runSideEffect(_ foreach thunk) }
 	}
 	@inline def foreachResult(thunk: Result[A] => Unit): P[Unit] = {
-		parseWith { implicit ec => Transformer.runSideEffect(thunk) }
+		parseWith { implicit ec => IterateeHelpers.runSideEffect(thunk) }
 	}
 
 	@inline def takeThroughNthError(n: Int): T[A] = transformWith { implicit ec => IterateeHelpers.takeThroughNthError(n) }
@@ -59,6 +58,16 @@ trait Transformer[A] extends TransformerCommon[A] { self =>
 
 }
 
+object Transformer {
+	implicit object TransformerMapR extends MapR[Transformer] {
+		def mapR[A, B](ma: Transformer[A], f: Result[A] => Result[B]): Transformer[B] = new Transformer[B] {
+			def toEnumeratee(implicit ec: ExecutionContext) = {
+				ma.toEnumeratee ><> Enumeratee.map(f)
+			}
+		}
+	}
+}
+
 trait TransformerForContext[In, A] extends TransformerCommon[A] { self =>
 	def toEnumeratee(in: In)(implicit ec: ExecutionContext): Enumeratee[XMLEvent, Result[A]]
 
@@ -79,51 +88,6 @@ trait TransformerForContext[In, A] extends TransformerCommon[A] { self =>
 		}
 	}
 
-}
-
-object Transformer {
-
-	implicit object TransformerMapR extends MapR[Transformer] {
-		def mapR[A, B](ma: Transformer[A], f: Result[A] => Result[B]): Transformer[B] = new Transformer[B] {
-			def toEnumeratee(implicit ec: ExecutionContext) = {
-				ma.toEnumeratee ><> Enumeratee.map(f)
-			}
-		}
-	}
-
-	def consumeSingle[A](implicit ec: ExecutionContext): Iteratee[Result[A], Result[A]] = {
-		Iteratee.head map { headOpt => headOpt getOrElse Empty }
-	}
-
-	def consumeOptional[A](implicit ec: ExecutionContext): Iteratee[Result[A], Result[Option[A]]] = {
-		Iteratee.head map {
-			case None => Success(None)
-			case Some(Empty) => Success(None)
-			case Some(headResult) => headResult.map(Some(_))
-		}
-	}
-
-	def consumeList[A](implicit ec: ExecutionContext): Iteratee[Result[A], Result[List[A]]] = {
-		Iteratee.getChunks map { chunks =>
-			Result.list(chunks)
-		}
-	}
-
-	def consumeConcat[A, B, That](
-		implicit ec: ExecutionContext, t: A => TraversableOnce[B], bf: CanBuildFrom[A, B, That]
-	): Iteratee[Result[A], Result[That]] = {
-		consumeList[A] map { listResult =>
-			listResult map { list =>
-				val builder = bf()
-				list foreach (builder ++= _)
-				builder.result()
-			}
-		}
-	}
-
-	def runSideEffect[A](thunk: Result[A] => Unit)(implicit ec: ExecutionContext): Iteratee[Result[A], Result[Unit]] = {
-		Iteratee.foreach(thunk) map Success.apply
-	}
 }
 
 object TransformerForContext {

@@ -2,6 +2,7 @@ package io.dylemma.xml
 
 import javax.xml.namespace.QName
 import javax.xml.stream.events.XMLEvent
+import scala.collection.generic.CanBuildFrom
 import scala.concurrent.ExecutionContext
 import scala.util.Try
 
@@ -297,5 +298,39 @@ trait IterateeHelpers {
 			}
 		}
 		collectSuccesses ><> wrapEOF ><> scanner ><> Enumeratee.map(_._2)
+	}
+
+	def consumeSingle[A](implicit ec: ExecutionContext): Iteratee[Result[A], Result[A]] = {
+		Iteratee.head map { headOpt => headOpt getOrElse Empty }
+	}
+
+	def consumeOptional[A](implicit ec: ExecutionContext): Iteratee[Result[A], Result[Option[A]]] = {
+		Iteratee.head map {
+			case None => Success(None)
+			case Some(Empty) => Success(None)
+			case Some(headResult) => headResult.map(Some(_))
+		}
+	}
+
+	def consumeList[A](implicit ec: ExecutionContext): Iteratee[Result[A], Result[List[A]]] = {
+		Iteratee.getChunks map { chunks =>
+			Result.list(chunks)
+		}
+	}
+
+	def consumeConcat[A, B, That](
+		implicit ec: ExecutionContext, t: A => TraversableOnce[B], bf: CanBuildFrom[A, B, That]
+	): Iteratee[Result[A], Result[That]] = {
+		consumeList[A] map { listResult =>
+			listResult map { list =>
+				val builder = bf()
+				list foreach (builder ++= _)
+				builder.result()
+			}
+		}
+	}
+
+	def runSideEffect[A](thunk: Result[A] => Unit)(implicit ec: ExecutionContext): Iteratee[Result[A], Result[Unit]] = {
+		Iteratee.foreach(thunk) map Success.apply
 	}
 }
