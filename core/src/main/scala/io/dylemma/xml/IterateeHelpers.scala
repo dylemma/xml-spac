@@ -300,12 +300,19 @@ trait IterateeHelpers {
 		collectSuccesses ><> wrapEOF ><> scanner ><> Enumeratee.map(_._2)
 	}
 
+	def collectNonEmpty[A](implicit ec: ExecutionContext): Enumeratee[Result[A], Result[A]] = {
+		Enumeratee.collect {
+			case r @ Success(_) => r
+			case r: Error => r
+		}
+	}
+
 	def consumeSingle[A](implicit ec: ExecutionContext): Iteratee[Result[A], Result[A]] = {
-		Iteratee.head map { headOpt => headOpt getOrElse Empty }
+		collectNonEmpty[A] &>> Iteratee.head map { headOpt => headOpt getOrElse Empty }
 	}
 
 	def consumeOptional[A](implicit ec: ExecutionContext): Iteratee[Result[A], Result[Option[A]]] = {
-		Iteratee.head map {
+		collectNonEmpty[A] &>> Iteratee.head map {
 			case None => Success(None)
 			case Some(Empty) => Success(None)
 			case Some(headResult) => headResult.map(Some(_))
