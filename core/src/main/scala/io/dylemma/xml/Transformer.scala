@@ -3,6 +3,7 @@ package io.dylemma.xml
 import javax.xml.stream.events.XMLEvent
 import scala.collection.generic.CanBuildFrom
 import scala.concurrent.ExecutionContext
+import scala.language.higherKinds
 
 import play.api.libs.iteratee.{ Enumeratee, Iteratee }
 
