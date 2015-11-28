@@ -7,8 +7,43 @@ import scala.concurrent.ExecutionContext
 import io.dylemma.xml.Result._
 import play.api.libs.iteratee.{ Enumeratee, Iteratee }
 
-trait Transformer[A] { self =>
+trait TransformerCommon[A] {
+	type T[B]
+	type P[B]
+
+	def parseWith[B](getIteratee: ExecutionContext => Iteratee[Result[A], Result[B]]): P[B]
+	def transformWith[B](getEnumeratee: ExecutionContext => Enumeratee[Result[A], Result[B]]): T[B]
+
+	@inline def parseWith[B](iteratee: Iteratee[Result[A], Result[B]]): P[B] = parseWith(_ => iteratee)
+	@inline def transformWith[B](enumeratee: Enumeratee[Result[A], Result[B]]): T[B] = transformWith(_ => enumeratee)
+
+	@inline def parseSingle: P[A] = parseWith { implicit ec => Transformer.consumeSingle[A] }
+	@inline def parseOptional: P[Option[A]] = parseWith { implicit ec => Transformer.consumeOptional[A] }
+	@inline def parseList: P[List[A]] = parseWith { implicit ec => Transformer.consumeList[A] }
+	@inline def parseConcat[B, That]()(implicit t: A => TraversableOnce[B], bf: CanBuildFrom[A, B, That]): P[That] = {
+		parseWith { implicit ec => Transformer.consumeConcat }
+	}
+	@inline def foreach(thunk: A => Unit): P[Unit] = {
+		parseWith { implicit ec => Transformer.runSideEffect(_ foreach thunk) }
+	}
+	@inline def foreachResult(thunk: Result[A] => Unit): P[Unit] = {
+		parseWith { implicit ec => Transformer.runSideEffect(thunk) }
+	}
+
+	@inline def takeThroughNthError(n: Int): T[A] = transformWith { implicit ec => IterateeHelpers.takeThroughNthError(n) }
+	@inline def takeThroughFirstError: T[A] = takeThroughNthError(1)
+	@inline def takeUntilNthError(n: Int): T[A] = transformWith { implicit ec => IterateeHelpers.takeUntilNthError(n) }
+	@inline def takeUntilFirstError: T[A] = takeUntilNthError(1)
+
+	@inline def scanResultsWith[B](s: StreamScan[A, B]) = transformWith { implicit ec => IterateeHelpers.scanResultsWith(s) }
+	@inline def scanWith[B](s: StreamScan[A, B]) = transformWith { implicit ec => IterateeHelpers.scanWith(s) }
+}
+
+trait Transformer[A] extends TransformerCommon[A] { self =>
 	def toEnumeratee(implicit ec: ExecutionContext): Enumeratee[XMLEvent, Result[A]]
+
+	type T[B] = Transformer[B]
+	type P[B] = Parser[B]
 
 	def parseWith[B](getIteratee: ExecutionContext => Iteratee[Result[A], Result[B]]): Parser[B] = {
 		new Parser[B] {
@@ -16,41 +51,19 @@ trait Transformer[A] { self =>
 		}
 	}
 
-	def transformWith[B](enumeratee: Enumeratee[Result[A], Result[B]]): Transformer[B] = transformWith(_ => enumeratee)
-
 	def transformWith[B](getEnumeratee: ExecutionContext => Enumeratee[Result[A], Result[B]]): Transformer[B] = new Transformer[B] {
 		def toEnumeratee(implicit ec: ExecutionContext) = {
 			self.toEnumeratee ><> getEnumeratee(ec)
 		}
 	}
 
-	@inline def parseSingle: Parser[A] = {
-		parseWith { implicit ec => Transformer.consumeSingle[A] }
-	}
-
-	@inline def parseOptional: Parser[Option[A]] = {
-		parseWith { implicit ec => Transformer.consumeOptional[A] }
-	}
-
-	@inline def parseList: Parser[List[A]] = {
-		parseWith { implicit ec => Transformer.consumeList[A] }
-	}
-
-	@inline def parseConcat[B, That]()(implicit t: A => TraversableOnce[B], bf: CanBuildFrom[A, B, That]): Parser[That] = {
-		parseWith { implicit ec => Transformer.consumeConcat }
-	}
-
-	@inline def foreach(thunk: A => Unit) = {
-		parseWith { implicit ec => Transformer.runSideEffect(_ foreach thunk) }
-	}
-
-	@inline def foreachResult(thunk: Result[A] => Unit) = {
-		parseWith { implicit ec => Transformer.runSideEffect(thunk) }
-	}
 }
 
-trait TransformerForContext[In, A] { self =>
+trait TransformerForContext[In, A] extends TransformerCommon[A] { self =>
 	def toEnumeratee(in: In)(implicit ec: ExecutionContext): Enumeratee[XMLEvent, Result[A]]
+
+	type T[B] = TransformerForContext[In, B]
+	type P[B] = ParserForContext[In, B]
 
 	def parseWith[B](getIteratee: ExecutionContext => Iteratee[Result[A], Result[B]]): ParserForContext[In, B] = {
 		new ParserForContext[In, B] {
@@ -58,20 +71,12 @@ trait TransformerForContext[In, A] { self =>
 		}
 	}
 
-	def parseSingle: ParserForContext[In, A] = {
-		parseWith { implicit ec => Transformer.consumeSingle[A] }
-	}
-
-	def parseOptional: ParserForContext[In, Option[A]] = {
-		parseWith { implicit ec => Transformer.consumeOptional[A] }
-	}
-
-	def parseList: ParserForContext[In, List[A]] = {
-		parseWith { implicit ec => Transformer.consumeList[A] }
-	}
-
-	def parseConcat[B, That]()(implicit t: A => TraversableOnce[B], bf: CanBuildFrom[A, B, That]): ParserForContext[In, That] = {
-		parseWith { implicit ec => Transformer.consumeConcat }
+	def transformWith[B](getEnumeratee: ExecutionContext => Enumeratee[Result[A], Result[B]]): TransformerForContext[In, B] = {
+		new TransformerForContext[In, B] {
+			def toEnumeratee(in: In)(implicit ec: ExecutionContext): Enumeratee[XMLEvent, Result[B]] = {
+				self.toEnumeratee(in) ><> getEnumeratee(ec)
+			}
+		}
 	}
 
 }

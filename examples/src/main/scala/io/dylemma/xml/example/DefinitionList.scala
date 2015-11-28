@@ -1,16 +1,10 @@
 package io.dylemma.xml.example
 
-import scala.concurrent.Future
-
 import io.dylemma.xml.Parser.MultiplexedParser
-import io.dylemma.xml.Result.Error
+import io.dylemma.xml.ParsingDSL._
 import io.dylemma.xml.Result._
 import io.dylemma.xml._
-import ParsingDSL._
-import play.api.libs.iteratee.Enumeratee.CheckDone
-import play.api.libs.iteratee.{Iteratee, Enumeratee, Enumerator}
 import play.api.libs.iteratee.Execution.Implicits.trampoline
-import play.api.libs.iteratee.Input
 
 /**
  * Created by dylan on 11/24/2015.
@@ -47,17 +41,16 @@ object DefinitionList extends App {
 
 	val firstPart = Root / "multimap" / ("key" | "value").extractName through keyOrValueParser
 
-	import IterateeHelpers.{ scanResultsWith, takeThroughFirstError}
-
 	/* This folder takes a stream of keys and values, grouping them up into Entries.
 	 * Internal state is an Option[Key] + List[Value].
 	 */
-	object EntryFolder extends StreamScan[(Option[String], List[Int]), Either[String, Int], Entry] {
+	object EntryFolder extends StreamScan[Either[String, Int], Entry] {
+		type State = (Option[String], List[Int])
 		def init = None -> Nil
-		def finish(state: (Option[String], List[Int])) = {
+		def finish(state: State) = {
 			Result.fromOption(state._1).map(Entry(_, state._2))
 		}
-		def fold(state: (Option[String], List[Int]), input: Either[String, Int]) = input match {
+		def fold(state: State, input: Either[String, Int]) = input match {
 			case Left(key) =>
 				state match {
 					// emit the current state and start a new entry
@@ -75,20 +68,11 @@ object DefinitionList extends App {
 		}
 	}
 
-
-	// create an Enumeratee from the EntryFolder,
-	// then make sure it stops passing through values after the first error
-	val entryTransformer = scanResultsWith(EntryFolder) ><> takeThroughFirstError
-
-	// TODO: Transformer.scanR(StreamScanner)
-	// TODO: Transformer.scan(StreamScanner)
-	// TODO: Transformer.takeUntil(Nth)Error
-	// TODO: Transformer.takeThrough(Nth)Error
+	val keysOrValues = * / "entrylist" / ("key" | "value").extractName through keyOrValueParser
+	val entryTransformer = keysOrValues.scanResultsWith(EntryFolder).takeThroughFirstError
 
 	val cleanerParser = (
-		(* / "entrylist" / ("key" | "value").extractName).through(keyOrValueParser).transformWith(entryTransformer).mapR{
-			entry => println(s" -- entryParser entry: $entry"); entry
-		}.parseList &
+		entryTransformer.mapR{ entry => println(s" -- entryParser entry: $entry"); entry }.parseList &
 		(* / "anotherThing" % Text).map{s => println(s" -- anotherThing: $s"); s }
 	).tupled
 

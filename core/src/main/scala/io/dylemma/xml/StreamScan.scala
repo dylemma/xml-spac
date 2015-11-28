@@ -7,12 +7,16 @@ package io.dylemma.xml
 	* input and returns results, and a `finish` function that generates a
 	* final result from a leftover state when an EOF is encountered.
 	*
-	* @tparam State The internal "state" of the scan. `State` values
-	*               should generally be immutable.
 	* @tparam A The input type
 	* @tparam B The output type
 	*/
-trait StreamScan[State, A, B] {
+trait StreamScan[A, B] {
+
+	/** Represents the state of the stream at any given point.
+		* It is recommended that the State should be immutable.
+		*/
+	type State
+
 	/** Create an "empty" state */
 	def init: State
 
