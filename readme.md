@@ -1,6 +1,8 @@
 xml-stream
 ==========
 
+![Build Status](https://travis-ci.org/dylemma/xml-stream.svg?branch=master)
+
 This library lets you create declarative, composable parsers that work on streaming XML,
 without all of the boilerplate that comes with SAX or StAX.
 
@@ -73,7 +75,7 @@ inside each individual `<foo>`, then use a Parser on each substream to create a 
 will have transformed the XML stream into a `Bar` stream.
 
 When you have a stream of Results (e.g. `Bar`), you could run some side-effect on each element as it comes through,
-collect them all to a list, or do something else entirely! 
+collect them all to a list, or do something else entirely!
 
 # Examples in Code
 
@@ -141,7 +143,7 @@ implicit val AuthorParser: Parser[Author] = (
 What happened here is that we actually defined two parsers, then joined them together.
 `* % "id"` is a parser that takes the "id" attribute from the first `StartElement` event it encounters. The `*` is
 actually a `Splitter` that will match any single element. `* % "name"` is a parser that takes the "name" attribute.
-Since this is a combination of two parsers, we call `join` to combine their results. In this case, `join` takes a 
+Since this is a combination of two parsers, we call `join` to combine their results. In this case, `join` takes a
 `(String, String) => Something` resulting in a `Parser[Something]`. We use `Author`, shorthand for `Author.apply`.
 We mark the `AuthorParser` as implicit so that it can be used with some of the parser convenience methods later on.
 
@@ -239,7 +241,7 @@ The `Result` type is a sort of cross between `Option` and `Try`. Possible values
 and `Empty`. Exceptions thrown by parsers are caught, turning their results into `Error`s. For example if the
 `StatsParser` encountered a `"asdf"` as the value for the "likes" attribute, the `_.toInt` would throw an exception,
 which would be caught, causing the result for that element to be an `Error(NumberFormatException)`.
- 
+
 # Low Level Details
 
 Under the hood, `Parser`s are [Iteratees](https://www.playframework.com/documentation/2.4.x/Iteratees),
