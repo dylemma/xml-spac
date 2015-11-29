@@ -13,6 +13,7 @@ object XmlStreamBuild extends Build {
 	lazy val core = (project in file("core"))
 		.settings(commonSettings: _*)
 		.settings(libraryDependencies += "com.typesafe.play" %% "play-iteratees" % "2.4.3")
+		.settings(libraryDependencies += "org.scalatest" %% "scalatest" % "2.2.4" % "test")
 		.settings(Boilerplate.settings: _*)
 
 	lazy val examples = (project in file("examples"))
