@@ -143,35 +143,3 @@ object ChainSyntax {
 		new InductiveChainPrepend[P, C, PC, T]
 	}
 }
-
-object ChainSyntaxTesting extends App {
-	import ChainSyntax._
-
-	val simpleConcatter = implicitly[ChainConcat[Int ~ String, Char ~ Double, Int ~ String ~ Char ~ Double]]
-	println(s"simple concat with: $simpleConcatter")
-
-	val longerConcatter = implicitly[ChainConcat[Int ~ String, Char ~ Double ~ Boolean ~ Int,
-		Int ~ String ~ Char ~ Double ~ Boolean ~ Int]]
-	println(s"longer concat with: $longerConcatter")
-
-	val a = 1 ~ "hello" ~ true ~ List(1,2,3) ~ Option(3) ~ Map(1->'c', 2->'d')
-	val b = 5.234 ~ false
-	println("\na ++ b\n======")
-	val ab = a concat b
-	println(s"result: $ab")
-
-	println("\nb ++ a\n======")
-	val ba = b concat a
-	println(s"result: $ba")
-
-	ab match {
-		case i ~ s ~ b ~ list ~ opt ~ map ~ d ~ t =>
-	}
-
-	val covariantChain: Option[Int] ~ Option[String] = None ~ None
-
-	val pa = 7.3 ~: a
-	val pb = 7.3 ~: b
-	println(pa)
-	println(pb)
-}
