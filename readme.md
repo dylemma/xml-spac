@@ -1,7 +1,7 @@
 xml-stream
 ==========
 
-![Build Status](https://travis-ci.org/dylemma/xml-stream.svg?branch=master)
+[![Build Status](https://travis-ci.org/dylemma/xml-stream.svg?branch=master)](https://travis-ci.org/dylemma/xml-stream)
 
 This library lets you create declarative, composable parsers that work on streaming XML,
 without all of the boilerplate that comes with SAX or StAX.
