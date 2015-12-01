@@ -9,21 +9,27 @@ object XmlStreamBuild extends Build {
 	lazy val commonSettings = Seq(
 		version := "0.1-SNAPSHOT",
 		crossScalaVersions := Seq("2.10.5", "2.11.6"),
-		scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
+		scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
+		organization := "io.dylemma"
 	)
 
-	lazy val core = (project in file("core"))
+	lazy val core = (project in file("core")) //Project("xml-stream", file("core"))
+		.settings(name := "xml-stream")
 		.settings(commonSettings: _*)
 		.settings(libraryDependencies += "com.typesafe.play" %% "play-iteratees" % "2.4.3")
 		.settings(libraryDependencies += "org.scalatest" %% "scalatest" % "2.2.4" % "test")
 		.settings(Boilerplate.settings: _*)
 		.settings(apiDocSettings: _*)
+		.settings(publishingSettings: _*)
 
 	lazy val examples = (project in file("examples"))
 		.settings(commonSettings: _*)
+		.settings(publish := {})
 		.dependsOn(core)
 
-	lazy val root = (project in file(".")).aggregate(core, examples)
+	lazy val root = (project in file("."))
+		.settings(publish := {})
+		.aggregate(core, examples)
 
 	lazy val snapshotBranch = {
 		try {
@@ -49,5 +55,39 @@ object XmlStreamBuild extends Build {
 				"-doc-source-url", sourceUrl
 			)
 		}
+	)
+
+	lazy val publishingSettings = Seq(
+		publishMavenStyle := true,
+		publishTo := {
+			val nexus = "https://oss.sonatype.org/"
+			if(isSnapshot.value)
+				Some("snapshots" at nexus + "content/repositories/snapshots")
+			else
+				Some("releases" at nexus + "service/local/staging/deploy/maven2")
+		},
+		publishArtifact in Test := false,
+		pomIncludeRepository := { _ => false },
+		pomExtra := (
+			<url>https://github.com/dylemma/xml-stream</url>
+			<licenses>
+				<license>
+					<name>MIT</name>
+					<url>http://opensource.org/licenses/MIT</url>
+					<distribution>repo</distribution>
+				</license>
+			</licenses>
+			<scm>
+				<url>git@github.com:dylemma/xml-stream.git</url>
+				<connection>scm:git:git@github.com:dylemma/xml-stream.git</connection>
+			</scm>
+			<developers>
+				<developer>
+					<id>dylemma</id>
+					<name>Dylan Halperin</name>
+					<url>http://dylemma.io/</url>
+				</developer>
+			</developers>
+		)
 	)
 }
