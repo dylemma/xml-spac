@@ -7,7 +7,7 @@ import spray.boilerplate.BoilerplatePlugin.Boilerplate
 object XmlStreamBuild extends Build {
 
 	lazy val commonSettings = Seq(
-		version := "0.1-SNAPSHOT",
+		version := "0.1",
 		crossScalaVersions := Seq("2.10.5", "2.11.6"),
 		scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
 		organization := "io.dylemma"
