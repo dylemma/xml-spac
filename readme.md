@@ -6,6 +6,16 @@ xml-stream
 This library lets you create declarative, composable parsers that work on streaming XML,
 without all of the boilerplate that comes with SAX or StAX.
 
+# Get it!
+
+Add the following to your `build.sbt` file:
+
+```sbt
+libraryDependencies += "io.dylemma" %% "xml-stream" % "0.1"
+```
+
+# Use it!
+
 There's a full-fledged example [further down](#writing-a-parser-by-example) in this readme, but here's a taste of how you'd write a parser for a
 relatively-complex blog post XML structure:
 
