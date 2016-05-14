@@ -3,9 +3,12 @@ package xsp
 import javax.xml.stream.events.{StartElement, XMLEvent}
 
 import xsp.ExampleConsumers._
-import xsp.handlers.{ContextMatcher, XMLStackHandler}
+import xsp.handlers.{ContextMatcher, XMLContextSplitter, XMLContextSplitterHandler}
 
 object Main1 extends App {
+	// uncomment the following line to do a bunch of println's in the handler:
+	// debug.enabled.set(true)
+
 	val rawXML =
 		s"""<body>
 			 |  <h1>Hello</h1>
@@ -24,15 +27,12 @@ object Main1 extends App {
 			else Result.Empty
 		}
 	}
-	val exampleParser = Parser.fromConsumer(ToList())
-	object ExampleConsumer extends Consumer[XMLEvent, Unit] {
-		def makeHandler(): Handler[XMLEvent, Unit] = {
-			new XMLStackHandler(DivMatcher, exampleParser)
-		}
-	}
+	val splitter = new XMLContextSplitter(DivMatcher)
+	val innerParser = Parser.fromConsumer(/*Take[XMLEvent](2) >> */ToList[XMLEvent]())
+	val consumer = splitter through innerParser andThen ToList[List[XMLEvent]]
 
 	val xmlEvents = XMLEvents(rawXML)
-	val result = xmlEvents feedTo ExampleConsumer
+	val result = xmlEvents feedTo consumer
 	println(result)
 }
 
