@@ -2,9 +2,6 @@ package xsp.handlers
 
 import xsp.{Handler, Result}
 
-/**
-	* Created by dylan on 5/13/2016.
-	*/
 class ToListHandler[A] extends Handler[A, Result[List[A]]] {
 	private val lb = List.newBuilder[A]
 	private var _finished = false

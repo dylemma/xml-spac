@@ -1,6 +1,5 @@
 package xsp
 
-//import scala.language.higherKinds
 import scala.util.Try
 import scala.util.control.NonFatal
 
