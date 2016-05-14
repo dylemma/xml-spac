@@ -1,11 +1,15 @@
 package xsp
 
+import javax.xml.stream.events.{StartElement, XMLEvent}
+
 import xsp.ExampleConsumers._
+import xsp.handlers.{ContextMatcher, XMLStackHandler}
 
 object Main1 extends App {
 	val rawXML =
 		s"""<body>
 			 |  <h1>Hello</h1>
+			 |  <div>Hi there</div>
 			 |  <p>
 			 |    Here is some text
 			 |  </p>
@@ -13,8 +17,21 @@ object Main1 extends App {
 			 |  <div style="float:right;">Whoa</div>
 			 |</body>
 		 """.stripMargin
+
+	object DivMatcher extends ContextMatcher[Unit] {
+		def matchContext(stack: Array[StartElement], offset: Int, length: Int) = {
+			if(length >= 2 && stack(offset + 1).getName.getLocalPart == "div") Result.Success.unit
+			else Result.Empty
+		}
+	}
+	object ExampleConsumer extends Consumer[XMLEvent, Unit] {
+		def makeHandler(): Handler[XMLEvent, Unit] = {
+			new XMLStackHandler(DivMatcher)
+		}
+	}
+
 	val xmlEvents = XMLEvents(rawXML)
-	val result = xmlEvents feedTo ToList()
+	val result = xmlEvents feedTo ExampleConsumer
 	println(result)
 }
 
