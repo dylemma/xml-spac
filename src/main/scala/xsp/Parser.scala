@@ -42,12 +42,7 @@ trait Splitter[+Context] {
 	def through[Out](parser: Parser[Context, Out]): Transformer[XMLEvent, Out]
 }
 
-trait Handler[-In, +Out] {
-	def handleInput(input: In): Option[Out]
-	def handleError(err: Throwable): Option[Out]
-	def handleEnd(): Out
-	def isFinished: Boolean
-}
+
 
 
 
