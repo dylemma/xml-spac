@@ -4,22 +4,8 @@ import javax.xml.stream.events.{StartElement, XMLEvent}
 
 import xsp._
 
-trait ContextMatcher[Context] {
-	def matchContext(stack: Array[StartElement], offset: Int, length: Int): Result[Context]
-}
-
-class XMLContextSplitter[Context](matcher: ContextMatcher[Context]) extends Splitter[Context] {
-	def through[P](parser: Parser[Context, P]): Transformer[XMLEvent, P] = {
-		new Transformer[XMLEvent, P] {
-			def makeHandler[Out](next: Handler[P, Out]): Handler[XMLEvent, Out] = {
-				new XMLContextSplitterHandler(matcher, parser, next)
-			}
-		}
-	}
-}
-
 class XMLContextSplitterHandler[Context, P, Out](
-	matcher: ContextMatcher[Context],
+	matchContext: (Array[StartElement], Int, Int) => Result[Context],
 	parser: Parser[Context, P],
 	downstream: Handler[P, Out]
 ) extends Handler[XMLEvent, Out]{
@@ -98,7 +84,7 @@ class XMLContextSplitterHandler[Context, P, Out](
 
 			// attempt to match a context if there isn't one already
 			if(currentContext.isEmpty){
-				val newMatch = matcher.matchContext(stackBuffer, 0, stackSize)
+				val newMatch = matchContext(stackBuffer, 0, stackSize)
 				if(!newMatch.isEmpty){
 					currentContext = newMatch
 					matchStartDepth = stackSize

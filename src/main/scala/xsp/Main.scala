@@ -3,7 +3,7 @@ package xsp
 import javax.xml.stream.events.{StartElement, XMLEvent}
 
 import xsp.ExampleConsumers._
-import xsp.handlers.{ContextMatcher, XMLContextSplitter, XMLContextSplitterHandler}
+import xsp.handlers.XMLContextSplitter
 
 object Main1 extends App {
 	// uncomment the following line to do a bunch of println's in the handler:
