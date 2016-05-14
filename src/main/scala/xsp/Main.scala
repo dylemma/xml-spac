@@ -3,7 +3,6 @@ package xsp
 import javax.xml.stream.events.{StartElement, XMLEvent}
 
 import xsp.ExampleConsumers._
-import xsp.handlers.XMLContextSplitter
 
 object Main1 extends App {
 	// uncomment the following line to do a bunch of println's in the handler:
@@ -21,13 +20,12 @@ object Main1 extends App {
 			 |</body>
 		 """.stripMargin
 
-	object DivMatcher extends ContextMatcher[Unit] {
+	val splitter = new XMLContextSplitter[Unit] {
 		def matchContext(stack: Array[StartElement], offset: Int, length: Int) = {
 			if(length >= 2 && stack(offset + 1).getName.getLocalPart == "div") Result.Success.unit
 			else Result.Empty
 		}
 	}
-	val splitter = new XMLContextSplitter(DivMatcher)
 	val innerParser = Parser.fromConsumer(/*Take[XMLEvent](2) >> */ToList[XMLEvent]())
 	val consumer = splitter through innerParser andThen ToList[List[XMLEvent]]
 

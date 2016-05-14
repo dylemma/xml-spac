@@ -5,7 +5,7 @@ import javax.xml.stream.events.{StartElement, XMLEvent}
 import xsp.handlers.XMLContextSplitterHandler
 
 
-trait XMLContextSplitter[Context] extends Splitter[Context] with RMapOps[Context] { self =>
+trait XMLContextSplitter[+Context] extends Splitter[Context] { self =>
 
 	/** Attempt to extract some `Context` from the given xml element stack.
 		*
@@ -38,12 +38,12 @@ trait XMLContextSplitter[Context] extends Splitter[Context] with RMapOps[Context
 			}
 		}
 	}
-	type RMapped[B] = XMLContextSplitter[B]
-	def mapResult[B](f: (Result[Context]) => Result[B]): RMapped[B] = new XMLContextSplitter[B] {
+	def rmapContext[B](f: (Result[Context]) => Result[B]): XMLContextSplitter[B] = new XMLContextSplitter[B] {
 		def matchContext(stack: Array[StartElement], offset: Int, length: Int): Result[B] = {
 			f(self.matchContext(stack, offset, length))
 		}
 	}
+	def mapContext[B](f: Context => B) = rmapContext(_ map f)
 }
 
 /** Specialization of ContextMatcher that allows combination with other matchers, forming a chain
@@ -96,10 +96,10 @@ trait SingleElementContextMatcher[+A] extends ChainingContextMatcher[A] { self =
 	// import alias this trait because of the long class name
 	import xsp.{SingleElementContextMatcher => Match1}
 
-	override type RMapped[B] = Match1[B]
-	override def mapResult[B](f: (Result[A]) => Result[B]): Match1[B] = new Match1[B] {
+	override def rmapContext[B](f: (Result[A]) => Result[B]): Match1[B] = new Match1[B] {
 		protected def matchElement(elem: StartElement) = f(self matchElement elem)
 	}
+	override def mapContext[B](f: A => B) = rmapContext(_ map f)
 
 	def &[B, AB](that: Match1[B])(implicit c: ContextCombiner[A, B, AB]): Match1[AB] = new Match1[AB] {
 		protected def matchElement(elem: StartElement): Result[AB] = {
