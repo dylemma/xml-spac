@@ -2,8 +2,18 @@ package xsp
 
 import javax.xml.stream.events.XMLEvent
 
+import xsp.handlers.AbstractParser
+
 trait Parser[-Context, +Out] {
-	def makeHandler(context: Context): Handler[XMLEvent, Out]
+	def makeHandler(context: Context): Handler[XMLEvent, Result[Out]]
+	def makeHandler(contextError: Throwable): Handler[XMLEvent, Result[Out]]
+}
+object Parser {
+	def fromConsumer[Out](consumer: Consumer[XMLEvent, Result[Out]]): Parser[Any, Out] = {
+		new AbstractParser[Any, Out] {
+			def makeHandler(context: Any) = consumer.makeHandler()
+		}
+	}
 }
 
 trait Consumer[In, Out] {

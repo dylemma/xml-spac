@@ -24,9 +24,10 @@ object Main1 extends App {
 			else Result.Empty
 		}
 	}
+	val exampleParser = Parser.fromConsumer(ToList())
 	object ExampleConsumer extends Consumer[XMLEvent, Unit] {
 		def makeHandler(): Handler[XMLEvent, Unit] = {
-			new XMLStackHandler(DivMatcher)
+			new XMLStackHandler(DivMatcher, exampleParser)
 		}
 	}
 
