@@ -28,6 +28,14 @@ trait ContextMatcherSyntax {
 		*/
 	def elem(name: String) = SingleElementContextMatcher.predicate(_.getName.getLocalPart == name)
 
+	/** Context matcher that extracts the (local) name of the element at the head of the stack.
+		*/
+	val elemName = SingleElementContextMatcher{ e => Some(e.getName.getLocalPart) }
+
+	/** Context matcher that extracts the (qualified) name of the element at the head of the stack.
+		*/
+	val elemQName = SingleElementContextMatcher{ e => Some(e.getName) }
+
 	/** Implicitly convert a `String` to an `elem` matcher */
 	implicit def stringToElemMatcher(name: String) = elem(name)
 

@@ -5,9 +5,18 @@ import javax.xml.stream.events.XMLEvent
 
 import xsp.handlers._
 
-trait Parser[-Context, +Out] {
+import scala.util.control.NonFatal
+
+trait Parser[-Context, +Out] { self =>
 	def makeHandler(context: Context): Handler[XMLEvent, Result[Out]]
 	def makeHandler(contextError: Throwable): Handler[XMLEvent, Result[Out]]
+
+	def mapResult[B](f: Result[Out] => Result[B]): Parser[Context, B] = new Parser[Context, B] {
+		def makeHandler(context: Context) = new MappedHandler(self.makeHandler(context), f)
+		def makeHandler(contextError: Throwable) = new MappedHandler(self.makeHandler(contextError), f)
+	}
+
+	def map[B](f: Out => B): Parser[Context, B] = mapResult(_ map f)
 }
 object Parser {
 	def fromConsumer[Out](consumer: Consumer[XMLEvent, Result[Out]]): Parser[Any, Out] = {
@@ -41,9 +50,22 @@ object Parser {
 	class ForOptionalAttribute(name: QName) extends AbstractParser[Any, Option[String]] {
 		def makeHandler(context: Any) = new OptionalAttributeHandler(name)
 	}
+
+	// CHOOSE
+	def choose[Context] = new ChooseApply[Context]
+	class ChooseApply[Context] {
+		def apply[Out](chooser: Context => Parser[Context, Out]): Parser[Context, Out] = {
+			new AbstractParser[Context, Out] {
+				def makeHandler(context: Context): Handler[XMLEvent, Result[Out]] = {
+					try chooser(context).makeHandler(context)
+					catch { case NonFatal(err) => makeHandler(err) }
+				}
+			}
+		}
+	}
 }
 
-trait Consumer[In, Out] {
+trait Consumer[-In, +Out] {
 	def makeHandler(): Handler[In, Out]
 }
 

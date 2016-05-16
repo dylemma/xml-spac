@@ -1,8 +1,35 @@
 package xsp
 
-import javax.xml.stream.events.{StartElement, XMLEvent}
-
 import xsp.ExampleConsumers._
+
+object Main2 extends App {
+	val rawXML =
+		s"""<dl>
+			 |  <dt>Foo</dt>
+			 |  <dd>Something fooey</dd>
+			 |  <dd>But not bar-y</dd>
+			 |  <dt>Bar</dt>
+			 |  <dd>Something bar-y</dd>
+			 |  <dd>A place to drink</dd>
+			 |</dl>
+		 """.stripMargin
+
+	sealed trait Item
+	case class Term(text: String) extends Item
+	case class Description(text: String) extends Item
+
+	import ContextMatcherSyntax._
+	val itemParser = Parser.choose[String] {
+		case "dt" => Parser.forText map Term
+		case "dd" => Parser.forText map Description
+	}
+
+	val itemTransformer = Splitter("dl" / elemName) through itemParser
+	val collector = ToList[Item]
+	val consumer = itemTransformer andThen collector
+	val result = XMLEvents(rawXML) feedTo consumer
+	println(result)
+}
 
 object Main1 extends App {
 	// uncomment the following line to do a bunch of println's in the handler:
@@ -21,9 +48,9 @@ object Main1 extends App {
 			 |</body>
 		 """.stripMargin
 
-	import ContextMatcherSyntax._
 	import ChainParserSyntax._
 	import ChainSyntax._
+	import ContextMatcherSyntax._
 
 	val splitter = Splitter(* / "div")
 	val innerParser = (Parser.forText ~ Parser.forOptionalAttribute("style")).tupled
