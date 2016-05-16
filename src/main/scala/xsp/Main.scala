@@ -17,20 +17,19 @@ object Main1 extends App {
 			 |  </p>
 			 |  <input type="text"/>
 			 |  <div style="float:right;">Whoa</div>
+			 |  <div>Another one!</div>
 			 |</body>
 		 """.stripMargin
 
-	val splitter = new XMLContextSplitter[Unit] {
-		def matchContext(stack: Array[StartElement], offset: Int, length: Int) = {
-			if(length >= 2 && stack(offset + 1).getName.getLocalPart == "div") Result.Success.unit
-			else Result.Empty
-		}
-	}
-	val innerParser = Parser.fromConsumer(/*Take[XMLEvent](2) >> */ToList[XMLEvent]())
-	val consumer = splitter through innerParser andThen ToList[List[XMLEvent]]
+	val splitter = SingleElementContextMatcher.predicate(_ => true) /
+		SingleElementContextMatcher.predicate(_.getName.getLocalPart == "div")
 
-	val xmlEvents = XMLEvents(rawXML)
-	val result = xmlEvents feedTo consumer
+	import ParserChainOps._
+	import ChainSyntax._
+	val innerParser = (Parser.forText ~ Parser.forOptionalAttribute("style")).tupled
+	val consumer = splitter through innerParser andThen ToList[(String, Option[String])]
+
+	val result = XMLEvents(rawXML) feedTo consumer
 	println(result)
 }
 
