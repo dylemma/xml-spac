@@ -2,10 +2,7 @@ package xsp
 
 import javax.xml.stream.events.{StartElement, XMLEvent}
 
-import xsp.handlers.XMLContextSplitterHandler
-
-
-trait XMLContextSplitter[+Context] extends Splitter[Context] { self =>
+trait ContextMatcher[+A] { self =>
 
 	/** Attempt to extract some `Context` from the given xml element stack.
 		*
@@ -16,34 +13,24 @@ trait XMLContextSplitter[+Context] extends Splitter[Context] { self =>
 		* push, pop, head, and tail operations to support fast updating of the stack, as well
 		* as support recursively-created context matchers (i.e. a head matcher checks the head
 		* of the stack, and a tail matcher checks the tail of the stack). To accomplish these
-		* performance characteristics, we use a (mutable) Array as a buffer, with an offset and
+		* performance characteristics, we use an IndexedSeq as a buffer, with an offset and
 		* length value to indicate the window through which a matcher will view the buffer. The
 		* head of the stack is the element at `stack(offset)`, and the tail of the stack is
 		* passed by calling `matchContext(stack, offset + 1, length - 1)`.
-		*
-		* Note that although the array is technically mutable,
-		* implementations should be pure functions, avoiding modifying the array.
 		*
 		* @param stack
 		* @param offset
 		* @param length
 		* @return
 		*/
-	def matchContext(stack: Array[StartElement], offset: Int, length: Int): Result[Context]
+	def matchContext(stack: IndexedSeq[StartElement], offset: Int, length: Int): Result[A]
 
-	def through[P](parser: Parser[Context, P]): Transformer[XMLEvent, P] = {
-		new Transformer[XMLEvent, P] {
-			def makeHandler[Out](next: Handler[P, Out]): Handler[XMLEvent, Out] = {
-				new XMLContextSplitterHandler(matchContext, parser, next)
-			}
-		}
-	}
-	def rmapContext[B](f: (Result[Context]) => Result[B]): XMLContextSplitter[B] = new XMLContextSplitter[B] {
-		def matchContext(stack: Array[StartElement], offset: Int, length: Int): Result[B] = {
+	def rmapContext[B](f: (Result[A]) => Result[B]): ContextMatcher[B] = new ContextMatcher[B] {
+		def matchContext(stack: IndexedSeq[StartElement], offset: Int, length: Int): Result[B] = {
 			f(self.matchContext(stack, offset, length))
 		}
 	}
-	def mapContext[B](f: Context => B) = rmapContext(_ map f)
+	def mapContext[B](f: A => B) = rmapContext(_ map f)
 }
 
 /** Specialization of ContextMatcher that allows combination with other matchers, forming a chain
@@ -51,7 +38,7 @@ trait XMLContextSplitter[+Context] extends Splitter[Context] { self =>
 	*
 	* @tparam A The type of the extracted context.
 	*/
-trait ChainingContextMatcher[+A] extends XMLContextSplitter[A] { self =>
+trait ChainingContextMatcher[+A] extends ContextMatcher[A] { self =>
 
 	/** Behaves like `matchContext` should, except that it additionally returns the length
 		* of the matched segment. When creating a new matcher that chains off of this one,
@@ -63,13 +50,13 @@ trait ChainingContextMatcher[+A] extends XMLContextSplitter[A] { self =>
 		* @param length
 		* @return
 		*/
-	protected def matchSegment(stack: Array[StartElement], offset: Int, length: Int): Result[(A, Int)]
+	protected def matchSegment(stack: IndexedSeq[StartElement], offset: Int, length: Int): Result[(A, Int)]
 
-	def matchContext(stack: Array[StartElement], offset: Int, length: Int) = matchSegment(stack, offset, length).map(_._1)
+	def matchContext(stack: IndexedSeq[StartElement], offset: Int, length: Int) = matchSegment(stack, offset, length).map(_._1)
 
 	def /[B, AB](next: ChainingContextMatcher[B])(implicit c: ContextCombiner[A, B, AB]): ChainingContextMatcher[AB] = {
 		new ChainingContextMatcher[AB] {
-			protected def matchSegment(stack: Array[StartElement], offset: Int, length: Int) = {
+			protected def matchSegment(stack: IndexedSeq[StartElement], offset: Int, length: Int) = {
 				for {
 					(leadMatch, leadLength) <- self.matchSegment(stack, offset, length)
 					(nextMatch, nextLength) <- next.matchSegment(stack, offset + leadLength, length - leadLength)
@@ -88,7 +75,7 @@ trait ChainingContextMatcher[+A] extends XMLContextSplitter[A] { self =>
 trait SingleElementContextMatcher[+A] extends ChainingContextMatcher[A] { self =>
 
 	protected def matchElement(elem: StartElement): Result[A]
-	protected def matchSegment(stack: Array[StartElement], offset: Int, length: Int): Result[(A, Int)] = {
+	protected def matchSegment(stack: IndexedSeq[StartElement], offset: Int, length: Int): Result[(A, Int)] = {
 		if(length >= 1) matchElement(stack(offset)) map { _ -> 1 }
 		else Result.Empty
 	}

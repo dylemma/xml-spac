@@ -21,11 +21,11 @@ object Main1 extends App {
 			 |</body>
 		 """.stripMargin
 
-	val splitter = SingleElementContextMatcher.predicate(_ => true) /
-		SingleElementContextMatcher.predicate(_.getName.getLocalPart == "div")
-
-	import ParserChainOps._
+	import ContextMatcherSyntax._
+	import ChainParserSyntax._
 	import ChainSyntax._
+
+	val splitter = Splitter(* / "div")
 	val innerParser = (Parser.forText ~ Parser.forOptionalAttribute("style")).tupled
 	val consumer = splitter through innerParser andThen ToList[(String, Option[String])]
 

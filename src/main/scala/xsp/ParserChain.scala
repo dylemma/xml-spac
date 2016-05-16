@@ -18,8 +18,8 @@ class ParserChain[Context, P <: Chain[_, _], R, T](parserChain: P)
 	}
 }
 
-object ParserChainOps extends ParserChainOps
-trait ParserChainOps {
+object ChainParserSyntax extends ChainParserSyntax
+trait ChainParserSyntax {
 	implicit class ParserChainTupled[P <: Chain[_, _]](parserChain: P) {
 		def tupled[Context, R, T](implicit
 			handlerSetup: ParserChainSetup[Context, P, R],

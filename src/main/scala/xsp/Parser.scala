@@ -65,9 +65,7 @@ trait Transformer[In, B] { self =>
 	}
 }
 
-trait Splitter[+Context] {
-	def through[Out](parser: Parser[Context, Out]): Transformer[XMLEvent, Out]
-}
+
 
 
 
