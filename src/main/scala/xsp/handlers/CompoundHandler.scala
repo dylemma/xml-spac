@@ -41,7 +41,7 @@ class CompoundHandler[In, B, Out](
 		* true after calling this.
 		*/
 	private def sendResult() = {
-		val resultView: IndexedSeq[B] = results.view.map(_.get)
+		val resultView = results.map(_.get)
 		val result = reform(resultView)
 		didSendResult = true
 		result
