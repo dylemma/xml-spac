@@ -24,7 +24,7 @@ object Main2 extends App {
 		case "dd" => Parser.forText map Description
 	}
 
-	val itemTransformer = Splitter("dl" / elemName) through itemParser
+	val itemTransformer = Splitter("dl" / extractElemName) through itemParser
 	val collector = ToList[Item]
 	val consumer = itemTransformer andThen collector
 	val result = XMLEvents(rawXML) feedTo consumer

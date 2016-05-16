@@ -25,12 +25,12 @@ trait ContextMatcher[+A] { self =>
 		*/
 	def matchContext(stack: IndexedSeq[StartElement], offset: Int, length: Int): Result[A]
 
-	def rmapContext[B](f: (Result[A]) => Result[B]): ContextMatcher[B] = new ContextMatcher[B] {
+	def mapResult[B](f: (Result[A]) => Result[B]): ContextMatcher[B] = new ContextMatcher[B] {
 		def matchContext(stack: IndexedSeq[StartElement], offset: Int, length: Int): Result[B] = {
 			f(self.matchContext(stack, offset, length))
 		}
 	}
-	def mapContext[B](f: A => B) = rmapContext(_ map f)
+	def map[B](f: A => B) = mapResult(_ map f)
 }
 
 /** Specialization of ContextMatcher that allows combination with other matchers, forming a chain
@@ -83,10 +83,10 @@ trait SingleElementContextMatcher[+A] extends ChainingContextMatcher[A] { self =
 	// import alias this trait because of the long class name
 	import xsp.{SingleElementContextMatcher => Match1}
 
-	override def rmapContext[B](f: (Result[A]) => Result[B]): Match1[B] = new Match1[B] {
+	override def mapResult[B](f: (Result[A]) => Result[B]): Match1[B] = new Match1[B] {
 		protected def matchElement(elem: StartElement) = f(self matchElement elem)
 	}
-	override def mapContext[B](f: A => B) = rmapContext(_ map f)
+	override def map[B](f: A => B) = mapResult(_ map f)
 
 	def &[B, AB](that: Match1[B])(implicit c: ContextCombiner[A, B, AB]): Match1[AB] = new Match1[AB] {
 		protected def matchElement(elem: StartElement): Result[AB] = {
@@ -103,18 +103,6 @@ trait SingleElementContextMatcher[+A] extends ChainingContextMatcher[A] { self =
 		}
 	}
 
-	// common functionality for the [and]extract[q]name functions
-	protected def expandMatch[B](f: (A, StartElement) => B): Match1[B] = new Match1[B] {
-		protected def matchElement(elem: StartElement) = {
-			self.matchElement(elem).map{ a => f(a, elem) }
-		}
-	}
-
-	def extractQName = expandMatch { case (_, elem) => elem.getName }
-	def extractName = expandMatch { case (_, elem) => elem.getName.getLocalPart }
-
-	def andExtractQName = expandMatch { case (a, elem) => a -> elem.getName }
-	def andExtractName = expandMatch { case (a, elem) => a -> elem.getName.getLocalPart }
 }
 
 object SingleElementContextMatcher {
