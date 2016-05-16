@@ -17,6 +17,28 @@ trait Parser[-Context, +Out] { self =>
 	}
 
 	def map[B](f: Out => B): Parser[Context, B] = mapResult(_ map f)
+
+	/** Bind this `Parser` to a specific `context`.
+		* The resulting parser ignores all context information passed to it for
+		* purposes of creating a handler; it instead uses the context passed to
+		* this method.
+		* @param context The `Context` value that will be used to create handlers
+		*/
+	def inContext(context: Context): Parser[Any, Out] = new Parser[Any, Out] {
+		def makeHandler(ignored: Any) = self.makeHandler(context)
+		def makeHandler(contextError: Throwable) = self.makeHandler(contextError)
+	}
+
+	/** If a `Parser` is context-independent, it can be treated to a `Consumer`.
+		*
+		* @param ev Implicit evidence that the parser's `Context` type is `Any`
+		* @return A representation of this parser as a `Consumer`
+		*/
+	def toConsumer(implicit ev: Any <:< Context): Consumer[XMLEvent, Result[Out]] = {
+		new Consumer[XMLEvent, Result[Out]] {
+			def makeHandler(): Handler[XMLEvent, Result[Out]] = self.makeHandler(ev(()))
+		}
+	}
 }
 object Parser {
 	def fromConsumer[Out](consumer: Consumer[XMLEvent, Result[Out]]): Parser[Any, Out] = {
