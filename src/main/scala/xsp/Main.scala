@@ -1,7 +1,5 @@
 package xsp
 
-import xsp.ExampleConsumers._
-
 object Main2 extends App {
 	val rawXML =
 		s"""<dl>
@@ -25,7 +23,7 @@ object Main2 extends App {
 	}
 
 	val itemTransformer = Splitter("dl" / extractElemName) through itemParser
-	val collector = ToList[Item]
+	val collector = Consumer.ToList[Item]()
 	val consumer = itemTransformer andThen collector
 	val result = XMLEvents(rawXML) feedTo consumer
 	println(result)
@@ -56,7 +54,8 @@ object Main1 extends App {
 		Parser.forText ->
 		Parser.forOptionalAttribute("style")
 	)
-	val consumer = splitter through innerParser andThen ToList[(String, String, Option[String])]
+	val collectResults = Consumer.ToList[(String, String, Option[String])]()
+	val consumer = splitter through innerParser andThen collectResults
 
 	val result = XMLEvents(rawXML) feedTo consumer
 	println(result)
@@ -66,7 +65,9 @@ object Main0 extends App {
 
 	val inputs = 1 to 100
 
-	val consumer = Filter[Int](_ % 3 == 0) >> Take[Int](5) >> ToList[Int]
+	import Transformer.{Filter, Take}
+	import Consumer.ToList
+	val consumer = Filter[Int](_ % 3 == 0) >> Take[Int](5) >> ToList[Int]()
 
 	implicit class ConsumerWithConsume[In, Out](consumer: Consumer[In, Out]) {
 		def consume(source: Iterable[In]): Out = {
