@@ -37,6 +37,13 @@ trait Parser[-Context, +Out] { self =>
 			def makeHandler(): Handler[XMLEvent, Result[Out]] = self.makeHandler(ev(()))
 		}
 	}
+
+	def parse(xml: XMLEvents[_])(implicit ev: Any <:< Context): Result[Out] = {
+		xml.feedTo(toConsumer)
+	}
+	def parse[T: XMLResource](xml: T)(implicit ev: Any <:< Context): Result[Out] = {
+		XMLEvents(xml).feedTo(toConsumer)
+	}
 }
 object Parser {
 	def fromConsumer[Out](consumer: Consumer[XMLEvent, Result[Out]]): Parser[Any, Out] = {

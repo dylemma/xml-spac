@@ -46,6 +46,7 @@ object Main1 extends App {
 		 """.stripMargin
 
 	import ContextMatcherSyntax._
+	import TransformerSyntax._
 
 	val splitter = Splitter(extractElemName / "div")
 	val innerParser = Parser.compound(
@@ -53,9 +54,8 @@ object Main1 extends App {
 		Parser.forText ->
 		Parser.forOptionalAttribute("style")
 	)
-	val consumer = (splitter through innerParser).consumeToList
-
-	val result = XMLEvents(rawXML) feedTo consumer
+	val parser = (splitter through innerParser).parseToList
+	val result = parser parse rawXML
 	println(result)
 }
 
