@@ -1,6 +1,8 @@
 package xsp
 
-import javax.xml.stream.events.{StartElement, XMLEvent}
+import javax.xml.stream.events.StartElement
+
+import xsp.ContextMatcher.ContextCombiner
 
 trait ContextMatcher[+A] { self =>
 
@@ -31,6 +33,36 @@ trait ContextMatcher[+A] { self =>
 		}
 	}
 	def map[B](f: A => B) = mapResult(_ map f)
+}
+
+object ContextMatcher {
+	/** Typeclass for context combination rules.
+		* - `Unit + A = A`
+		* - `A + Unit = A`
+		* - `A + B = (A, B)`
+		*
+		* @tparam A The left operand type
+		* @tparam B The right operand type
+		* @tparam AB The combined type
+		*/
+	trait ContextCombiner[-A, -B, +AB] {
+		def combine(left: A, right: B): AB
+	}
+	object ContextCombiner extends LowPriorityContextCombinerImplicits {
+		def apply[A, B, AB](f: (A, B) => AB): ContextCombiner[A, B, AB] = {
+			new ContextCombiner[A, B, AB] {
+				def combine(left: A, right: B): AB = f(left, right)
+			}
+		}
+		implicit def getUnitAnyCombiner[A]: ContextCombiner[Unit, A, A] = apply { (l, r) => r }
+	}
+
+	trait LowPriorityContextCombinerImplicits extends LowerPriorityContextCombinerImplicits {
+		implicit def getAnyUnitCombiner[A]: ContextCombiner[A, Unit, A] = ContextCombiner { (l, r) => l }
+	}
+	trait LowerPriorityContextCombinerImplicits {
+		implicit def getABCombiner[A, B]: ContextCombiner[A, B, (A, B)] = ContextCombiner(Tuple2.apply)
+	}
 }
 
 /** Specialization of ContextMatcher that allows combination with other matchers, forming a chain
