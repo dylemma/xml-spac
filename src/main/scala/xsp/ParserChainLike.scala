@@ -54,8 +54,8 @@ object ParserChainLike {
 	): ParserChainLike[P, C, T] = new ParserChainLike[P, C, T] {
 		def makeHandler(chain: P, context: C): Handler[XMLEvent, Result[T]] = {
 			val normalizedChain = contextNormalizer.normalize(chain)
-			val innerHandlers = handlerSetup.createHandlers(normalizedChain, Right(context))
-			val formResult = (handlerSetup.formResultChain _) andThen (resultTupler.toTuple _)
+			val innerHandlers = handlerSetup.createHandlers(normalizedChain, context)
+			val formResult = handlerSetup.formResultChain _ andThen resultTupler.toTuple _
 			new CompoundHandler(innerHandlers, formResult)
 		}
 	}
@@ -163,7 +163,7 @@ object ParserChainLike {
 			*/
 		protected def setupHandlers(
 			parsers: P,
-			context: Either[Throwable, Context],
+			context: Context,
 			handlers: Array[Handler[XMLEvent, Result[Any]]]
 		)
 
@@ -188,7 +188,7 @@ object ParserChainLike {
 			*/
 		def createHandlers(
 			parsers: P,
-			context: Either[Throwable, Context]
+			context: Context
 		): IndexedSeq[Handler[XMLEvent, Result[Any]]] = {
 			val handlers = new Array[Handler[XMLEvent, Result[Any]]](length)
 			setupHandlers(parsers, context, handlers)
@@ -210,14 +210,6 @@ object ParserChainLike {
 			new ParserChainLinkSetup[Context, PrefixP, PrefixR, A]
 		}
 
-		@inline private def makeSingleHandler[Ctx, T](
-			parser: Parser[Ctx, T],
-			context: Either[Throwable, Ctx]
-		) = context match {
-			case Right(ctx) => parser.makeHandler(ctx)
-			case Left(error) => parser.makeHandler(error)
-		}
-
 		/** Inductive case for `ParserChainSetup`.
 			* Given a chain that consists of some "Prefix" chain and some "Tail" parser,
 			* and given the setup knowledge for the Prefix chain, we can set up the
@@ -236,12 +228,12 @@ object ParserChainLike {
 			val length = headSetup.length + 1
 			protected def setupHandlers(
 				parsers: PrefixP ~ Parser[Context, A],
-				context: Either[Throwable, Context],
+				context: Context,
 				handlers: Array[Handler[XMLEvent, Result[Any]]]
 			): Unit = {
 				val tailParser = parsers._2
 				val headChain = parsers._1
-				val handler = makeSingleHandler(tailParser, context)
+				val handler = tailParser.makeHandler(context)
 				handlers(length - 1) = handler
 				headSetup.setupHandlers(headChain, context, handlers)
 			}
@@ -262,10 +254,10 @@ object ParserChainLike {
 			val length = 1
 			protected def setupHandlers(
 				parser: Parser[Context, A],
-				context: Either[Throwable, Context],
+				context: Context,
 				handlers: Array[Handler[XMLEvent, Result[Any]]]
 			): Unit = {
-				handlers(0) = makeSingleHandler(parser, context)
+				handlers(0) = parser.makeHandler(context)
 			}
 			def formResultChain(rawResults: IndexedSeq[Result[Any]]): Result[A] = {
 				rawResults(0).asInstanceOf[Result[A]]

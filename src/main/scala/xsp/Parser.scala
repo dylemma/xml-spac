@@ -9,11 +9,9 @@ import scala.util.control.NonFatal
 
 trait Parser[-Context, +Out] { self =>
 	def makeHandler(context: Context): Handler[XMLEvent, Result[Out]]
-	def makeHandler(contextError: Throwable): Handler[XMLEvent, Result[Out]]
 
 	def mapResult[B](f: Result[Out] => Result[B]): Parser[Context, B] = new Parser[Context, B] {
 		def makeHandler(context: Context) = new MappedHandler(self.makeHandler(context), f)
-		def makeHandler(contextError: Throwable) = new MappedHandler(self.makeHandler(contextError), f)
 	}
 
 	def map[B](f: Out => B): Parser[Context, B] = mapResult(_ map f)
@@ -22,11 +20,11 @@ trait Parser[-Context, +Out] { self =>
 		* The resulting parser ignores all context information passed to it for
 		* purposes of creating a handler; it instead uses the context passed to
 		* this method.
+		*
 		* @param context The `Context` value that will be used to create handlers
 		*/
 	def inContext(context: Context): Parser[Any, Out] = new Parser[Any, Out] {
 		def makeHandler(ignored: Any) = self.makeHandler(context)
-		def makeHandler(contextError: Throwable) = self.makeHandler(contextError)
 	}
 
 	/** If a `Parser` is context-independent, it can be treated to a `Consumer`.
@@ -42,34 +40,34 @@ trait Parser[-Context, +Out] { self =>
 }
 object Parser {
 	def fromConsumer[Out](consumer: Consumer[XMLEvent, Result[Out]]): Parser[Any, Out] = {
-		new AbstractParser[Any, Out] {
+		new Parser[Any, Out] {
 			def makeHandler(context: Any) = consumer.makeHandler()
 		}
 	}
 
 	// TEXT
 	def forText: Parser[Any, String] = ForText
-	object ForText extends AbstractParser[Any, String] {
+	object ForText extends Parser[Any, String] {
 		def makeHandler(context: Any) = new TextCollectorHandler
 	}
 
 	// CONTEXT
 	def forContext[C]: Parser[C, C] = new ForContext[C]
-	class ForContext[C] extends AbstractParser[C, C] {
+	class ForContext[C] extends Parser[C, C] {
 		def makeHandler(context: C) = new OneShotHandler(Result.Success(context))
 	}
 
 	// ATTRIBUTE
 	def forMandatoryAttribute(name: QName): Parser[Any, String] = new ForMandatoryAttribute(name)
 	def forMandatoryAttribute(name: String): Parser[Any, String] = new ForMandatoryAttribute(new QName(name))
-	class ForMandatoryAttribute(name: QName) extends AbstractParser[Any, String] {
+	class ForMandatoryAttribute(name: QName) extends Parser[Any, String] {
 		def makeHandler(context: Any) = new MandatoryAttributeHandler(name)
 	}
 
 	// OPTIONAL ATTRIBUTE
 	def forOptionalAttribute(name: QName): Parser[Any, Option[String]] = new ForOptionalAttribute(name)
 	def forOptionalAttribute(name: String): Parser[Any, Option[String]] = new ForOptionalAttribute(new QName(name))
-	class ForOptionalAttribute(name: QName) extends AbstractParser[Any, Option[String]] {
+	class ForOptionalAttribute(name: QName) extends Parser[Any, Option[String]] {
 		def makeHandler(context: Any) = new OptionalAttributeHandler(name)
 	}
 
@@ -77,10 +75,14 @@ object Parser {
 	def choose[Context] = new ChooseApply[Context]
 	class ChooseApply[Context] {
 		def apply[Out](chooser: Context => Parser[Context, Out]): Parser[Context, Out] = {
-			new AbstractParser[Context, Out] {
+			new Parser[Context, Out] {
 				def makeHandler(context: Context): Handler[XMLEvent, Result[Out]] = {
 					try chooser(context).makeHandler(context)
-					catch { case NonFatal(err) => makeHandler(err) }
+					catch {
+						case NonFatal(err) =>
+							val wrapped = new Exception(s"Failed to choose a parser for context [$context]", err)
+							new OneShotHandler(Result.Error(wrapped))
+					}
 				}
 			}
 		}
@@ -150,7 +152,6 @@ object Parser {
 		(implicit p: ParserChainLike[P, Context, T])
 		: Parser[Context, T] = new Parser[Context, T] {
 		def makeHandler(context: Context) = p.makeHandler(parsers, context)
-		def makeHandler(contextError: Throwable) = ???
 	}
 }
 

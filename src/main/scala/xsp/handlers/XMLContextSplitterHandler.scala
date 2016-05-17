@@ -90,7 +90,7 @@ class XMLContextSplitterHandler[Context, P, Out](
 					matchStartDepth = stackSize
 					currentParserHandler = newMatch match {
 						case Result.Success(ctx) => Some(parser makeHandler ctx)
-						case Result.Error(err) => Some(parser makeHandler err)
+						case e @ Result.Error(err) => Some(new OneShotHandler(e))
 						case _ => None // impossible, as we're in a !isEmpty check
 					}
 					debug(s"Entered context: $newMatch")

@@ -1,10 +1,6 @@
 package xsp.handlers
 
-import xsp.{Handler, Parser, Result}
-
-abstract class AbstractParser[Context, Out] extends Parser[Context, Out] {
-	def makeHandler(contextError: Throwable) = new OneShotHandler(Result.Error(contextError))
-}
+import xsp.Handler
 
 class OneShotHandler[Out](value: =>Out) extends Handler[Any, Out] {
 	private var didEmit = false
