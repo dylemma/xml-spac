@@ -1,5 +1,7 @@
 package xsp
 
+import javax.xml.stream.events.XMLEvent
+
 import xsp.handlers.{FilteringHandler, TakeNHandler, TakeWhileHandler}
 
 /** An immutable object that can be used to create a handler which wraps
@@ -22,6 +24,14 @@ trait Transformer[In, B] { self =>
 			self.makeHandler(end.makeHandler())
 		}
 	}
+
+	def consumeToList: Consumer[In, Result[List[B]]] = andThen(Consumer.ToList())
+	def consumeFirst: Consumer[In, Result[B]] = andThen(Consumer.First())
+	def consumeFirstOption: Consumer[In, Result[Option[B]]] = andThen(Consumer.FirstOption())
+	def consumeAsFold[R](init: R)(f: (R, B) => R): Consumer[In, Result[R]] = andThen(Consumer.Fold(init, f))
+	def consumeAsResultFold[R](init: Result[R])(
+		f: (Result[R], Result[B]) => Result[R]
+	): Consumer[In, Result[R]] = andThen(Consumer.FoldResults(init, f))
 }
 
 object Transformer {

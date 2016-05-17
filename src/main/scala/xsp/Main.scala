@@ -23,8 +23,7 @@ object Main2 extends App {
 	}
 
 	val itemTransformer = Splitter("dl" / extractElemName) through itemParser
-	val collector = Consumer.ToList[Item]()
-	val consumer = itemTransformer andThen collector
+	val consumer = itemTransformer.consumeToList
 	val result = XMLEvents(rawXML) feedTo consumer
 	println(result)
 }
@@ -54,8 +53,7 @@ object Main1 extends App {
 		Parser.forText ->
 		Parser.forOptionalAttribute("style")
 	)
-	val collectResults = Consumer.ToList[(String, String, Option[String])]()
-	val consumer = splitter through innerParser andThen collectResults
+	val consumer = (splitter through innerParser).consumeToList
 
 	val result = XMLEvents(rawXML) feedTo consumer
 	println(result)
