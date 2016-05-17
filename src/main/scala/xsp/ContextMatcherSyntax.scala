@@ -1,6 +1,9 @@
 package xsp
+
 import javax.xml.namespace.QName
 import javax.xml.stream.events.StartElement
+
+import scala.language.implicitConversions
 
 object ContextMatcherSyntax extends ContextMatcherSyntax
 trait ContextMatcherSyntax {

@@ -85,6 +85,73 @@ object Parser {
 			}
 		}
 	}
+
+	/** Create a single parser that combines the results of the `parsers` as a tuple.
+		*
+		* Example:
+		* {{{
+		*   val parser1: Parser[Any, String] = ???
+		*   val parser2: Parser[Int, Foo] = ??? // this Parser requires an Int for context
+		*   val parser3: Parser[Any, Bar] = ???
+		*
+		*   val combinedParser: Parser[Int, (String, Foo, Bar)] = Parser.compound(
+		*     parser1 ->
+		*     parser2 ->
+		*     parser3
+		*   )
+		*
+		* }}}
+		*
+		* Note that the example above used scala's pair helper (`->`) to create a parser chain.
+		* The following expression is identical to the above:
+		* {{{
+		*   val parserChain = ((parser1, parser2), parser3)
+		*   val combinedParser = Parser.compound(parserChain)
+		* }}}
+		*
+		* Note that when creating a compound parser, there must be a common "Context" type
+		* which is a subtype of *all* of the context types of the parsers in the chain. For
+		* example, you could not create a compound parser out of a `Parser[Int, Foo]` and a
+		* `Parser[String, Bar]` because there is no type that is both an `Int` and a `String`.
+		*
+		* As a counterexample, the combination of a `Parser[Option[Int], Foo]` and a
+		* `Parser[Some[Int], Bar]` would take a `Some[Int]` as context, since that is a subtype
+		* of both `Some[Int]` and `Option[Int]`.
+		*
+		* @param parsers A chain of parsers, e.g. `((parser1, parser2), parser3)` or
+		*                `parser1 -> parser2 -> parser3`. The chain can be of arbitrary
+		*                length up to 22 as long as the overall chain is represented as
+		*                a `Tuple2[ChainPrefix, LastParser]`.
+		* @param p An implicit type evidence object that determines the common Context
+		*          type and resulting tuple type.
+		* @tparam Context A type that is a subtype of each of the `parsers`. This will
+		*                 be used as the context type of the resulting parser.
+		*                 For example in a chain of parsers with context types
+		*                 `Seq[X]`, `List[X]`, and `Any`, the most specific context
+		*                 type (i.e. the value of type parameter `C`) will be `List[X]`.
+		*                 Note that the context types *MUST* all share a common subtype.
+		*                 A chain of parsers with context types `Int`, `String`, and `Any`
+		*                 would not work because there is no value that can be passed as
+		*                 a context of both `Int` and `String`. Attempting to do so will
+		*                 result in a compilation error.
+		* @tparam P A type representing a chain of parsers. A chain is actually
+		*           a series of nested tuples, e.g. `(((A, B), C), D)`. Such
+		*           tuples can easily be created with scala's builtin arrow
+		*           operator e.g. `A -> B -> C -> D`.
+		* @tparam T A tuple type which represents the combined results of the
+		*           parsers in the chain type `P`. For example, in a chain of parsers
+		*           whose results are of type `A`, `B`, `C`, and `D` respectively,
+		*           the result type `T` will be the tuple type `(A, B, C, D)`.
+		* @return A single parser that will create a handler for each of the given `parsers`,
+		*         passing events through each of them, eventually combining their results as
+		*         as a tuple of type `T`.
+		*/
+	def compound[Context, P <: (_, Parser[_, _]), T](parsers: P)
+		(implicit p: ParserChainLike[P, Context, T])
+		: Parser[Context, T] = new Parser[Context, T] {
+		def makeHandler(context: Context) = p.makeHandler(parsers, context)
+		def makeHandler(contextError: Throwable) = ???
+	}
 }
 
 

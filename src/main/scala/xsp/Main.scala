@@ -48,13 +48,15 @@ object Main1 extends App {
 			 |</body>
 		 """.stripMargin
 
-	import ChainParserSyntax._
-	import ChainSyntax._
 	import ContextMatcherSyntax._
 
-	val splitter = Splitter(* / "div")
-	val innerParser = (Parser.forText ~ Parser.forOptionalAttribute("style")).tupled
-	val consumer = splitter through innerParser andThen ToList[(String, Option[String])]
+	val splitter = Splitter(extractElemName / "div")
+	val innerParser = Parser.compound(
+		Parser.forContext[String] ->
+		Parser.forText ->
+		Parser.forOptionalAttribute("style")
+	)
+	val consumer = splitter through innerParser andThen ToList[(String, String, Option[String])]
 
 	val result = XMLEvents(rawXML) feedTo consumer
 	println(result)
