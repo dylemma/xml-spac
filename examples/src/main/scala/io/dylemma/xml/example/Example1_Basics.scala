@@ -3,10 +3,9 @@ package io.dylemma.xml.example
 import javax.xml.stream.events.XMLEvent
 
 import xsp._
-import xsp.ContextMatcherSyntax._
-import xsp.TransformerSyntax._
+import xsp.syntax._
 
-object ExampleSimple extends App {
+object Example1_Basics extends App {
 
 	val libraryXml = """<library>
 		| <book>Don Quixote</book>

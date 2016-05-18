@@ -1,5 +1,7 @@
 package xsp
 
+import syntax._
+
 object Main3 extends App {
 	val rawXML =
 		s"""<foo>
@@ -34,7 +36,6 @@ object Main2 extends App {
 	case class Term(text: String) extends Item
 	case class Description(text: String) extends Item
 
-	import ContextMatcherSyntax._
 	val itemParser = Parser.choose[String] {
 		case "dt" => Parser.forText map Term
 		case "dd" => Parser.forText map Description
@@ -65,9 +66,6 @@ object Main1 extends App {
 			 |  <div>Another one!</div>
 			 |</body>
 		 """.stripMargin
-
-	import ContextMatcherSyntax._
-	import TransformerSyntax._
 
 	val splitter = Splitter(extractElemName / "div")
 	val innerParser = Parser.compound(
