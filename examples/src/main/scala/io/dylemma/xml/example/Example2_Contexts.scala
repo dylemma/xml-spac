@@ -13,7 +13,7 @@ import play.api.libs.iteratee.{ Enumerator, Iteratee }
  */
 import play.api.libs.iteratee.Execution.Implicits.trampoline
 
-object AnnotatedExample extends App {
+object Example2_Contexts extends App {
 
 	val rawXml = s"""<blog title="Cool Beans">
 		| <post id="1">

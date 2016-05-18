@@ -2,7 +2,7 @@ package xsp
 
 import javax.xml.stream.events.StartElement
 
-import xsp.ContextMatcher.ContextCombiner
+import xsp.ContextMatcher.ContextCombine
 
 trait ContextMatcher[+A] { self =>
 
@@ -37,32 +37,41 @@ trait ContextMatcher[+A] { self =>
 }
 
 object ContextMatcher {
-	/** Typeclass for context combination rules.
-		* - `Unit + A = A`
-		* - `A + Unit = A`
-		* - `A + B = (A, B)`
+	/** Typeclass that knows how to concatenate tuple chains
+		* of type `L` and `R` into a new chain of type `C`.
 		*
-		* @tparam A The left operand type
-		* @tparam B The right operand type
-		* @tparam AB The combined type
+		* @tparam L The left operand tuple type
+		* @tparam R The right operand tuple type
+		* @tparam C The combined tuple type
 		*/
-	trait ContextCombiner[-A, -B, +AB] {
-		def combine(left: A, right: B): AB
+	trait ContextCombine[-L, -R, +C] {
+		def apply(left: L, right: R): C
 	}
-	object ContextCombiner extends LowPriorityContextCombinerImplicits {
-		def apply[A, B, AB](f: (A, B) => AB): ContextCombiner[A, B, AB] = {
-			new ContextCombiner[A, B, AB] {
-				def combine(left: A, right: B): AB = f(left, right)
+	object ContextCombine extends MidPriorityContextCombineImplicits {
+		implicit def unitAppend[R]: ContextCombine[Unit, R, R] = new ContextCombine[Unit, R, R] {
+			def apply(left: Unit, right: R): R = right
+		}
+	}
+	trait MidPriorityContextCombineImplicits extends LowPriorityContextCombineImplicits {
+		implicit def tuple2Append[L, R1, R2, M1, C](
+			implicit midConcat: ContextCombine[L, R1, M1],
+			endConcat: ContextCombine[M1, R2, C]
+		): ContextCombine[L, (R1, R2), C] = new ContextCombine[L, (R1, R2), C] {
+			def apply(left: L, right: (R1, R2)): C = {
+				endConcat(midConcat(left, right._1), right._2)
 			}
 		}
-		implicit def getUnitAnyCombiner[A]: ContextCombiner[Unit, A, A] = apply { (l, r) => r }
-	}
 
-	trait LowPriorityContextCombinerImplicits extends LowerPriorityContextCombinerImplicits {
-		implicit def getAnyUnitCombiner[A]: ContextCombiner[A, Unit, A] = ContextCombiner { (l, r) => l }
+		implicit def appendUnit[L]: ContextCombine[L, Unit, L] = new ContextCombine[L, Unit, L] {
+			def apply(left: L, right: Unit): L = left
+		}
 	}
-	trait LowerPriorityContextCombinerImplicits {
-		implicit def getABCombiner[A, B]: ContextCombiner[A, B, (A, B)] = ContextCombiner(Tuple2.apply)
+	trait LowPriorityContextCombineImplicits {
+		implicit def anyChainConcat[L, R]: ContextCombine[L, R, (L, R)] = {
+			new ContextCombine[L, R, (L, R)] {
+				def apply(left: L, right: R) = (left, right)
+			}
+		}
 	}
 }
 
@@ -87,13 +96,13 @@ trait ChainingContextMatcher[+A] extends ContextMatcher[A] { self =>
 
 	def matchContext(stack: IndexedSeq[StartElement], offset: Int, length: Int) = matchSegment(stack, offset, length).map(_._1)
 
-	def /[B, AB](next: ChainingContextMatcher[B])(implicit c: ContextCombiner[A, B, AB]): ChainingContextMatcher[AB] = {
+	def /[B, AB](next: ChainingContextMatcher[B])(implicit cc: ContextCombine[A, B, AB]): ChainingContextMatcher[AB] = {
 		new ChainingContextMatcher[AB] {
 			protected def matchSegment(stack: IndexedSeq[StartElement], offset: Int, length: Int) = {
 				for {
 					(leadMatch, leadLength) <- self.matchSegment(stack, offset, length)
 					(nextMatch, nextLength) <- next.matchSegment(stack, offset + leadLength, length - leadLength)
-				} yield c.combine(leadMatch, nextMatch) -> (leadLength + nextLength)
+				} yield cc(leadMatch, nextMatch) -> (leadLength + nextLength)
 			}
 			override def toString = s"$self / $next"
 		}
@@ -122,12 +131,12 @@ trait SingleElementContextMatcher[+A] extends ChainingContextMatcher[A] { self =
 	}
 	override def map[B](f: A => B) = mapResult(_ map f)
 
-	def &[B, AB](that: Match1[B])(implicit c: ContextCombiner[A, B, AB]): Match1[AB] = new Match1[AB] {
+	def &[B, AB](that: Match1[B])(implicit cc: ContextCombine[A, B, AB]): Match1[AB] = new Match1[AB] {
 		protected def matchElement(elem: StartElement): Result[AB] = {
 			for{
 				a <- self.matchElement(elem)
 				b <- that.matchElement(elem)
-			} yield c.combine(a, b)
+			} yield cc(a, b)
 		}
 	}
 
