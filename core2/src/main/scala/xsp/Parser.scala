@@ -16,6 +16,7 @@ trait Parser[-Context, +Out] { self =>
 	}
 
 	def map[B](f: Out => B): Parser[Context, B] = mapResult(_ map f)
+	def flatMap[B](f: Out => Result[B]): Parser[Context, B] = mapResult(_ flatMap f)
 
 	/** Bind this `Parser` to a specific `context`.
 		* The resulting parser ignores all context information passed to it for

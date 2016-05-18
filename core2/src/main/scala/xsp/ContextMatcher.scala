@@ -33,6 +33,7 @@ trait ContextMatcher[+A] { self =>
 		}
 	}
 	def map[B](f: A => B) = mapResult(_ map f)
+	def flatMap[B](f: A => Result[B]) = mapResult(_ flatMap f)
 }
 
 object ContextMatcher {
