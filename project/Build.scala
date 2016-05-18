@@ -2,7 +2,7 @@ import scala.util.control.NonFatal
 
 import sbt._
 import Keys._
-import spray.boilerplate.BoilerplatePlugin.Boilerplate
+import spray.boilerplate.BoilerplatePlugin
 
 object XmlStreamBuild extends Build {
 
@@ -18,9 +18,16 @@ object XmlStreamBuild extends Build {
 		.settings(commonSettings: _*)
 		.settings(libraryDependencies += "com.typesafe.play" %% "play-iteratees" % "2.4.3")
 		.settings(libraryDependencies += "org.scalatest" %% "scalatest" % "2.2.4" % "test")
-		.settings(Boilerplate.settings: _*)
+		.enablePlugins(BoilerplatePlugin)
 		.settings(apiDocSettings: _*)
 		.settings(publishingSettings: _*)
+
+	lazy val core2 = (project in file("core2")).settings(
+		name := "xml-stream-2",
+		version := "0.2-SNAPSHOT",
+		scalaVersion := "2.11.8",
+		organization := "io.dylemma"
+	).enablePlugins(BoilerplatePlugin)
 
 	lazy val examples = (project in file("examples"))
 		.settings(commonSettings: _*)
