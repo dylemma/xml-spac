@@ -7,8 +7,8 @@ import spray.boilerplate.BoilerplatePlugin
 object XmlStreamBuild extends Build {
 
 	lazy val commonSettings = Seq(
-		version := "0.1",
-		crossScalaVersions := Seq("2.10.5", "2.11.6"),
+		version := "0.2-SNAPSHOT",
+		scalaVersion := "2.11.8",
 		scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
 		organization := "io.dylemma"
 	)
@@ -22,17 +22,16 @@ object XmlStreamBuild extends Build {
 		.settings(apiDocSettings: _*)
 		.settings(publishingSettings: _*)
 
-	lazy val core2 = (project in file("core2")).settings(
-		name := "xml-stream-2",
-		version := "0.2-SNAPSHOT",
-		scalaVersion := "2.11.8",
-		organization := "io.dylemma"
-	).enablePlugins(BoilerplatePlugin)
+	lazy val core2 = (project in file("core2"))
+		.settings(name := "xml-stream-2")
+		.settings(commonSettings: _*)
+		.enablePlugins(BoilerplatePlugin)
 
 	lazy val examples = (project in file("examples"))
 		.settings(commonSettings: _*)
 		.settings(publish := {})
 		.dependsOn(core)
+		.dependsOn(core2)
 
 	lazy val root = (project in file("."))
 		.settings(publish := {})
