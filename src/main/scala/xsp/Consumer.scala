@@ -6,6 +6,10 @@ import xsp.handlers._
 	*/
 trait Consumer[-In, +Out] {
 	def makeHandler(): Handler[In, Out]
+
+	def consume[S](source: S)(implicit consume: ConsumableLike[S, In]): Out = {
+		consume(source, makeHandler())
+	}
 }
 
 object Consumer {
@@ -41,5 +45,9 @@ object Consumer {
 		def makeHandler(): Handler[A, Result[R]] = {
 			new FoldResultsHandler(init, f)
 		}
+	}
+
+	case class ForEach[A](f: A => Any) extends Consumer[A, Unit] {
+		def makeHandler() = new ForEachHandler(f)
 	}
 }

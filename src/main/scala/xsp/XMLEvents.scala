@@ -2,8 +2,8 @@ package xsp
 
 import java.io.Closeable
 import java.util.concurrent.atomic.AtomicBoolean
-import javax.xml.stream.{XMLEventReader, XMLInputFactory}
 import javax.xml.stream.events.XMLEvent
+import javax.xml.stream.{XMLEventReader, XMLInputFactory}
 
 import scala.util.control.NonFatal
 
@@ -15,18 +15,31 @@ object XMLEvents {
 		factory
 	}
 
-	def apply[T: XMLResource](
-		source: T,
-		factory: XMLInputFactory = defaultFactory
-	) = new XMLEvents(source, factory)
+	private sealed trait Resource {
+		type Source
+		def source: Source
+		def provider: XMLResource[Source]
+		def factory: XMLInputFactory
+	}
+	private object Resource {
+		def apply[T: XMLResource](s: T, f: XMLInputFactory) = new Resource {
+			type Source = T
+			val source = s
+			val provider = implicitly[XMLResource[T]]
+			val factory = f
+		}
+	}
+
+	def apply[T: XMLResource](source: T, factory: XMLInputFactory = defaultFactory) = {
+		new XMLEvents(Resource(source, factory))
+	}
 }
 
-class XMLEvents[T](
-	source: T,
-	factory: XMLInputFactory
-)(
-	implicit provider: XMLResource[T]
-) {
+class XMLEvents private(r: XMLEvents.Resource) {
+
+	private val source = r.source
+	private val factory = r.factory
+	private val provider = r.provider
 
 	/** Opens an XML event reader from the `resource` provided in the constructor
 		* @return The reader, paired with a function that should be called when
@@ -41,7 +54,7 @@ class XMLEvents[T](
 					provider.close(opened)
 					throw e
 			}
-		var didClose = new AtomicBoolean(false)
+		val didClose = new AtomicBoolean(false)
 		val closeFunc = () => {
 			if(didClose.compareAndSet(false, true)){
 				provider.close(opened)
@@ -62,16 +75,12 @@ class XMLEvents[T](
 	def feedTo[Out](consumer: Consumer[XMLEvent, Out]) = {
 		val (reader, closeFunc) = open
 		var result: Option[Out] = None
-		val handler = consumer.makeHandler()
 		try {
-			if(reader.hasNext){
-				while(reader.hasNext() && !handler.isFinished){
-					result = handler.handleInput(reader.nextEvent())
-				}
-				result getOrElse handler.handleEnd()
-			} else {
-				handler.handleEnd()
+			val handler = consumer.makeHandler()
+			while(reader.hasNext && !handler.isFinished){
+				result = handler.handleInput(reader.nextEvent())
 			}
+			result getOrElse handler.handleEnd()
 		} finally {
 			closeFunc()
 		}

@@ -26,6 +26,9 @@ object Main2 extends App {
 	val consumer = itemTransformer.consumeToList
 	val result = XMLEvents(rawXML) feedTo consumer
 	println(result)
+
+	case class Foo(i: Int, s: String)
+	object Foo
 }
 
 object Main1 extends App {
@@ -67,23 +70,14 @@ object Main0 extends App {
 	import Consumer.ToList
 	val consumer = Filter[Int](_ % 3 == 0) >> Take[Int](5) >> ToList[Int]()
 
-	implicit class ConsumerWithConsume[In, Out](consumer: Consumer[In, Out]) {
-		def consume(source: Iterable[In]): Out = {
-			var res: Option[Out] = None
-			val handler = consumer.makeHandler()
-			val itr = source.iterator
-			if(itr.hasNext){
-				while(!handler.isFinished && itr.hasNext){
-					val input = itr.next()
-					res = handler.handleInput(input)
-				}
-				res getOrElse handler.handleEnd()
-			} else {
-				handler.handleEnd()
-			}
-		}
+	val foreverIterator = new Iterator[Int] with AutoCloseable {
+		var count = 0
+		def hasNext = true
+		def next(): Int = { count += 1; count }
+		def close(): Unit = println("closed it!")
 	}
 
-	val result = consumer.consume(1 to 100)
+//	val result = consumer.consume(1 to 100)
+	val result = consumer consume foreverIterator
 	println(s"result: $result")
 }

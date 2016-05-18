@@ -11,7 +11,7 @@ trait Parser[-Context, +Out] { self =>
 	def makeHandler(context: Context): Handler[XMLEvent, Result[Out]]
 
 	def mapResult[B](f: Result[Out] => Result[B]): Parser[Context, B] = new Parser[Context, B] {
-		def makeHandler(context: Context) = new MappedHandler(self.makeHandler(context), f)
+		def makeHandler(context: Context) = new MappedHandler(f, self.makeHandler(context))
 	}
 
 	def map[B](f: Out => B): Parser[Context, B] = mapResult(_ map f)
@@ -38,12 +38,10 @@ trait Parser[-Context, +Out] { self =>
 		}
 	}
 
-	def parse(xml: XMLEvents[_])(implicit ev: Any <:< Context): Result[Out] = {
-		xml.feedTo(toConsumer)
-	}
-	def parse[T: XMLResource](xml: T)(implicit ev: Any <:< Context): Result[Out] = {
-		XMLEvents(xml).feedTo(toConsumer)
-	}
+	def parse[XML](xml: XML)(
+		implicit consumeXML: ConsumableLike[XML, XMLEvent],
+		anyContext: Any <:< Context
+	): Result[Out] = consumeXML(xml, makeHandler(anyContext(())))
 }
 object Parser {
 	def fromConsumer[Out](consumer: Consumer[XMLEvent, Result[Out]]): Parser[Any, Out] = {
