@@ -9,6 +9,8 @@ class FoldHandler[A, R](init: R, f: (R, A) => R)
 	with ManualFinish
 	with FinishOnError
 {
+	override def toString = s"Fold($init, $f)"
+
 	private var state = init
 
 	def handleInput(input: A): Option[Result[R]] = {
@@ -28,6 +30,8 @@ class FoldResultsHandler[A, R](init: Result[R], f: (Result[R], Result[A]) => Res
 	extends Handler[A, Result[R]]
 	with ManualFinish
 {
+	override def toString = s"FoldResults($init, $f)"
+
 	private var state = init
 
 	private def advance(input: Result[A]) = {

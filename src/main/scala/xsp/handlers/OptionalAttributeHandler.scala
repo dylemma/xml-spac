@@ -11,6 +11,8 @@ class OptionalAttributeHandler(name: QName)
 	with FinishOnError
 {
 
+	override def toString = s"OptionalAttribute($name)"
+
 	def handleEnd() = finishWith(Result.Success.none)
 
 	def handleInput(input: XMLEvent): Option[Result[Option[String]]] = maybeFinishWith {

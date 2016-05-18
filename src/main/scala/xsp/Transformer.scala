@@ -16,6 +16,7 @@ trait Transformer[In, B] { self =>
 		def makeHandler[Out](next: Handler[C, Out]): Handler[In, Out] = {
 			self.makeHandler(nextT.makeHandler(next))
 		}
+		override def toString = s"$self >> $nextT"
 	}
 
 	def andThen[Out](end: Consumer[B, Out]): Consumer[In, Out] = >>(end)
@@ -23,6 +24,7 @@ trait Transformer[In, B] { self =>
 		def makeHandler(): Handler[In, Out] = {
 			self.makeHandler(end.makeHandler())
 		}
+		override def toString = s"$self >> $end"
 	}
 
 	def take(n: Int): Transformer[In, B] = andThen(Transformer.Take(n))
@@ -49,35 +51,41 @@ object Transformer {
 		def makeHandler[Out](next: Handler[A, Out]): Handler[A, Out] = {
 			new TakeNHandler[A, Out](max, next)
 		}
+		override def toString = s"Take($max)"
 	}
 
 	case class TakeWhile[A](p: A => Boolean) extends Transformer[A, A] {
 		def makeHandler[Out](next: Handler[A, Out]): Handler[A, Out] = {
 			new TakeWhileHandler[A, Out](p, next)
 		}
+		override def toString = s"TakeWhile($p)"
 	}
 
 	case class Filter[A](p: A => Boolean) extends Transformer[A, A] {
 		def makeHandler[Out](next: Handler[A, Out]): Handler[A, Out] = {
 			new FilteringHandler[A, Out](p, next)
 		}
+		override def toString = s"Filter($p)"
 	}
 
 	case class FlattenResults[A]() extends Transformer[Result[A], A] {
 		def makeHandler[Out](next: Handler[A, Out]): Handler[Result[A], Out] = {
 			new ResultFlatteningHandler(next)
 		}
+		override def toString = "FlattenResults"
 	}
 
 	case class ExpandResults[A]() extends Transformer[A, Result[A]] {
 		def makeHandler[Out](next: Handler[Result[A], Out]): Handler[A, Out] = {
 			new ResultExpandingHandler(next)
 		}
+		override def toString = "ExpandResults"
 	}
 
 	case class SideEffect[A](effect: A => Any) extends Transformer[A, A] {
 		def makeHandler[Out](next: Handler[A, Out]): Handler[A, Out] = {
 			new SideEffectHandler(effect, next)
 		}
+		override def toString = s"SideEffect($effect)"
 	}
 }

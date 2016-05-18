@@ -12,6 +12,7 @@ trait Parser[-Context, +Out] { self =>
 
 	def mapResult[B](f: Result[Out] => Result[B]): Parser[Context, B] = new Parser[Context, B] {
 		def makeHandler(context: Context) = new MappedHandler(f, self.makeHandler(context))
+		override def toString = s"$self >> Map($f)"
 	}
 
 	def map[B](f: Out => B): Parser[Context, B] = mapResult(_ map f)
@@ -25,6 +26,7 @@ trait Parser[-Context, +Out] { self =>
 		*/
 	def inContext(context: Context): Parser[Any, Out] = new Parser[Any, Out] {
 		def makeHandler(ignored: Any) = self.makeHandler(context)
+		override def toString = s"$self.inContext($context)"
 	}
 
 	/** If a `Parser` is context-independent, it can be treated to a `Consumer`.
@@ -35,6 +37,7 @@ trait Parser[-Context, +Out] { self =>
 	def toConsumer(implicit ev: Any <:< Context): Consumer[XMLEvent, Result[Out]] = {
 		new Consumer[XMLEvent, Result[Out]] {
 			def makeHandler(): Handler[XMLEvent, Result[Out]] = self.makeHandler(ev(()))
+			override def toString = self.toString
 		}
 	}
 
@@ -47,6 +50,7 @@ object Parser {
 	def fromConsumer[Out](consumer: Consumer[XMLEvent, Result[Out]]): Parser[Any, Out] = {
 		new Parser[Any, Out] {
 			def makeHandler(context: Any) = consumer.makeHandler()
+			override def toString = consumer.toString
 		}
 	}
 
@@ -54,12 +58,14 @@ object Parser {
 	def forText: Parser[Any, String] = ForText
 	object ForText extends Parser[Any, String] {
 		def makeHandler(context: Any) = new TextCollectorHandler
+		override def toString = "XMLText"
 	}
 
 	// CONTEXT
 	def forContext[C]: Parser[C, C] = new ForContext[C]
 	class ForContext[C] extends Parser[C, C] {
 		def makeHandler(context: C) = new OneShotHandler(Result.Success(context))
+		override def toString = "XMLContext"
 	}
 
 	// ATTRIBUTE
@@ -67,6 +73,7 @@ object Parser {
 	def forMandatoryAttribute(name: String): Parser[Any, String] = new ForMandatoryAttribute(new QName(name))
 	class ForMandatoryAttribute(name: QName) extends Parser[Any, String] {
 		def makeHandler(context: Any) = new MandatoryAttributeHandler(name)
+		override def toString = s"Attribute($name)"
 	}
 
 	// OPTIONAL ATTRIBUTE
@@ -74,6 +81,7 @@ object Parser {
 	def forOptionalAttribute(name: String): Parser[Any, Option[String]] = new ForOptionalAttribute(new QName(name))
 	class ForOptionalAttribute(name: QName) extends Parser[Any, Option[String]] {
 		def makeHandler(context: Any) = new OptionalAttributeHandler(name)
+		override def toString = s"OptionalAttribute($name)"
 	}
 
 	// CHOOSE
@@ -89,6 +97,7 @@ object Parser {
 							new OneShotHandler(Result.Error(wrapped))
 					}
 				}
+				override def toString = s"Choose($chooser)"
 			}
 		}
 	}
@@ -157,6 +166,7 @@ object Parser {
 		(implicit p: ParserChainLike[P, Context, T])
 		: Parser[Context, T] = new Parser[Context, T] {
 		def makeHandler(context: Context) = p.makeHandler(parsers, context)
+		override def toString = s"Compound($parsers)"
 	}
 }
 

@@ -8,6 +8,7 @@ class ForEachHandler[A](f: A => Any)
 	extends Handler[A, Unit]
 	with ManualFinish
 {
+	override def toString = s"ForEach($f)"
 	def handleEnd() = ()
 	def handleError(error: Throwable) = throw error
 	def handleInput(input: A) = {
@@ -18,7 +19,9 @@ class ForEachHandler[A](f: A => Any)
 
 
 class SideEffectHandler[A, Out](f: A => Any, next: Handler[A, Out])
-	extends AbstractHandler(next) {
+	extends AbstractHandler(next)
+{
+	override def toString = s"SideEffect($f) >> $next"
 	override def handleInput(input: A): Option[Out] = {
 		Try(f(input)) match {
 			case scala.util.Success(_) => next.handleInput(input)

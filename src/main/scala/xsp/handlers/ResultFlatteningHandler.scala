@@ -6,6 +6,7 @@ import xsp.{Handler, Result}
 	* to the corresponding `handleInput` or `handleError` call.
 	*/
 class ResultFlatteningHandler[A, B](inner: Handler[A, B]) extends Handler[Result[A], B] {
+	override def toString = s"FlattenResults >> $inner"
 	def isFinished: Boolean = inner.isFinished
 	def handleEnd(): B = inner.handleEnd()
 	def handleInput(input: Result[A]): Option[B] = input match {
@@ -21,6 +22,7 @@ class ResultFlatteningHandler[A, B](inner: Handler[A, B]) extends Handler[Result
 	* method called.
 	*/
 class ResultExpandingHandler[A, B](inner: Handler[Result[A], B]) extends Handler[A, B] {
+	override def toString = s"ExpandResults >> $inner"
 	def isFinished = inner.isFinished
 	def handleEnd = inner.handleEnd()
 	def handleInput(input: A) = inner.handleInput(Result.Success(input))

@@ -9,6 +9,7 @@ class TextCollectorHandler
 	with ManualFinish
 	with FinishOnError
 {
+	override def toString = "XMLText"
 	private val sb = new StringBuilder
 	def handleEnd(): Result[String] = finishWith(Result(sb.result()))
 	def handleInput(input: XMLEvent) = {

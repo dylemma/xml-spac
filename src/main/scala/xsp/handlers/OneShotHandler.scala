@@ -3,6 +3,8 @@ package xsp.handlers
 import xsp.Handler
 
 class OneShotHandler[Out](value: =>Out) extends Handler[Any, Out] {
+	override def toString = s"OneShot(<lazy>)"
+
 	private var didEmit = false
 	def isFinished: Boolean = didEmit
 

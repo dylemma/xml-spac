@@ -33,6 +33,8 @@ class CompoundHandler[In, B, Out](
 	private var didSendResult = false
 	private val results = Array.tabulate[Option[B]](innerHandlers.length)(_ => None)
 
+	override def toString = innerHandlers.mkString("Compound(", " ~ ", ")")
+
 	def isFinished: Boolean = didSendResult && (pendingCount == 0)
 
 	/** Creates the result by calling `reform` on the `results` array.

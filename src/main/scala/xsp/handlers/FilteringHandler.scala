@@ -8,4 +8,6 @@ class FilteringHandler[In, Out](p: In => Boolean, inner: Handler[In, Out]) exten
 		else if(p(input)) inner.handleInput(input)
 		else None
 	}
+
+	override def toString = s"Filter($p) >> $inner"
 }

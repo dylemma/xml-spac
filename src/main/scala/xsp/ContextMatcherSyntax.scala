@@ -17,27 +17,39 @@ trait ContextMatcherSyntax {
 
 	/** Context matcher that matches any single element at the head of the tag stack.
 		*/
-	val * = SingleElementContextMatcher.predicate(_ => true)
+	val * = SingleElementContextMatcher.predicate({_ => true}, Some("*"))
 
 	/** Context matcher that matches the element at the head of the stack
 		* as long as its name is equal to the given `qname`.
 		* @param qname The required name (QName) for the element at the head of the stack
 		*/
-	def elem(qname: QName) = SingleElementContextMatcher.predicate(_.getName == qname)
+	def elem(qname: QName) = SingleElementContextMatcher.predicate(
+		_.getName == qname,
+		Some(s"elem($qname)")
+	)
 
 	/** Context matcher that matches the element at the head of the stack
 		* as long as its name (local part only) is equal to the given `name`
 		* @param name The required (local) name for the element at the head of the stack
 		*/
-	def elem(name: String) = SingleElementContextMatcher.predicate(_.getName.getLocalPart == name)
+	def elem(name: String) = SingleElementContextMatcher.predicate(
+		_.getName.getLocalPart == name,
+		Some(s"elem($name)")
+	)
 
 	/** Context matcher that extracts the (local) name of the element at the head of the stack.
 		*/
-	val extractElemName = SingleElementContextMatcher{ e => Some(e.getName.getLocalPart) }
+	val extractElemName = SingleElementContextMatcher(
+		{ e => Some(e.getName.getLocalPart) },
+		Some("elem(?)")
+	)
 
 	/** Context matcher that extracts the (qualified) name of the element at the head of the stack.
 		*/
-	val extractElemQName = SingleElementContextMatcher{ e => Some(e.getName) }
+	val extractElemQName = SingleElementContextMatcher(
+		{ e => Some(e.getName) },
+		Some("elem(?:?)")
+	)
 
 	/** Implicitly convert a `String` to an `elem` matcher */
 	implicit def stringToElemMatcher(name: String) = elem(name)
@@ -48,7 +60,10 @@ trait ContextMatcherSyntax {
 	/** Context matcher that extracts the given attribute from the element at the head of the stack.
 		* @param qname The qualified name of the attribute to extract
 		*/
-	def attr(qname: QName) = SingleElementContextMatcher { e => Option(e getAttributeByName qname).map(_.getValue) }
+	def attr(qname: QName) = SingleElementContextMatcher(
+		{ e => Option(e getAttributeByName qname).map(_.getValue) },
+		Some(s"attr($qname)")
+	)
 
 	/** Context matcher that extracts the given attribute from the element at the head of the stack.
 		* @param name The local name of the attribute to extract

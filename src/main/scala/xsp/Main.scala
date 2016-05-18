@@ -1,5 +1,23 @@
 package xsp
 
+object Main3 extends App {
+	val rawXML =
+		s"""<foo>
+			 |  <Bar>some bars</Bar>
+			 |</foo>
+		 """.stripMargin
+
+	import ContextMatcherSyntax._
+	import TransformerSyntax._
+
+	// This should throw an exception because `parseFirst` does not
+	// receive the "bar" element while in the "Bar" context.
+	// This main is here basically to test that the exception is helpful
+	val barParser = Splitter("bar").through(Parser.forText).parseFirst
+	val parser = Splitter("foo" / "Bar").through(barParser).parseFirst
+	println(parser.parse(rawXML).get)
+}
+
 object Main2 extends App {
 	val rawXML =
 		s"""<dl>

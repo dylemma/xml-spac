@@ -3,6 +3,7 @@ package xsp.handlers
 import xsp.{Handler, Result}
 
 class ToListHandler[A] extends Handler[A, Result[List[A]]] {
+	override def toString = "ToList"
 	private val lb = List.newBuilder[A]
 	private var _finished = false
 	def isFinished: Boolean = _finished

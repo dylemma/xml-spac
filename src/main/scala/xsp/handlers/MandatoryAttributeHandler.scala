@@ -10,6 +10,8 @@ class MandatoryAttributeHandler(name: QName)
 	with ManualFinish
 	with FinishOnError
 {
+	override def toString = s"Attribute($name)"
+
 	@inline private def errorResult(msg: String, event: XMLEvent) = Result.Error(XMLHandlerException(msg, event))
 	@inline private def errorResult(msg: String) = Result.Error(XMLHandlerException(msg))
 

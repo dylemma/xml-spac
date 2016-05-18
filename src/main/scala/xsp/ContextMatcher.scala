@@ -94,6 +94,7 @@ trait ChainingContextMatcher[+A] extends ContextMatcher[A] { self =>
 					(nextMatch, nextLength) <- next.matchSegment(stack, offset + leadLength, length - leadLength)
 				} yield c.combine(leadMatch, nextMatch) -> (leadLength + nextLength)
 			}
+			override def toString = s"$self / $next"
 		}
 	}
 
@@ -138,17 +139,19 @@ trait SingleElementContextMatcher[+A] extends ChainingContextMatcher[A] { self =
 }
 
 object SingleElementContextMatcher {
-	def predicate(f: StartElement => Boolean): SingleElementContextMatcher[Unit] = {
+	def predicate(f: StartElement => Boolean, name: Option[String] = None): SingleElementContextMatcher[Unit] = {
 		new SingleElementContextMatcher[Unit] {
 			protected def matchElement(elem: StartElement) = {
 				if(f(elem)) Result.Success.unit else Result.Empty
 			}
+			override def toString = name.getOrElse(super.toString)
 		}
 	}
 
-	def apply[A](f: StartElement => Option[A]): SingleElementContextMatcher[A] = {
+	def apply[A](f: StartElement => Option[A], name: Option[String] = None): SingleElementContextMatcher[A] = {
 		new SingleElementContextMatcher[A] {
 			protected def matchElement(elem: StartElement) = Result fromOption f(elem)
+			override def toString = name.getOrElse(super.toString)
 		}
 	}
 }

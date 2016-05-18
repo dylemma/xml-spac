@@ -4,12 +4,14 @@ import javax.xml.stream.events.{StartElement, XMLEvent}
 
 import xsp._
 
+import scala.util.control.NonFatal
+
 class XMLContextSplitterHandler[Context, P, Out](
 	matcher: ContextMatcher[Context],
 	parser: Parser[Context, P],
 	downstream: Handler[P, Out]
 ) extends Handler[XMLEvent, Out]{
-
+	override def toString = s"Splitter($matcher){ $parser } >> $downstream"
 	def isFinished: Boolean = downstream.isFinished
 
 	// ================
@@ -42,14 +44,24 @@ class XMLContextSplitterHandler[Context, P, Out](
 			if !handler.isFinished
 		} yield {
 			currentParserHandler = None
-			handler.handleEnd()
+			try handler.handleEnd() catch { case NonFatal(err) =>
+				throw new Exception(
+					s"Error in inner parser-handler [$handler] while running Splitter($matcher) at the EOF",
+					err
+				)
+			}
 		}
 	}
 	private def feedEventToCurrentParser(event: XMLEvent): Option[Result[P]] = {
 		for {
 			handler <- currentParserHandler
 			if !handler.isFinished
-			result <- handler.handleInput(event)
+			result <- try handler.handleInput(event) catch { case NonFatal(err) =>
+				throw new Exception(
+					s"Error in inner parser-handler [$handler] while running Splitter($matcher) at event [$event]",
+					err
+				)
+			}
 		} yield {
 			currentParserHandler = None
 			result
@@ -59,7 +71,12 @@ class XMLContextSplitterHandler[Context, P, Out](
 		for {
 			handler <- currentParserHandler
 			if !handler.isFinished
-			result <- handler.handleError(err)
+			result <- try handler.handleError(err) catch { case NonFatal(err2) =>
+				throw new Exception(
+					s"Error in inner parser-handler [$handler] while running Splitter($matcher) at error-event [$err]",
+					err2
+				)
+			}
 		} yield {
 			currentParserHandler = None
 			result
@@ -67,11 +84,18 @@ class XMLContextSplitterHandler[Context, P, Out](
 	}
 
 	private def feedResultToDownstream(result: Result[P]): Option[Out] = {
-		if(downstream.isFinished) None
-		else result match {
-			case Result.Success(p) => downstream.handleInput(p)
-			case Result.Empty => None
-			case Result.Error(err) => downstream.handleError(err)
+		try {
+			if (downstream.isFinished) None
+			else result match {
+				case Result.Success(p) => downstream.handleInput(p)
+				case Result.Empty => None
+				case Result.Error(err) => downstream.handleError(err)
+			}
+		} catch {
+			case NonFatal(err) => throw new Exception(
+				s"Error passing [$result] to downstream handler [$downstream] while running Splitter($matcher)",
+				err
+			)
 		}
 	}
 

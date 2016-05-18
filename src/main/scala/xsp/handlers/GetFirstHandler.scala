@@ -7,13 +7,15 @@ class GetFirstHandler[A]
 	with ManualFinish
 	with FinishOnError
 {
+	override def toString = "GetFirst"
+
 	def handleInput(input: A): Option[Result[A]] = finishWith {
 		Some(Result.Success(input))
 	}
 	def handleEnd(): Result[A] = finishWith {
-		Result.Error(new NoSuchElementException(
+		throw new NoSuchElementException(
 			"encountered end of stream before the first element"
-		))
+		)
 	}
 }
 
@@ -22,6 +24,8 @@ class GetFirstOptionHandler[A]
 	with ManualFinish
 	with FinishOnError
 {
+	override def toString = "GetFirstOption"
+
 	def handleInput(input: A): Option[Result[Option[A]]] = finishWith {
 		Some(Result.Success(Some(input)))
 	}
