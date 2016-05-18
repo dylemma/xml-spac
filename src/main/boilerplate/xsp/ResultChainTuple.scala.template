@@ -1,0 +1,25 @@
+package xsp
+
+import scala.{Tuple2 => ~}
+
+trait ResultChainTuple[C, T] {
+	def toTuple(chain: C): Result[T]
+}
+
+object ResultChainTuple {
+	object ~ {
+		def unapply[A, B](t: (A, B)) = Some(t)
+	}
+
+	[2..22#implicit def forTuple1[[#A1#]] = new ForTuple1[[#A1#]]
+	class ForTuple1[[#A1#]] extends ResultChainTuple[[#Result[A1]# ~ ], ([#A1#])] {
+		def toTuple(chain: [#Result[A1]# ~ ]): Result[([#A1#])] = chain match {
+			case [#r1# ~ ] => for {
+				[#a1 <- r1#
+				]
+			} yield ([#a1#])
+		}
+	}#
+
+	]
+}
