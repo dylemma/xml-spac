@@ -3,8 +3,6 @@ package xsp
 import javax.xml.namespace.QName
 import javax.xml.stream.events.StartElement
 
-import ChainOps._
-
 import scala.language.implicitConversions
 
 object ContextMatcherSyntax extends ContextMatcherSyntax
@@ -15,7 +13,7 @@ trait ContextMatcherSyntax {
 	object Root extends ChainingContextMatcher[Unit, Start] {
 		protected def applyChain(stack: IndexedSeq[StartElement], offset: Int, length: Int) = Result.Success(Start -> 0)
 		protected val minStackLength = Some(0)
-		protected val chainRep = Rep.UnitRep
+		protected val chainRep = ChainRep.UnitChainRep
 	}
 
 	/** Context matcher that matches any single element at the head of the tag stack.
