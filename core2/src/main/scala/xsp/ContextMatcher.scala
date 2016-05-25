@@ -2,7 +2,7 @@ package xsp
 
 import javax.xml.stream.events.StartElement
 
-import xsp.ContextMatcher.ContextCombine
+import ChainOps._
 
 trait ContextMatcher[+A] { self =>
 
@@ -25,143 +25,213 @@ trait ContextMatcher[+A] { self =>
 		* @param length
 		* @return
 		*/
-	def matchContext(stack: IndexedSeq[StartElement], offset: Int, length: Int): Result[A]
+	def apply(stack: IndexedSeq[StartElement], offset: Int, length: Int): Result[A]
 
-	def mapResult[B](f: (Result[A]) => Result[B]): ContextMatcher[B] = new ContextMatcher[B] {
-		def matchContext(stack: IndexedSeq[StartElement], offset: Int, length: Int): Result[B] = {
-			f(self.matchContext(stack, offset, length))
+	def mapWith[B](f: Result[A] => Result[B]): ContextMatcher[B] = new ContextMatcher[B] {
+		def apply(stack: IndexedSeq[StartElement], offset: Int, length: Int) = {
+			f(self(stack, offset, length))
 		}
 	}
-	def map[B](f: A => B) = mapResult(_ map f)
-	def flatMap[B](f: A => Result[B]) = mapResult(_ flatMap f)
+	def map[B](f: A => B) = mapWith(_ map f)
+	def flatMap[B](f: A => Result[B]) = mapWith(_ flatMap f)
+	def withFilter(f: A => Boolean) = mapWith(_ withFilter f)
 }
 
-object ContextMatcher {
-	/** Typeclass that knows how to concatenate tuple chains
-		* of type `L` and `R` into a new chain of type `C`.
-		*
-		* @tparam L The left operand tuple type
-		* @tparam R The right operand tuple type
-		* @tparam C The combined tuple type
-		*/
-	trait ContextCombine[-L, -R, +C] {
-		def apply(left: L, right: R): C
-	}
-	object ContextCombine extends MidPriorityContextCombineImplicits {
-		implicit def unitAppend[R]: ContextCombine[Unit, R, R] = new ContextCombine[Unit, R, R] {
-			def apply(left: Unit, right: R): R = right
-		}
-	}
-	trait MidPriorityContextCombineImplicits extends LowPriorityContextCombineImplicits {
-		implicit def tuple2Append[L, R1, R2, M1, C](
-			implicit midConcat: ContextCombine[L, R1, M1],
-			endConcat: ContextCombine[M1, R2, C]
-		): ContextCombine[L, (R1, R2), C] = new ContextCombine[L, (R1, R2), C] {
-			def apply(left: L, right: (R1, R2)): C = {
-				endConcat(midConcat(left, right._1), right._2)
-			}
-		}
-
-		implicit def appendUnit[L]: ContextCombine[L, Unit, L] = new ContextCombine[L, Unit, L] {
-			def apply(left: L, right: Unit): L = left
-		}
-	}
-	trait LowPriorityContextCombineImplicits {
-		implicit def anyChainConcat[L, R]: ContextCombine[L, R, (L, R)] = {
-			new ContextCombine[L, R, (L, R)] {
-				def apply(left: L, right: R) = (left, right)
-			}
-		}
-	}
-}
-
-/** Specialization of ContextMatcher that allows combination with other matchers, forming a chain
-	* which inductively matches the XML stack and combines individual results.
+/** Specialization of ContextMatcher that can chain with other ChainingContextMatchers,
+	* creating a single matcher that combines the results of each member of the chain.
+	* Internally, results are concatenated in the form of some `Chain` subtype, then
+	* converted to some representative form (e.g. a Tuple, Unit, or a single value).
 	*
 	* @tparam A The type of the extracted context.
+	* @tparam AChain Internal representation of `A` as a `Chain` subtype
 	*/
-trait ChainingContextMatcher[+A] extends ContextMatcher[A] { self =>
+trait ChainingContextMatcher[A, AChain <: Chain] extends ContextMatcher[A] { self =>
 
-	/** Behaves like `matchContext` should, except that it additionally returns the length
+	/** Behaves like `apply` should, except that it additionally returns the length
 		* of the matched segment. When creating a new matcher that chains off of this one,
 		* the returned length should be added to the `offset` value and subtracted from the
 		* `length` value of the next `matchContext` call.
 		*
-		* @param stack
-		* @param offset
-		* @param length
-		* @return
+		* @return A result containing the chain representation of the matched segment of the stack,
+		*         paired with the length of the matched segment. If the match was unsuccessful,
+		*         returns `Result.Empty` or `Result.Error(err)` instead.
 		*/
-	protected def matchSegment(stack: IndexedSeq[StartElement], offset: Int, length: Int): Result[(A, Int)]
+	protected def applyChain(stack: IndexedSeq[StartElement], offset: Int, length: Int): Result[(AChain, Int)]
 
-	def matchContext(stack: IndexedSeq[StartElement], offset: Int, length: Int) = matchSegment(stack, offset, length).map(_._1)
+	/** If there is a known, fixed minimum length for the stack in order for this matcher to
+		* successfully match, this method will return a `Some` containing that minimum. This is
+		* used as a hint when combining chained matchers, so that the combined chain matcher can
+		* fail early when the stack is too small.
+		*/
+	protected def minStackLength: Option[Int]
 
-	def /[B, AB](next: ChainingContextMatcher[B])(implicit cc: ContextCombine[A, B, AB]): ChainingContextMatcher[AB] = {
-		new ChainingContextMatcher[AB] {
-			protected def matchSegment(stack: IndexedSeq[StartElement], offset: Int, length: Int) = {
+	/** An object used to convert between the result type and its chain representation */
+	protected def chainRep: Rep[A, AChain]
+
+	def apply(stack: IndexedSeq[StartElement], offset: Int, length: Int): Result[A] = {
+		applyChain(stack, offset, length).map { case (chain, _) => chainRep.fromChain(chain) }
+	}
+
+	override def mapWith[B](f: Result[A] => Result[B]): ChainingContextMatcher[B, Start ~ B] = {
+		new ChainingContextMatcher[B, Start ~ B] {
+			val minStackLength: Option[Int] = self.minStackLength
+			protected val chainRep = new Rep[B, Start ~ B] {
+				def toChain(t: B) = Start ~ t
+				def fromChain(c: Start ~ B) = c.tail
+			}
+			protected def applyChain(stack: IndexedSeq[StartElement], offset: Int, length: Int): Result[(Start ~ B, Int)] = {
+				val selfResult = self.applyChain(stack, offset, length)
 				for {
-					(leadMatch, leadLength) <- self.matchSegment(stack, offset, length)
-					(nextMatch, nextLength) <- next.matchSegment(stack, offset + leadLength, length - leadLength)
-				} yield cc(leadMatch, nextMatch) -> (leadLength + nextLength)
+					b <- f(selfResult.map(bl => self.chainRep.fromChain(bl._1)))
+					len <- selfResult.map(_._2)
+				} yield (Start ~ b, len)
+			}
+			override def apply(stack: IndexedSeq[StartElement], offset: Int, length: Int): Result[B] = {
+				f(self(stack, offset, length))
+			}
+			override def toString = s"$self.mapWith($f)"
+		}
+	}
+	override def map[B](f: A => B) = mapWith(_ map f)
+	override def flatMap[B](f: A => Result[B]) = mapWith(_ flatMap f)
+	override def withFilter(f: A => Boolean): ChainingContextMatcher[A, AChain] = {
+		new ChainingContextMatcher[A, AChain] {
+			protected val minStackLength: Option[Int] = self.minStackLength
+			protected val chainRep: Rep[A, AChain] = self.chainRep
+			protected def applyChain(stack: IndexedSeq[StartElement], offset: Int, length: Int): Result[(AChain, Int)] = {
+				self.applyChain(stack, offset, length).withFilter {
+					case (aChain, _) => f(chainRep.fromChain(aChain))
+				}
+			}
+			override def toString = s"$self.withFilter($f)"
+		}
+	}
+
+	/** Chain this matcher with the `next` matcher, returning a new matcher which represents the chain.
+		*
+		* @param next The next matcher in the chain
+		* @param concat An implicitly-available object that knows how to combine the chain representations
+		*               of this matcher and the `next` matcher
+		* @param thatRep An implicitly-available object that serves as the `chainRep` for the resulting parser
+		* @tparam B The result type of the `next` parser
+		* @tparam BChain The chain representation of the `next` parser's result type
+		* @tparam That The result type of the combined parser
+		* @tparam ThatChain The chain representation of the combined parser's result type
+		* @return A new matcher which combines this matcher and the `next` in a chain
+		*/
+	def \[B, BChain <: Chain, That, ThatChain <: Chain](next: ChainingContextMatcher[B, BChain])
+		(implicit concat: Concat[AChain, BChain, ThatChain], thatRep: Rep[That, ThatChain])
+	: ChainingContextMatcher[That, ThatChain] =
+	{
+		new ChainingContextMatcher[That, ThatChain] {
+			protected val minStackLength = for {
+				amin <- self.minStackLength
+				bmin <- next.minStackLength
+			} yield amin + bmin
+			protected val chainRep = thatRep
+			protected def applyChain(stack: IndexedSeq[StartElement], offset: Int, length: Int): Result[(ThatChain, Int)] = {
+				val stackBigEnough = minStackLength.fold(true)(length >= _)
+				if(stackBigEnough){
+					for {
+						(selfChain, selfTaken) <- self.applyChain(stack, offset, length)
+						(nextChain, nextTaken) <- next.applyChain(stack, offset + selfTaken, length - selfTaken)
+					} yield concat(selfChain, nextChain) -> (selfTaken + nextTaken)
+				} else {
+					Result.Empty
+				}
 			}
 			override def toString = s"$self / $next"
 		}
 	}
-
 }
+
 
 /** A further specialization of ChainingContextMatcher which matches exactly one element
 	* from the XML stack.
-	*
-	* @tparam A The type of the extracted context.
 	*/
-trait SingleElementContextMatcher[+A] extends ChainingContextMatcher[A] { self =>
+trait SingleElementContextMatcher[A, AChain <: Chain] extends ChainingContextMatcher[A, AChain] { self =>
 
-	protected def matchElement(elem: StartElement): Result[A]
-	protected def matchSegment(stack: IndexedSeq[StartElement], offset: Int, length: Int): Result[(A, Int)] = {
-		if(length >= 1) matchElement(stack(offset)) map { _ -> 1 }
-		else Result.Empty
+	/** Given a single element, return a match result (as a chain) */
+	protected def applyElem(elem: StartElement): Result[AChain]
+	protected val minStackLength = Some(1)
+	protected def applyChain(stack: IndexedSeq[StartElement], offset: Int, length: Int): Result[(AChain, Int)] = {
+		if(length < 1) Result.Empty
+		else applyElem(stack(offset)).map(_ -> 1)
 	}
-
-	// import alias this trait because of the long class name
-	import xsp.{SingleElementContextMatcher => Match1}
-
-	override def mapResult[B](f: (Result[A]) => Result[B]): Match1[B] = new Match1[B] {
-		protected def matchElement(elem: StartElement) = f(self matchElement elem)
+	override def mapWith[B](f: (Result[A]) => Result[B]): SingleElementContextMatcher[B, Start ~ B] = {
+		new SingleElementContextMatcher[B, Start ~ B] {
+			protected val chainRep = new Rep[B, Start ~ B]{
+				def toChain(b: B) = Start ~ b
+				def fromChain(chain: Start ~ B): B = chain.tail
+			}
+			protected def applyElem(elem: StartElement): Result[Start ~ B] = {
+				f(self.applyElem(elem).map(self.chainRep.fromChain)).map(Start ~ _)
+			}
+			override def toString = s"$self.mapWith($f)"
+		}
 	}
-	override def map[B](f: A => B) = mapResult(_ map f)
-
-	def &[B, AB](that: Match1[B])(implicit cc: ContextCombine[A, B, AB]): Match1[AB] = new Match1[AB] {
-		protected def matchElement(elem: StartElement): Result[AB] = {
-			for{
-				a <- self.matchElement(elem)
-				b <- that.matchElement(elem)
-			} yield cc(a, b)
+	override def map[B](f: A => B) = mapWith(_ map f)
+	override def flatMap[B](f: A => Result[B]) = mapWith(_ flatMap f)
+	override def withFilter(f: (A) => Boolean): SingleElementContextMatcher[A, AChain] = {
+		new SingleElementContextMatcher[A, AChain] {
+			protected val chainRep: Rep[A, AChain] = self.chainRep
+			protected def applyElem(elem: StartElement): Result[AChain] = {
+				self.applyElem(elem).withFilter{ aChain =>
+					f(chainRep.fromChain(aChain))
+				}
+			}
+			override def toString = s"$self.withFilter($f)"
 		}
 	}
 
-	def |[A1 >: A](that: Match1[A1]): Match1[A1] = new Match1[A1] {
-		protected def matchElement(elem: StartElement): Result[A1] = {
-			self.matchElement(elem) orElse that.matchElement(elem)
+	/** Create a new matcher that will take the result of the `other` matcher if this one fails */
+	def |(other: SingleElementContextMatcher[A, AChain]): SingleElementContextMatcher[A, AChain] = {
+		new SingleElementContextMatcher[A, AChain] {
+			protected def chainRep: Rep[A, AChain] = self.chainRep
+			protected def applyElem(elem: StartElement): Result[AChain] = {
+				self.applyElem(elem) orElse other.applyElem(elem)
+			}
+			override def toString = s"$self | $other"
 		}
 	}
 
+	/** Create a new matcher that will combine the results of both this matcher and the `other` matcher
+		* on any given element. If either matcher fails, the combined result also fails. The combination
+		* rules are similar to the rules on the `\` method, except that the resulting matcher only operates
+		* on a single element, rather than a chain of elements.
+		*/
+	def &[B, BChain <: Chain, That, ThatChain <: Chain](other: SingleElementContextMatcher[B, BChain])
+		(implicit concat: Concat[AChain, BChain, ThatChain], thatRep: Rep[That, ThatChain])
+	: SingleElementContextMatcher[That, ThatChain] = new SingleElementContextMatcher[That, ThatChain] {
+		protected def chainRep: Rep[That, ThatChain] = thatRep
+		protected def applyElem(elem: StartElement): Result[ThatChain] = {
+			for {
+				aChain <- self.applyElem(elem)
+				bChain <- other.applyElem(elem)
+			} yield concat(aChain, bChain)
+		}
+		override def toString = s"$self & $other"
+	}
 }
 
 object SingleElementContextMatcher {
-	def predicate(f: StartElement => Boolean, name: Option[String] = None): SingleElementContextMatcher[Unit] = {
-		new SingleElementContextMatcher[Unit] {
-			protected def matchElement(elem: StartElement) = {
-				if(f(elem)) Result.Success.unit else Result.Empty
+	def predicate(matcherName: String, f: StartElement => Boolean): SingleElementContextMatcher[Unit, Start] = {
+		new SingleElementContextMatcher[Unit, Start] {
+			protected val chainRep: Rep[Unit, Start] = Rep.UnitRep
+			private val success = Result.Success(Start)
+			protected def applyElem(elem: StartElement): Result[Start] = {
+				if(f(elem)) success else Result.Empty
 			}
-			override def toString = name.getOrElse(super.toString)
+			override def toString = matcherName
 		}
 	}
 
-	def apply[A](f: StartElement => Option[A], name: Option[String] = None): SingleElementContextMatcher[A] = {
-		new SingleElementContextMatcher[A] {
-			protected def matchElement(elem: StartElement) = Result fromOption f(elem)
-			override def toString = name.getOrElse(super.toString)
+	def apply[A, AChain <: Chain](matcherName: String, f: StartElement => Result[A])(implicit rep: Rep[A, AChain])
+	: SingleElementContextMatcher[A, AChain] = new SingleElementContextMatcher[A, AChain] {
+		protected val chainRep: Rep[A, AChain] = rep
+		protected def applyElem(elem: StartElement): Result[AChain] = {
+			f(elem).map(chainRep.toChain)
 		}
+		override def toString = matcherName
 	}
 }

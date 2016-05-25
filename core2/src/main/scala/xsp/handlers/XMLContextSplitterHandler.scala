@@ -108,7 +108,7 @@ class XMLContextSplitterHandler[Context, P, Out](
 
 			// attempt to match a context if there isn't one already
 			if(currentContext.isEmpty){
-				val newMatch = matcher.matchContext(stackBuffer, 0, stackSize)
+				val newMatch = matcher(stackBuffer, 0, stackSize)
 				if(!newMatch.isEmpty){
 					currentContext = newMatch
 					matchStartDepth = stackSize

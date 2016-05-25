@@ -16,7 +16,7 @@ object Main3 extends App {
 	// receive the "bar" element while in the "Bar" context.
 	// This main is here basically to test that the exception is helpful
 	val barParser = Splitter("bar").through(Parser.forText).parseFirst
-	val parser = Splitter("foo" / "Bar").through(barParser).parseFirst
+	val parser = Splitter("foo" \ "Bar").through(barParser).parseFirst
 	println(parser.parse(rawXML).get)
 }
 
@@ -41,7 +41,7 @@ object Main2 extends App {
 		case "dd" => Parser.forText map Description
 	}
 
-	val itemTransformer = Splitter("dl" / extractElemName) through itemParser
+	val itemTransformer = Splitter("dl" \ extractElemName) through itemParser
 	val consumer = itemTransformer.consumeToList
 	val result = XMLEvents(rawXML) feedTo consumer
 	println(result)
@@ -67,7 +67,7 @@ object Main1 extends App {
 			 |</body>
 		 """.stripMargin
 
-	val splitter = Splitter(extractElemName / "div")
+	val splitter = Splitter(extractElemName \ "div")
 	val innerParser = Parser.compound(
 		Parser.forContext[String] ->
 		Parser.forText ->
