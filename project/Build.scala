@@ -24,6 +24,7 @@ object XmlStreamBuild extends Build {
 
 	lazy val core2 = (project in file("core2"))
 		.settings(name := "xml-stream-2")
+		.settings(libraryDependencies += "org.scalatest" %% "scalatest" % "2.2.4" % "test")
 		.settings(commonSettings: _*)
 		.enablePlugins(BoilerplatePlugin)
 
