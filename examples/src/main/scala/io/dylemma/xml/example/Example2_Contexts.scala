@@ -1,7 +1,7 @@
 package io.dylemma.xml.example
 
-import xsp._
-import xsp.syntax._
+import io.dylemma.xsp._
+import io.dylemma.xsp.syntax._
 
 object Example2_Contexts extends App {
 
@@ -87,10 +87,10 @@ object Example2_Contexts extends App {
 	the parser's substream to create a Comment.
 	 */
 	case class Comment(body: String, context: PostContext)
-	val postParser = Parser.compound(
-		Parser.forText ->
+	val postParser = Parser.combine(
+		Parser.forText,
 		Parser.forContext[PostContext]
-	).map(Comment.tupled)
+	).as(Comment)
 
 	// assemble the consumer and run it on the xml
 	postSplitter through postParser consumeForEach println consume rawXml

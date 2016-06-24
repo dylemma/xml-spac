@@ -2,6 +2,7 @@ package io.dylemma.xsp
 
 import syntax._
 
+
 object Main3 extends App {
 	val rawXML =
 		s"""<foo>
@@ -68,11 +69,11 @@ object Main1 extends App {
 		 """.stripMargin
 
 	val splitter = Splitter(extractElemName \ "div")
-	val innerParser = Parser.compound(
-		Parser.forContext[String] ->
-		Parser.forText ->
+	val innerParser = Parser.combine(
+		Parser.forContext[String],
+		Parser.forText,
 		Parser.forOptionalAttribute("style")
-	)
+	).asTuple
 	val parser = (splitter through innerParser).parseToList
 	val result = parser parse rawXML
 	println(result)

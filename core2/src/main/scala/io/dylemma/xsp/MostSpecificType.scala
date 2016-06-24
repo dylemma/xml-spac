@@ -26,4 +26,14 @@ object MostSpecificType {
 	class Between[B1, B2] {
 		def apply[A]()(implicit mst: MostSpecificType[A, B1, B2]) = mst
 	}
+
+	@implicitNotFound("There is no common type between all of the types in ${C}")
+	sealed trait Among[C <: Chain, T]
+	object Among {
+		implicit val startInstance: Among[Start, Any] = null
+		implicit def chainInstance[Previous <: Chain, PrevT, Next, Common](
+			implicit prevAmong: Among[Previous, PrevT],
+			mst: MostSpecificType[Common, PrevT, Next]
+		): Among[Previous ~ Next, Common] = null
+	}
 }
