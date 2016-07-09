@@ -32,6 +32,7 @@ trait Transformer[In, B] { self =>
 	def drop(n: Int): Transformer[In, B] = andThen(Transformer.Drop(n))
 	def dropWhile(p: B => Boolean): Transformer[In, B] = andThen(Transformer.DropWhile(p))
 	def map[C](f: B => C): Transformer[In, C] = andThen(Transformer.Map(f))
+	def collect[C](pf: PartialFunction[B, C]): Transformer[In, C] = andThen(Transformer.Collect(pf))
 	def scan[S](init: S)(f: (S, B) => S): Transformer[In, S] = andThen(Transformer.Scan(init)(f))
 	def filter(p: B => Boolean): Transformer[In, B] = andThen(Transformer.Filter(p))
 	def flattenResults[T](implicit ev: B =:= Result[T]): Transformer[In, T] = {

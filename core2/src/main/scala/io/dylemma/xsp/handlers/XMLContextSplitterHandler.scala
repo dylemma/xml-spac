@@ -9,11 +9,11 @@ import scala.util.control.NonFatal
 class XMLContextSplitterHandler[Context, P, Out](
 	matcher: ContextMatcher[Context],
 	parser: Parser[Context, P],
-	downstream: Handler[P, Out]
-) extends Handler[XMLEvent, Out]{
+	val downstream: Handler[P, Out]
+) extends SplitterHandlerBase[XMLEvent, Context, P, Out]{
 	override def toString = s"Splitter($matcher){ $parser } >> $downstream"
-	def isFinished: Boolean = downstream.isFinished
 
+	lazy val debugName = s"Splitter($matcher)"
 	// ================
 	// Stack Operations
 	// ================
@@ -36,68 +36,6 @@ class XMLContextSplitterHandler[Context, P, Out](
 
 	private var currentContext: Result[Context] = Result.Empty
 	private var matchStartDepth = 0
-	private var currentParserHandler: Option[Handler[XMLEvent, Result[P]]] = None
-
-	private def feedEndToCurrentParser(): Option[Result[P]] = {
-		for {
-			handler <- currentParserHandler
-			if !handler.isFinished
-		} yield {
-			currentParserHandler = None
-			try handler.handleEnd() catch { case NonFatal(err) =>
-				throw new Exception(
-					s"Error in inner parser-handler [$handler] while running Splitter($matcher) at the EOF",
-					err
-				)
-			}
-		}
-	}
-	private def feedEventToCurrentParser(event: XMLEvent): Option[Result[P]] = {
-		for {
-			handler <- currentParserHandler
-			if !handler.isFinished
-			result <- try handler.handleInput(event) catch { case NonFatal(err) =>
-				throw new Exception(
-					s"Error in inner parser-handler [$handler] while running Splitter($matcher) at event [$event]",
-					err
-				)
-			}
-		} yield {
-			currentParserHandler = None
-			result
-		}
-	}
-	private def feedErrorToCurrentParser(err: Throwable): Option[Result[P]] = {
-		for {
-			handler <- currentParserHandler
-			if !handler.isFinished
-			result <- try handler.handleError(err) catch { case NonFatal(err2) =>
-				throw new Exception(
-					s"Error in inner parser-handler [$handler] while running Splitter($matcher) at error-event [$err]",
-					err2
-				)
-			}
-		} yield {
-			currentParserHandler = None
-			result
-		}
-	}
-
-	private def feedResultToDownstream(result: Result[P]): Option[Out] = {
-		try {
-			if (downstream.isFinished) None
-			else result match {
-				case Result.Success(p) => downstream.handleInput(p)
-				case Result.Empty => None
-				case Result.Error(err) => downstream.handleError(err)
-			}
-		} catch {
-			case NonFatal(err) => throw new Exception(
-				s"Error passing [$result] to downstream handler [$downstream] while running Splitter($matcher)",
-				err
-			)
-		}
-	}
 
 	def handleInput(input: XMLEvent): Option[Out] = {
 		debug(s"event: $input")
@@ -164,15 +102,4 @@ class XMLContextSplitterHandler[Context, P, Out](
 		}
 	}
 
-	def handleError(err: Throwable): Option[Out] = {
-		feedErrorToCurrentParser(err)
-		  .map(debug as "Got inner parser result (from error)")
-		  .flatMap(feedResultToDownstream)
-	}
-	def handleEnd(): Out = {
-		feedEndToCurrentParser()
-		  .map(debug as "Got inner parser result (from EOF)")
-		  .flatMap(feedResultToDownstream)
-		  .getOrElse{ downstream.handleEnd() }
-	}
 }
