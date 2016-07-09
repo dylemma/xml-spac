@@ -7,14 +7,14 @@ import spray.boilerplate.BoilerplatePlugin
 object XmlStreamBuild extends Build {
 
 	lazy val commonSettings = Seq(
-		version := "0.2-SNAPSHOT",
+		version := "0.2",
 		scalaVersion := "2.11.8",
 		scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
 		organization := "io.dylemma"
 	)
 
 	lazy val core = (project in file("core"))
-		.settings(name := "xml-stream")
+		.settings(name := "spac")
 		.settings(commonSettings: _*)
 		.settings(libraryDependencies += "org.scalatest" %% "scalatest" % "2.2.4" % "test")
 		.enablePlugins(BoilerplatePlugin)
@@ -23,7 +23,10 @@ object XmlStreamBuild extends Build {
 
 	lazy val examples = (project in file("examples"))
 		.settings(commonSettings: _*)
-		.settings(publish := {})
+		.settings(
+			publish := {},
+			libraryDependencies += "joda-time" % "joda-time" % "2.9.4"
+		)
 		.dependsOn(core)
 
 	lazy val root = (project in file("."))
