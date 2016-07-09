@@ -29,6 +29,10 @@ trait Transformer[In, B] { self =>
 
 	def take(n: Int): Transformer[In, B] = andThen(Transformer.Take(n))
 	def takeWhile(p: B => Boolean): Transformer[In, B] = andThen(Transformer.TakeWhile(p))
+	def drop(n: Int): Transformer[In, B] = andThen(Transformer.Drop(n))
+	def dropWhile(p: B => Boolean): Transformer[In, B] = andThen(Transformer.DropWhile(p))
+	def map[C](f: B => C): Transformer[In, C] = andThen(Transformer.Map(f))
+	def scan[S](init: S)(f: (S, B) => S): Transformer[In, S] = andThen(Transformer.Scan(init)(f))
 	def filter(p: B => Boolean): Transformer[In, B] = andThen(Transformer.Filter(p))
 	def flattenResults[T](implicit ev: B =:= Result[T]): Transformer[In, T] = {
 		asInstanceOf[Transformer[In, Result[T]]].andThen(Transformer.FlattenResults[T]())
@@ -61,11 +65,38 @@ object Transformer {
 		override def toString = s"TakeWhile($p)"
 	}
 
+	case class Drop[A](numToDrop: Int) extends Transformer[A, A] {
+		def makeHandler[Out](next: Handler[A, Out]): Handler[A, Out] = {
+			new DropNHandler(numToDrop, next)
+		}
+		override def toString = s"Drop($numToDrop)"
+	}
+
+	case class DropWhile[A](p: A => Boolean) extends Transformer[A, A] {
+		def makeHandler[Out](next: Handler[A, Out]): Handler[A, Out] = {
+			new DropWhileHandler(p, next)
+		}
+		override def toString = s"DropWhile($p)"
+	}
+
 	case class Filter[A](p: A => Boolean) extends Transformer[A, A] {
 		def makeHandler[Out](next: Handler[A, Out]): Handler[A, Out] = {
 			new FilteringHandler[A, Out](p, next)
 		}
 		override def toString = s"Filter($p)"
+	}
+
+	case class Map[A, B](f: A => B) extends Transformer[A, B] {
+		def makeHandler[Out](next: Handler[B, Out]): Handler[A, Out] = {
+			new MappedTransformerHandler(f, next)
+		}
+		override def toString = s"Map($f)"
+	}
+
+	case class Scan[S, A](init: S)(f: (S, A) => S) extends Transformer[A, S] {
+		def makeHandler[Out](next: Handler[S, Out]): Handler[A, Out] = {
+			new ScanningHandler(init, f, next)
+		}
 	}
 
 	case class FlattenResults[A]() extends Transformer[Result[A], A] {

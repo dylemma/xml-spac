@@ -11,7 +11,7 @@ trait Parser[-Context, +Out] { self =>
 	def makeHandler(context: Context): Handler[XMLEvent, Result[Out]]
 
 	def mapResult[B](f: Result[Out] => Result[B]): Parser[Context, B] = new Parser[Context, B] {
-		def makeHandler(context: Context) = new MappedHandler(f, self.makeHandler(context))
+		def makeHandler(context: Context) = new MappedConsumerHandler(f, self.makeHandler(context))
 		override def toString = s"$self >> Map($f)"
 	}
 

@@ -6,7 +6,7 @@ import io.dylemma.xsp.Result.{Error, Success}
 import io.dylemma.xsp.syntax._
 import org.scalatest.{FunSpec, Matchers}
 
-class XSPTests extends FunSpec with Matchers {
+class ParserTests extends FunSpec with Matchers {
 
 	protected def testParserResult[R](rawXml: String, parser: Parser[Any, R], expected: Result[R]) = {
 		val result = parser parse rawXml
