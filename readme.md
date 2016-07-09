@@ -3,7 +3,7 @@ SPaC
 
 [![Build Status](https://travis-ci.org/dylemma/xml-stream.svg?branch=master)](https://travis-ci.org/dylemma/xml-stream)
 
-*S*treaming *Pa*rser *Combinators* lets you create declarative, composable, high-performance handlers that work on 
+**S**treaming **Pa**rser **C**ombinators lets you create declarative, composable, high-performance handlers that work on 
 [streaming XML](https://docs.oracle.com/javase/7/docs/api/javax/xml/stream/package-summary.html),
 without all of the boilerplate that usually comes with SAX or StAX.
 
@@ -60,7 +60,7 @@ between parsers is typically very difficult to share, as it is usually closely t
 
 # The New Way
 
-`xml-stream` treats XML as a stream of events, and makes it easy to define consumers for that stream. There are three
+**SPaC** treats XML as a stream of events, and makes it easy to define consumers for that stream. There are three
 central concepts in the library: Parser, Splitter, and Transformer.
 
 ## Parser
