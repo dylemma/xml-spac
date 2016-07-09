@@ -13,26 +13,18 @@ object XmlStreamBuild extends Build {
 		organization := "io.dylemma"
 	)
 
-	lazy val core = (project in file("core")) //Project("xml-stream", file("core"))
+	lazy val core = (project in file("core"))
 		.settings(name := "xml-stream")
 		.settings(commonSettings: _*)
-		.settings(libraryDependencies += "com.typesafe.play" %% "play-iteratees" % "2.4.3")
 		.settings(libraryDependencies += "org.scalatest" %% "scalatest" % "2.2.4" % "test")
 		.enablePlugins(BoilerplatePlugin)
 		.settings(apiDocSettings: _*)
 		.settings(publishingSettings: _*)
 
-	lazy val core2 = (project in file("core2"))
-		.settings(name := "xml-stream-2")
-		.settings(libraryDependencies += "org.scalatest" %% "scalatest" % "2.2.4" % "test")
-		.settings(commonSettings: _*)
-		.enablePlugins(BoilerplatePlugin)
-
 	lazy val examples = (project in file("examples"))
 		.settings(commonSettings: _*)
 		.settings(publish := {})
 		.dependsOn(core)
-		.dependsOn(core2)
 
 	lazy val root = (project in file("."))
 		.settings(publish := {})
