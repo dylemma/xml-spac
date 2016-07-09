@@ -2,12 +2,7 @@ package io.dylemma.xsp.handlers
 
 import io.dylemma.xsp.Handler
 
-class FilteringHandler[In, Out](p: In => Boolean, inner: Handler[In, Out]) extends AbstractHandler[In, Out](inner) {
-	override def handleInput(input: In): Option[Out] = {
-		if(isFinished) None
-		else if(p(input)) inner.handleInput(input)
-		else None
-	}
-
-	override def toString = s"Filter($p) >> $inner"
+class FilteringHandler[In, Out](p: In => Boolean, val downstream: Handler[In, Out]) extends TransformerHandler[In, In, Out] {
+	override def toString = s"Filter($p) >> $downstream"
+	protected def transformInput(input: In): Option[In] = if(p(input)) Some(input) else None
 }

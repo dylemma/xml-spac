@@ -6,7 +6,7 @@ import io.dylemma.xsp.handlers._
 
 /** An immutable object that can be used to create a handler which wraps
 	* an existing handler, possibly transforming inputs before passing them
-	* along to the inner handler.
+	* along to the downstream handler.
 	*/
 trait Transformer[In, B] { self =>
 	def makeHandler[Out](next: Handler[B, Out]): Handler[In, Out]
@@ -91,6 +91,12 @@ object Transformer {
 			new MappedTransformerHandler(f, next)
 		}
 		override def toString = s"Map($f)"
+	}
+
+	case class Collect[A, B](pf: PartialFunction[A, B]) extends Transformer[A, B] {
+		def makeHandler[Out](next: Handler[B, Out]): Handler[A, Out] = {
+			new CollectHandler(pf, next)
+		}
 	}
 
 	case class Scan[S, A](init: S)(f: (S, A) => S) extends Transformer[A, S] {

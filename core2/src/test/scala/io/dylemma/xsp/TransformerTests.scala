@@ -127,6 +127,20 @@ class TransformerTests extends FunSpec with Matchers {
 		)
 	}
 
+	describe("Transformer.Collect"){
+		it("should transform inputs according to the collector function"){
+			runTransformer(List(1,2,3,4,5))(Transformer.Collect{ case i if i % 2 == 0 => i / 2 }) should be(List(1,2))
+			runTransformer(List[Int]())(Transformer.Collect { case x => x }) should be(Nil)
+		}
+		it("should catch errors thrown by the collector function and pass them downstream via handleError"){
+			val result = Transformer.Collect[String, Int]{ case s => s.toInt }.consumeToList consume List("1", "2", "hi")
+			result should matchPattern { case Result.Error(e: NumberFormatException) => }
+		}
+		enforceIsFinishedContract(
+			Transformer.Collect[Int, String]{ case 1 => "hi" }
+		)
+	}
+
 	describe("Transformer.Scan"){
 		it("should pass its current state to the downstream, and advance the state according to a function"){
 			runTransformer(List(1,2,3))(Transformer.Scan("")(_ + _)) should be(List("1", "12", "123"))
