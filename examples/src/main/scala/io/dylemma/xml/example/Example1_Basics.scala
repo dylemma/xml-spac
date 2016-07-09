@@ -2,7 +2,7 @@ package io.dylemma.xml.example
 
 import javax.xml.stream.events.XMLEvent
 
-import io.dylemma.xsp._
+import io.dylemma.spac._
 
 object Example1_Basics extends App {
 
@@ -73,7 +73,7 @@ object Example1_Basics extends App {
 	val safeBookListConsumer: Consumer[XMLEvent, Result[List[String]]] = bookListConsumer.safe
 
 	/*
-	The bookList parser and consumer will yield the same result, which is a `xsp.Result` containing
+	The bookList parser and consumer will yield the same result, which is a `spac.Result` containing
 	the list of titles emitted by the `bookTransformer`.
 
 	Note that the `parse` and `consume` methods work on a large number of types.

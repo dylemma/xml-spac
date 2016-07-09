@@ -1,4 +1,4 @@
-package io.dylemma.xsp
+package io.dylemma.spac
 
 trait ChainRep[T, C <: Chain] {
 	def toChain(t: T): C

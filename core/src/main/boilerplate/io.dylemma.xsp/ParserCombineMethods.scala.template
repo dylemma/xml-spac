@@ -1,7 +1,7 @@
-package io.dylemma.xsp
+package io.dylemma.spac
 
 import javax.xml.stream.events.XMLEvent
-import io.dylemma.xsp.handlers.CompoundHandler
+import io.dylemma.spac.handlers.CompoundHandler
 
 trait ParserCombineMethods {
 	[2..22#

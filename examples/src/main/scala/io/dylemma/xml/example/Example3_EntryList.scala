@@ -1,6 +1,6 @@
 package io.dylemma.xml.example
 
-import io.dylemma.xsp._
+import io.dylemma.spac._
 
 /**
  * Created by dylan on 11/24/2015.

@@ -1,6 +1,6 @@
 package io.dylemma.xml.example
 
-import io.dylemma.xsp._
+import io.dylemma.spac._
 
 object Example2_Contexts extends App {
 
@@ -35,7 +35,7 @@ object Example2_Contexts extends App {
 	one element from the stack. When creating custom context matchers, you will
 	usually start with one of these, then chain it with another.
 
-	By importing `xsp.syntax._`, you get access to several convenience methods
+	By importing `spac.syntax._`, you get access to several convenience methods
 	for creating matchers. Most notable are `elem` and `attr`.
 	 */
 	val titleAttributeMatcher: SingleElementContextMatcher[String, Start ~ String] = attr("title")

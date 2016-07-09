@@ -3,7 +3,7 @@ package io.dylemma.xml.example
 import java.text.SimpleDateFormat
 import java.util.Date
 
-import io.dylemma.xsp._
+import io.dylemma.spac._
 
 /**
  * Created by dylan on 10/11/2015.

@@ -1,4 +1,4 @@
-package io.dylemma.xsp
+package io.dylemma.spac
 
 import scala.{Tuple2 => ~>}
 
