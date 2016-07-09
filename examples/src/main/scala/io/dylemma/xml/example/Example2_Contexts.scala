@@ -78,7 +78,7 @@ object Example2_Contexts extends App {
 	Now you can use the `postContextMatcher` to create a splitter that
 	has a `PostContext` as its context.
 	 */
-	val postSplitter: Splitter[PostContext] = Splitter(postContextMatcher)
+	val postSplitter: XmlSplitter[PostContext] = Splitter(postContextMatcher)
 
 	/*
 	Create a `Comment` class then create a parser for it.

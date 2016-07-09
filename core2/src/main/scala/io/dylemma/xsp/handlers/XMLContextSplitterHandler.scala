@@ -8,10 +8,10 @@ import scala.util.control.NonFatal
 
 class XMLContextSplitterHandler[Context, P, Out](
 	matcher: ContextMatcher[Context],
-	parser: Parser[Context, P],
+	makeInnerHandler: Context => Handler[XMLEvent, Result[P]], //Parser[Context, P],
 	val downstream: Handler[P, Out]
 ) extends SplitterHandlerBase[XMLEvent, Context, P, Out]{
-	override def toString = s"Splitter($matcher){ $parser } >> $downstream"
+	override def toString = s"Splitter($matcher){ $makeInnerHandler } >> $downstream"
 
 	lazy val debugName = s"Splitter($matcher)"
 	// ================
@@ -51,7 +51,7 @@ class XMLContextSplitterHandler[Context, P, Out](
 					currentContext = newMatch
 					matchStartDepth = stackSize
 					currentParserHandler = newMatch match {
-						case Result.Success(ctx) => Some(parser makeHandler ctx)
+						case Result.Success(ctx) => Some(makeInnerHandler(ctx))
 						case e @ Result.Error(err) => Some(new OneShotHandler(e))
 						case _ => None // impossible, as we're in a !isEmpty check
 					}

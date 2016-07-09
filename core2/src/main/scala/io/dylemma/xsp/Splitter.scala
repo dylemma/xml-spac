@@ -3,11 +3,23 @@ package io.dylemma.xsp
 import javax.xml.namespace.QName
 import javax.xml.stream.events.XMLEvent
 
-import io.dylemma.xsp.handlers.XMLContextSplitterHandler
+import io.dylemma.xsp.handlers.{SplitOnMatchHandler, XMLContextSplitterHandler}
 import TransformerSyntax._
 
-trait Splitter[+Context] {
-	def through[Out](parser: Parser[Context, Out]): Transformer[XMLEvent, Out]
+trait Splitter[In, +Context] {
+	def through[Out](parser: Context => Handler[In, Result[Out]]): Transformer[In, Out]
+
+	def through[Out](consumer: Consumer[In, Out]): Transformer[In, Out] = {
+		val safeConsumer = consumer.safe
+		through{ _ => safeConsumer.makeHandler() }
+	}
+}
+
+trait XmlSplitter[+Context] extends Splitter[XMLEvent, Context] {
+
+	def through[Out](parser: Parser[Context, Out]): Transformer[XMLEvent, Out] = {
+		through(parser makeHandler _)
+	}
 
 	def as[Out](implicit parser: Parser[Context, Out]) = through(parser)
 	def attr(name: QName) = through(Parser.forMandatoryAttribute(name))
@@ -34,8 +46,8 @@ trait Splitter[+Context] {
 
 object Splitter {
 
-	def apply[Context](matcher: ContextMatcher[Context]): Splitter[Context] = new Splitter[Context] { self =>
-		def through[P](parser: Parser[Context, P]): Transformer[XMLEvent, P] = {
+	def apply[Context](matcher: ContextMatcher[Context]): XmlSplitter[Context] = new XmlSplitter[Context] { self =>
+		def through[P](parser: (Context) => Handler[XMLEvent, Result[P]]): Transformer[XMLEvent, P] = {
 			new Transformer[XMLEvent, P] {
 				def makeHandler[Out](next: Handler[P, Out]): Handler[XMLEvent, Out] = {
 					new XMLContextSplitterHandler(matcher, parser, next)
@@ -44,5 +56,23 @@ object Splitter {
 			}
 		}
 		override def toString = s"Splitter($matcher)"
+	}
+
+	def splitOnMatch[In, Context](matcher: PartialFunction[In, Context]): Splitter[In, Context] = {
+		new Splitter[In, Context] {self =>
+			override def toString = s"Splitter.splitOnMatch($matcher)"
+			def through[Out](parser: (Context) => Handler[In, Result[Out]]): Transformer[In, Out] = {
+				new Transformer[In, Out] {
+					override def toString = s"$self{ $parser }"
+					def makeHandler[A](downstream: Handler[Out, A]): Handler[In, A] = {
+						new SplitOnMatchHandler(matcher, parser, downstream)
+					}
+				}
+			}
+		}
+	}
+
+	def splitOnMatch[In](p: In => Boolean): Splitter[In, Any] = splitOnMatch[In, Any] {
+		case in if p(in) => ()
 	}
 }

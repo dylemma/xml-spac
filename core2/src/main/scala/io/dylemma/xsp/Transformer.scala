@@ -41,13 +41,10 @@ trait Transformer[In, B] { self =>
 	def expandResults: Transformer[In, Result[B]] = andThen(Transformer.ExpandResults())
 	def withSideEffect(effect: B => Any): Transformer[In, B] = andThen(Transformer.SideEffect(effect))
 
-	def consumeToList: Consumer[In, Result[List[B]]] = andThen(Consumer.ToList())
-	def consumeFirst: Consumer[In, Result[B]] = andThen(Consumer.First())
-	def consumeFirstOption: Consumer[In, Result[Option[B]]] = andThen(Consumer.FirstOption())
-	def consumeAsFold[R](init: R)(f: (R, B) => R): Consumer[In, Result[R]] = andThen(Consumer.Fold(init, f))
-	def consumeAsResultFold[R](init: Result[R])(
-		f: (Result[R], Result[B]) => Result[R]
-	): Consumer[In, Result[R]] = andThen(Consumer.FoldResults(init, f))
+	def consumeToList: Consumer[In, List[B]] = andThen(Consumer.ToList())
+	def consumeFirst: Consumer[In, B] = andThen(Consumer.First())
+	def consumeFirstOption: Consumer[In, Option[B]] = andThen(Consumer.FirstOption())
+	def consumeAsFold[R](init: R)(f: (R, B) => R): Consumer[In, R] = andThen(Consumer.Fold(init, f))
 	def consumeForEach(f: B => Any): Consumer[In, Unit] = andThen(Consumer.ForEach(f))
 }
 

@@ -19,13 +19,10 @@ trait TransformerSyntax {
 			Parser.fromConsumer(t >> consumer)
 		}
 
-		def parseToList: Parser[Any, List[A]] = parseWith(Consumer.ToList())
-		def parseFirst: Parser[Any, A] = parseWith(Consumer.First())
-		def parseFirstOption: Parser[Any, Option[A]] = parseWith(Consumer.FirstOption())
-		def parseAsFold[R](init: R)(f: (R, A) => R): Parser[Any, R] = parseWith(Consumer.Fold(init, f))
-		def parseAsResultFold[R](init: Result[R])(
-			f: (Result[R], Result[A]) => Result[R]
-		): Parser[Any, R] = parseWith(Consumer.FoldResults(init, f))
+		def parseToList: Parser[Any, List[A]] = parseWith(Consumer.ToList().safe)
+		def parseFirst: Parser[Any, A] = parseWith(Consumer.First().safe)
+		def parseFirstOption: Parser[Any, Option[A]] = parseWith(Consumer.FirstOption().safe)
+		def parseAsFold[R](init: R)(f: (R, A) => R): Parser[Any, R] = parseWith(Consumer.Fold(init, f).safe)
 	}
 
 }

@@ -2,34 +2,20 @@ package io.dylemma.xsp.handlers
 
 import io.dylemma.xsp.{Handler, Result}
 
-class GetFirstHandler[A]
-	extends Handler[A, Result[A]]
-	with ManualFinish
-	with FinishOnError
-{
+class GetFirstHandler[A] extends Handler[A, A] with ManualFinish {
 	override def toString = "GetFirst"
 
-	def handleInput(input: A): Option[Result[A]] = finishWith {
-		Some(Result.Success(input))
-	}
-	def handleEnd(): Result[A] = finishWith {
-		throw new NoSuchElementException(
-			"encountered end of stream before the first element"
-		)
+	def handleInput(input: A): Option[A] = finishWith { Some(input) }
+	def handleError(error: Throwable): Option[A] = finishWith { throw error }
+	def handleEnd(): A = finishWith {
+		throw new NoSuchElementException("encountered end of stream before the first element")
 	}
 }
 
-class GetFirstOptionHandler[A]
-	extends Handler[A, Result[Option[A]]]
-	with ManualFinish
-	with FinishOnError
-{
+class GetFirstOptionHandler[A] extends Handler[A, Option[A]] with ManualFinish {
 	override def toString = "GetFirstOption"
 
-	def handleInput(input: A): Option[Result[Option[A]]] = finishWith {
-		Some(Result.Success(Some(input)))
-	}
-	def handleEnd(): Result[Option[A]] = finishWith {
-		Result.Success.none
-	}
+	def handleInput(input: A): Option[Option[A]] = finishWith { Some(Some(input)) }
+	def handleError(error: Throwable): Option[Option[A]] = finishWith { throw error }
+	def handleEnd(): Option[A] = finishWith { None }
 }

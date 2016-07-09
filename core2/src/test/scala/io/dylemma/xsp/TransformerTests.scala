@@ -9,9 +9,7 @@ import scala.util.control.NonFatal
 class TransformerTests extends FunSpec with Matchers {
 
 	protected def runTransformer[T, U](inputs: List[T])(transformer: Transformer[T, U]): List[U] = {
-		val consumer = Consumer.ToList[U]
-		val listResult = transformer >> consumer consume inputs
-		listResult.get
+		transformer >> Consumer.ToList[U] consume inputs
 	}
 
 	protected def enforceIsFinishedContract[A](transformers: Transformer[Int, A]*) = {
@@ -116,7 +114,7 @@ class TransformerTests extends FunSpec with Matchers {
 			runTransformer(List("1", "2"))(Transformer.Map(_.toInt)) should be(List(1,2))
 		}
 		it("should catch errors thrown by the function and call handleError on the downstream handler"){
-			val result = Transformer.Map{s: String => s.toInt} >> Consumer.ToList[Int] consume List("not a number")
+			val result = Transformer.Map{s: String => s.toInt} >> Consumer.ToList[Int].safe consume List("not a number")
 			result should matchPattern {
 				case Result.Error(err: NumberFormatException) =>
 			}
@@ -133,7 +131,7 @@ class TransformerTests extends FunSpec with Matchers {
 			runTransformer(List[Int]())(Transformer.Collect { case x => x }) should be(Nil)
 		}
 		it("should catch errors thrown by the collector function and pass them downstream via handleError"){
-			val result = Transformer.Collect[String, Int]{ case s => s.toInt }.consumeToList consume List("1", "2", "hi")
+			val result = Transformer.Collect[String, Int]{ case s => s.toInt } >> Consumer.ToList[Int].safe consume List("1", "2", "hi")
 			result should matchPattern { case Result.Error(e: NumberFormatException) => }
 		}
 		enforceIsFinishedContract(
@@ -160,5 +158,36 @@ class TransformerTests extends FunSpec with Matchers {
 			}
 		}
 		enforceIsFinishedContract(Transformer.Scan(0)(_ + _))
+	}
+
+	describe("Splitter.splitOnMatch"){
+		def collectListsStartingWithOne(numbers: Int*) = {
+			runTransformer(List(numbers: _*)){
+				Splitter.splitOnMatch[Int](_ == 1) through Consumer.ToList[Int]
+			}
+		}
+
+		it("should create a new substream when an input matches the predicate"){
+			collectListsStartingWithOne(1,2,3,1,2,1,2,3,4,5) should be(List(
+				List(1,2,3),
+				List(1,2),
+				List(1,2,3,4,5)
+			))
+		}
+
+		it("should ignore prefix inputs if a substream hasn't started"){
+			collectListsStartingWithOne(5,4,3,2,1,2,3,1,2,3) should be(List(
+				List(1,2,3),
+				List(1,2,3)
+			))
+		}
+
+		it("should ignore all inputs if the predicate never matches"){
+			collectListsStartingWithOne(2,3,4,5,6,7,8,9) should be(Nil)
+		}
+
+		it("should handle an immediate EOF without starting any substreams"){
+			collectListsStartingWithOne() should be(Nil)
+		}
 	}
 }

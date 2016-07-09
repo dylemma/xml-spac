@@ -4,17 +4,14 @@ import io.dylemma.xsp.{Handler, Result}
 
 import scala.util.Try
 
-class ForEachHandler[A](f: A => Any)
-	extends Handler[A, Unit]
-	with ManualFinish
-{
+class ForEachHandler[A](f: A => Any) extends Handler[A, Unit] with ManualFinish {
 	override def toString = s"ForEach($f)"
-	def handleEnd() = ()
-	def handleError(error: Throwable) = throw error
 	def handleInput(input: A) = {
 		if(!isFinished) f(input)
 		None
 	}
+	def handleError(error: Throwable) = finishWith { throw error }
+	def handleEnd() = finishWith{ () }
 }
 
 

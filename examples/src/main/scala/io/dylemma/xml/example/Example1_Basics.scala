@@ -2,7 +2,7 @@ package io.dylemma.xml.example
 
 import javax.xml.stream.events.XMLEvent
 
-import io.dylemma.xsp._
+import io.dylemma.xsp.{Result, _}
 import io.dylemma.xsp.syntax._
 
 object Example1_Basics extends App {
@@ -43,7 +43,7 @@ object Example1_Basics extends App {
 	Note that some `Splitters` can extract a "context" value. This one simply matches without
 	extracting anything, so its type parameter is just `Unit`.
 	 */
-	val bookSplitter: Splitter[Unit] = Splitter("library" \ "book")
+	val bookSplitter: XmlSplitter[Unit] = Splitter("library" \ "book")
 
 	/*
 	By attaching a parser to a splitter, you run the parser on each individual substream.
@@ -61,8 +61,17 @@ object Example1_Basics extends App {
 	Transformers can be turned into Consumers via a handful of convenience methods.
 	They can also be turned into Parsers as long as their input type is XMLEvent.
 	 */
-	val bookListConsumer: Consumer[XMLEvent, Result[List[String]]] = bookTransformer.consumeToList
+	val bookListConsumer: Consumer[XMLEvent, List[String]] = bookTransformer.consumeToList
 	val bookListParser: Parser[Any, List[String]] = bookTransformer.parseToList
+
+	/*
+	The underlying handler created by a Consumer may throw exceptions when handling inputs.
+	Normally these exceptions will bubble up to whatever method invoked the consumer. In
+	cases where these errors need to be caught, you can use the `safe` method on a Consumer.
+	This will wrap its output type in the `Result` class, where exceptions will appear as
+	`Result.Error` outputs, and regular outputs will appear inside `Result.Success` values.
+	 */
+	val safeBookListConsumer: Consumer[XMLEvent, Result[List[String]]] = bookListConsumer.safe
 
 	/*
 	The bookList parser and consumer will yield the same result, which is a `xsp.Result` containing
@@ -74,7 +83,7 @@ object Example1_Basics extends App {
 	 */
 	val allBooksResult1 = bookListConsumer consume libraryXml
 	val allBooksResult2 = bookListParser parse libraryXml
-	assert(allBooksResult1 == allBooksResult2)
+	assert(allBooksResult2 == Result.Success(allBooksResult1))
 	println(allBooksResult1)
 	println("\n")
 

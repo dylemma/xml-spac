@@ -184,7 +184,7 @@ class ParserTests extends FunSpec with Matchers {
 		it("should pass the same context value to its inner parsers if it requires a context"){
 			class A
 			case class AText(a: A, text: String)
-			val splitter: Splitter[A] = Splitter(attr("a").map(_ => new A))
+			val splitter: XmlSplitter[A] = Splitter(attr("a").map(_ => new A))
 			val rawXml = """<foo a="123"><x>Hello</x><y>Goodbye</y></foo>"""
 			// the two inner parsers should receive the same 'A' instance passed to this parser from a splitter
 			val combinedContextualParser: Parser[A, (AText, AText)] = Parser.combine(
@@ -227,7 +227,7 @@ class ParserTests extends FunSpec with Matchers {
 		}
 
 		it("should forbid parsers with a different context type from being attached"){
-			val splitter: Splitter[String] = Splitter(attr("a"))
+			val splitter: XmlSplitter[String] = Splitter(attr("a"))
 			val parserString: Parser[String, String] = Parser.forContext[String]
 			val parserInt: Parser[Int, Int] = Parser.forContext[Int]
 			assertCompiles("splitter through parserString")
