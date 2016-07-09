@@ -1,11 +1,12 @@
-package io.dylemma.xsp
+package io.dylemma.xsp.syntax
 
 import javax.xml.namespace.QName
 import javax.xml.stream.events.StartElement
 
+import io.dylemma.xsp._
+
 import scala.language.implicitConversions
 
-object ContextMatcherSyntax extends ContextMatcherSyntax
 trait ContextMatcherSyntax {
 
 	/** Context matcher that always matches without consuming any of the tag stack.

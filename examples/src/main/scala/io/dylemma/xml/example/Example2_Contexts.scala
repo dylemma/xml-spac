@@ -1,7 +1,6 @@
 package io.dylemma.xml.example
 
 import io.dylemma.xsp._
-import io.dylemma.xsp.syntax._
 
 object Example2_Contexts extends App {
 

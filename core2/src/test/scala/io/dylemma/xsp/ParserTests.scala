@@ -3,7 +3,6 @@ package io.dylemma.xsp
 import javax.xml.stream.XMLStreamException
 
 import io.dylemma.xsp.Result.{Error, Success}
-import io.dylemma.xsp.syntax._
 import org.scalatest.{FunSpec, Matchers}
 
 class ParserTests extends FunSpec with Matchers {

@@ -4,7 +4,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 
 import io.dylemma.xsp._
-import io.dylemma.xsp.syntax._
 
 /**
  * Created by dylan on 10/11/2015.

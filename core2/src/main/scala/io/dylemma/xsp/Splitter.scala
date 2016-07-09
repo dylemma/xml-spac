@@ -4,7 +4,6 @@ import javax.xml.namespace.QName
 import javax.xml.stream.events.XMLEvent
 
 import io.dylemma.xsp.handlers.{SplitOnMatchHandler, XMLContextSplitterHandler}
-import TransformerSyntax._
 
 trait Splitter[In, +Context] {
 	def through[Out](parser: Context => Handler[In, Result[Out]]): Transformer[In, Out]

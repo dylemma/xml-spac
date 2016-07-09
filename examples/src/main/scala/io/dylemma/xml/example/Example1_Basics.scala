@@ -2,8 +2,7 @@ package io.dylemma.xml.example
 
 import javax.xml.stream.events.XMLEvent
 
-import io.dylemma.xsp.{Result, _}
-import io.dylemma.xsp.syntax._
+import io.dylemma.xsp._
 
 object Example1_Basics extends App {
 

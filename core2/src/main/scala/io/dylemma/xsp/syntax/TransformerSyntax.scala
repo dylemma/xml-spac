@@ -1,8 +1,9 @@
-package io.dylemma.xsp
+package io.dylemma.xsp.syntax
 
 import javax.xml.stream.events.XMLEvent
 
-object TransformerSyntax extends TransformerSyntax
+import io.dylemma.xsp.{Consumer, Parser, Result, Transformer}
+
 trait TransformerSyntax {
 
 	implicit class TransformerParsingOps[A](t: Transformer[XMLEvent, A]) {

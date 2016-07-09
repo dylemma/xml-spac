@@ -1,8 +1,5 @@
 package io.dylemma.xsp
 
-import syntax._
-
-
 object Main3 extends App {
 	val rawXML =
 		s"""<foo>
@@ -10,8 +7,6 @@ object Main3 extends App {
 			 |</foo>
 		 """.stripMargin
 
-	import ContextMatcherSyntax._
-	import TransformerSyntax._
 
 	// This should throw an exception because `parseFirst` does not
 	// receive the "bar" element while in the "Bar" context.
@@ -83,8 +78,8 @@ object Main0 extends App {
 
 	val inputs = 1 to 100
 
-	import Transformer.{Filter, Take}
 	import Consumer.ToList
+	import Transformer.{Filter, Take}
 	val consumer = Filter[Int](_ % 3 == 0) >> Take[Int](5) >> ToList[Int]()
 
 	val foreverIterator = new Iterator[Int] with AutoCloseable {
