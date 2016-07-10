@@ -45,12 +45,12 @@ trait ConsumableLike[-S, +In]{
 ```
 
 The `S` type parameter represents the "source" or the "stream".  
-The `In` type parameter represents the events that the stream generates.
+The `In` type parameter represents the events that the stream generates.  
 The `Out` type parameter represents the result type of the handler.
 
 There are many different `ConsumableLike` instances already, including generalized ones for `Iterable` collections and
 `Iterator`s, and XML-specific ones for `String`, `File`, and `InputStream`. If you have a more specific "Stream" type,
-you can [write your own `ConsumableLike[StreamType, EventType]`].
+you can [write your own `ConsumableLike[StreamType, EventType]`](https://github.com/dylemma/xml-stream/blob/overhaul/core/src/main/scala/io/dylemma/spac/ConsumableLike.scala).
 
 A `Handler` is a mutable object that can accept inputs until it comes up with some result.
 
