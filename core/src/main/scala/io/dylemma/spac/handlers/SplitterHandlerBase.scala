@@ -1,9 +1,9 @@
 package io.dylemma.spac.handlers
 
-import io.dylemma.spac.{Handler, Result, debug}
+import io.dylemma.spac.{Handler, debug}
 
-import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
+import scala.util.{Failure, Success, Try}
 
 /**
 	* Created by dylan on 7/9/2016.

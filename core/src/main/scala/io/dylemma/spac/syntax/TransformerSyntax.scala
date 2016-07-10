@@ -2,7 +2,7 @@ package io.dylemma.spac.syntax
 
 import javax.xml.stream.events.XMLEvent
 
-import io.dylemma.spac.{Consumer, Parser, Result, Transformer}
+import io.dylemma.spac.{Consumer, Parser, Transformer}
 
 import scala.util.Try
 

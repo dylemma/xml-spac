@@ -1,6 +1,6 @@
 package io.dylemma.spac.handlers
 
-import io.dylemma.spac.{Handler, Result, debug}
+import io.dylemma.spac.{Handler, debug}
 
 import scala.util.{Failure, Success, Try}
 

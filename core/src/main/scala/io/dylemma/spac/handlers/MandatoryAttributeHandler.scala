@@ -3,7 +3,7 @@ package io.dylemma.spac.handlers
 import javax.xml.namespace.QName
 import javax.xml.stream.events.XMLEvent
 
-import io.dylemma.spac.{Handler, Result}
+import io.dylemma.spac.Handler
 
 import scala.util.{Failure, Success, Try}
 

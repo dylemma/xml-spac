@@ -5,7 +5,6 @@ import javax.xml.stream.events.{StartElement, XMLEvent}
 import io.dylemma.spac._
 
 import scala.util.{Failure, Success, Try}
-import scala.util.control.NonFatal
 
 class XMLContextSplitterHandler[Context, P, Out](
 	matcher: ContextMatcher[Context],

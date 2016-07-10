@@ -1,8 +1,6 @@
 package io.dylemma.spac.handlers
 
-import io.dylemma.spac.{Handler, Result}
-
-import scala.util.Try
+import io.dylemma.spac.Handler
 
 class ForEachHandler[A](f: A => Any) extends Handler[A, Unit] with ManualFinish {
 	override def toString = s"ForEach($f)"

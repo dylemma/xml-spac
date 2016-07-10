@@ -1,9 +1,9 @@
 package io.dylemma.spac.handlers
 
-import io.dylemma.spac.{Handler, Result}
+import io.dylemma.spac.Handler
 
-import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
+import scala.util.{Failure, Success, Try}
 
 class SafeConsumerHandler[In, Out](inner: Handler[In, Out]) extends Handler[In, Try[Out]]{
 	def isFinished: Boolean = inner.isFinished

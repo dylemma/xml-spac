@@ -87,7 +87,7 @@ For example, in the document with many `<foo>` elements, you could use a splitte
 inside each individual `<foo>`, then use a Parser on each substream to create a `Bar` in memory. By doing this, you
 will have transformed the XML stream into a `Bar` stream.
 
-When you have a stream of Results (e.g. `Bar`), you could run some side-effect on each element as it comes through,
+When you have a stream of results (e.g. `Bar`), you could run some side-effect on each element as it comes through,
 collect them all to a list, or do something else entirely!
 
 # Examples in Code
@@ -259,11 +259,10 @@ println(postTransformer.parseToList parse xml) // collect all of the Posts, but 
 ```
 
 You can use `parser.parse(xml)` or `consumer.consume(xml)`. `Parser` and `Consumer` are very similar, but the main
-difference is that the output of a `Parser` will always be a `Result`.
-The `Result` type is a combination of the `Option` and `Try` classes. Possible values include `Success(value)`, `Error(err)`,
-and `Empty`. Exceptions thrown by parsers' inner handlers will be caught and wrapped as `Error`s. For example if the
+difference is that the output of a `Parser` will always be a `Try`.
+Exceptions thrown by parsers' inner handlers will be caught and wrapped as `Failure`s. For example if the
 `StatsParser` encountered a `"asdf"` as the value for the "likes" attribute, the `_.toInt` would throw an exception,
-which would be caught, causing the result for that element to be an `Error(NumberFormatException)`.
+which would be caught, causing the result for that element to be an `Failure(NumberFormatException)`.
 
 # Low Level Details
 

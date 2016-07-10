@@ -2,8 +2,6 @@ package io.dylemma.spac.handlers
 
 import io.dylemma.spac.Handler
 
-import scala.util.control.NonFatal
-
 /** A handler that starts with some initial state, and each for each input the
 	* current state is forwarded to the downstream handler, and the state is updated
 	* according to the provided function `f`. The final state is passed when

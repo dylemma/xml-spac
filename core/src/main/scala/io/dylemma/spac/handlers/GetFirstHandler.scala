@@ -1,6 +1,6 @@
 package io.dylemma.spac.handlers
 
-import io.dylemma.spac.{Handler, Result}
+import io.dylemma.spac.Handler
 
 class GetFirstHandler[A] extends Handler[A, A] with ManualFinish {
 	override def toString = "GetFirst"
