@@ -13,7 +13,7 @@ XML SPaC
  - **Streaming** - Parse huge XML documents without loading it all into memory.
 
 There's a full-fledged example [further down](#writing-a-parser-by-example) in this readme,
-and the [examples project](https://github.com/dylemma/xml-stream/tree/overhaul/examples/src/main/scala/io/dylemma/xml/example) has a collection of annotated examples,
+and the [examples project](https://github.com/dylemma/xml-stream/tree/master/examples/src/main/scala/io/dylemma/xml/example) has a collection of annotated examples,
 but here's a taste of how you'd write a parser for a relatively-complex blog post XML structure:
 
 ```scala
@@ -50,7 +50,7 @@ The `Out` type parameter represents the result type of the handler.
 
 There are many different `ConsumableLike` instances already, including generalized ones for `Iterable` collections and
 `Iterator`s, and XML-specific ones for `String`, `File`, and `InputStream`. If you have a more specific "Stream" type,
-you can [write your own `ConsumableLike[StreamType, EventType]`](https://github.com/dylemma/xml-stream/blob/overhaul/core/src/main/scala/io/dylemma/spac/ConsumableLike.scala).
+you can [write your own `ConsumableLike[StreamType, EventType]`](https://github.com/dylemma/xml-stream/blob/master/core/src/main/scala/io/dylemma/spac/ConsumableLike.scala).
 
 A `Handler` is a mutable object that can accept inputs until it comes up with some result.
 
