@@ -17,7 +17,7 @@ trait Consumer[-In, +Out] { self =>
 		def makeHandler(): Handler[In, U] = new MappedConsumerHandler(f, self.makeHandler())
 	}
 
-	def safe: Consumer[In, Try[Out]] = new Consumer[In, Try[Out]] {
+	def wrapSafe: Consumer[In, Try[Out]] = new Consumer[In, Try[Out]] {
 		def makeHandler(): Handler[In, Try[Out]] = new SafeConsumerHandler(self.makeHandler())
 	}
 }

@@ -114,7 +114,7 @@ class TransformerTests extends FunSpec with Matchers {
 			runTransformer(List("1", "2"))(Transformer.Map(_.toInt)) should be(List(1,2))
 		}
 		it("should catch errors thrown by the function and call handleError on the downstream handler"){
-			val result = Transformer.Map{s: String => s.toInt} >> Consumer.ToList[Int].safe consume List("not a number")
+			val result = Transformer.Map{s: String => s.toInt} >> Consumer.ToList[Int].wrapSafe consume List("not a number")
 			result should matchPattern {
 				case Failure(err: NumberFormatException) =>
 			}
@@ -131,7 +131,7 @@ class TransformerTests extends FunSpec with Matchers {
 			runTransformer(List[Int]())(Transformer.Collect { case x => x }) should be(Nil)
 		}
 		it("should catch errors thrown by the collector function and pass them downstream via handleError"){
-			val result = Transformer.Collect[String, Int]{ case s => s.toInt } >> Consumer.ToList[Int].safe consume List("1", "2", "hi")
+			val result = Transformer.Collect[String, Int]{ case s => s.toInt } >> Consumer.ToList[Int].wrapSafe consume List("1", "2", "hi")
 			result should matchPattern { case Failure(e: NumberFormatException) => }
 		}
 		enforceIsFinishedContract(

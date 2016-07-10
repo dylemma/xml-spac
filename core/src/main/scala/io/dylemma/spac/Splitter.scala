@@ -11,7 +11,7 @@ trait Splitter[In, +Context] {
 	def through[Out](parser: Context => Handler[In, Try[Out]]): Transformer[In, Out]
 
 	def through[Out](consumer: Consumer[In, Out]): Transformer[In, Out] = {
-		val safeConsumer = consumer.safe
+		val safeConsumer = consumer.wrapSafe
 		through{ _ => safeConsumer.makeHandler() }
 	}
 }

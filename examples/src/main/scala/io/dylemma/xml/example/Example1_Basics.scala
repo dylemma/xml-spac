@@ -4,6 +4,8 @@ import javax.xml.stream.events.XMLEvent
 
 import io.dylemma.spac._
 
+import scala.util.{Success, Try}
+
 object Example1_Basics extends App {
 
 	val libraryXml = """<library>
@@ -16,7 +18,7 @@ object Example1_Basics extends App {
 		|</library>""".stripMargin
 
 	/*
-	A `Parser[Context, Out]` is able to parse a stream of XMLEvents to produce a `Result[Out]`.
+	A `Parser[Context, Out]` is able to parse a stream of XMLEvents to produce a `Try[Out]`.
 	Some parsers require a specific context value to be passed in before they can start parsing,
 	but this one doesn't, so its `Context` type is `Any`.
 
@@ -66,15 +68,16 @@ object Example1_Basics extends App {
 	/*
 	The underlying handler created by a Consumer may throw exceptions when handling inputs.
 	Normally these exceptions will bubble up to whatever method invoked the consumer. In
-	cases where these errors need to be caught, you can use the `safe` method on a Consumer.
-	This will wrap its output type in the `Result` class, where exceptions will appear as
-	`Result.Error` outputs, and regular outputs will appear inside `Result.Success` values.
+	cases where these errors need to be caught, you can use the `wrapSafe` method on a Consumer.
+	This will wrap its output in a `scala.util.Try` class, where exceptions will appear as
+	`Failure` instances, and regular outputs will appear inside `Success` instances.
 	 */
-	val safeBookListConsumer: Consumer[XMLEvent, Result[List[String]]] = bookListConsumer.safe
+	val safeBookListConsumer: Consumer[XMLEvent, Try[List[String]]] = bookListConsumer.wrapSafe
 
 	/*
-	The bookList parser and consumer will yield the same result, which is a `spac.Result` containing
-	the list of titles emitted by the `bookTransformer`.
+	The bookList parser and consumer will yield the same result; the list of titles emitted by the `bookTransformer`.
+	The difference is that a `Parser` will yield the result wrapped in a `Try` which will contain any exception
+	that is thrown during the parsing. The `Consumer` will allow exceptions to bubble up to the call point.
 
 	Note that the `parse` and `consume` methods work on a large number of types.
 	See the docs for specifics, but for example, you could parse a File, String,
@@ -82,7 +85,7 @@ object Example1_Basics extends App {
 	 */
 	val allBooksResult1 = bookListConsumer consume libraryXml
 	val allBooksResult2 = bookListParser parse libraryXml
-	assert(allBooksResult2 == Result.Success(allBooksResult1))
+	assert(allBooksResult2 == Success(allBooksResult1))
 	println(allBooksResult1)
 	println("\n")
 
