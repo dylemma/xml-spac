@@ -12,18 +12,9 @@ XML SPaC
  - **Fast** - With minimal abstraction to get in the way, speed rivals any hand-written handler.
  - **Streaming** - Parse huge XML documents without loading it all into memory.
 
-# Get it!
-
-Add the following to your `build.sbt` file:
-
-```sbt
-libraryDependencies += "io.dylemma" %% "xml-spac" % "0.2"
-```
-
-# Use it!
-
-There's a full-fledged example [further down](#writing-a-parser-by-example) in this readme, but here's a taste of how you'd write a parser for a
-relatively-complex blog post XML structure:
+There's a full-fledged example [further down](#writing-a-parser-by-example) in this readme,
+and the [examples project](https://github.com/dylemma/xml-stream/tree/overhaul/examples/src/main/scala/io/dylemma/xml/example) has a collection of annotated examples,
+but here's a taste of how you'd write a parser for a relatively-complex blog post XML structure:
 
 ```scala
 val PostParser = Parser.combine(
@@ -35,69 +26,68 @@ val PostParser = Parser.combine(
 ).as(Post)
 ```
 
-# The Old Ways
+# Get it!
 
-There are a few main approaches to parsing XML on the JVM, and they all have their ups and downs.
-This library aims to have only "ups".
+Add the following to your `build.sbt` file:
 
-## DOM Parsing
+```sbt
+libraryDependencies += "io.dylemma" %% "xml-spac" % "0.2"
+```
 
-The simplest approach for parsing XML is probably to load the entire document into memory (create a DOM), then query it
-with XPaths or other similar operations. This approach is relatively quick and easy, but utterly falls apart for large
-documents. The in-memory model of a DOM is typically upwards of four times the size of the raw XML, so you can quickly
-run into OutOfMemoryErrors with larger files.
+# How it Works
 
-## JAXB
+**XML SPaC** doesn't have any particular representation of a "stream". Instead, it defines the `ConsumableLike` typeclass:
 
-[JAXB](https://docs.oracle.com/javase/tutorial/jaxb/intro/) is like an ORM for XML. You feed it an XSD file and it will
-auto-generate some Java sources that can be used to convert data back and forth between raw XML and POJOs. This can be
-a time-saver in some cases, but the underlying implementation is very reflection-heavy (obfuscation of bytecode will
-break it), and you don't always have access to XSD files for the XML you're trying to parse.
+```scala
+trait ConsumableLike[-S, +In]{
+	def apply[Out](source: S, handler: Handler[In, Out]
+}
+```
 
-## SAX and StAX
+The `S` type parameter represents the "source" or the "stream".  
+The `In` type parameter represents the events that the stream generates.
+The `Out` type parameter represents the result type of the handler.
 
-The usual response to "DOM is taking too much memory" is to recommend using SAX or StAX. Both avoid loading an entire
-document into memory, instead treating the XML as a series of events to be handled. The SAX approach "pushes" data to
-a handler object, while the StAX approach acts as an iterator that needs to be "pulled" by client code. The downside to
-these approaches is that for all but the simplest documents, the implementation of handlers can be fairly large. State
-within the parsers is mutable by necessity, making it harder to follow, and harder to maintain. Common functionality
-between parsers is typically very difficult to share, as it is usually closely tied to the state management.
+There are many different `ConsumableLike` instances already, including generalized ones for `Iterable` collections and
+`Iterator`s, and XML-specific ones for `String`, `File`, and `InputStream`. If you have a more specific "Stream" type,
+you can [write your own `ConsumableLike[StreamType, EventType]`].
 
-# The New Way
+A `Handler` is a mutable object that can accept inputs until it comes up with some result.
 
-**XML SPaC** treats XML as a stream of events, and makes it easy to define consumers for that stream. There are three
-central concepts in the library: Parser, Splitter, and Transformer.
+```scala
+trait Handler[-In, +Out] {
+	def isFinished: Boolean
+	def handleInput(input: In): Option[Out]
+	def handleError(err: Throwable): Option[Out]
+	def handleEnd(): Out
+}
+```
+
+The main classes in **XML SPaC** revolve around creating different `Handler`s.
+
+## Consumer
+
+A `Consumer[In, Out]` can create a `Handler[In, Out]` on demand. `Consumer`s have a `consume` method which will
+consume a stream by creating a handler and running it until it emits a result.
 
 ## Parser
 
-A parser is an object that consumes a stream of XML events to produce some final result value.
-
-For example, you could create a parser that collected `Characters` events from the stream, then concatenated their
-values to produce a `String` as the result.
-
-## Splitter
-
-A splitter is an object that splits a stream of XML events into substreams.
-
-For example, in a document with many `<foo>` elements, you could create a substream for all of the events inside
-each individual `<foo>`.
+A `Parser[Context, Out]` creates a `Handler[XMLEvent, Try[Out]` when given a `Context`.  
+**XML SPaC** has many helper methods for creating `Parser`s.  
+`Parser`s have a `parse` method which will consume a stream of `XMLEvent`s to produce an `Try[Out]`.
 
 ## Transformer
 
-A transformer is an object that turns a stream of XML events into a stream of results. Transformers are usually
-created by combining a Splitter with a Parser.
+A `Transformer[A, B]` turns a stream of `A` into a stream of `B`.  
+A `Transformer[A, B]` can attach to a `Consumer[B, C]` to create a `Consumer[A, C]`.  
+A `Transformer[A, B]` can attach to a `Transformer[B, C]` to create a `Transformer[A, C]`.
 
-For example, in the document with many `<foo>` elements, you could use a splitter to create substreams for the events
-inside each individual `<foo>`, then use a Parser on each substream to create a `Bar` in memory. By doing this, you
-will have transformed the XML stream into a `Bar` stream.
+## Splitter
 
-When you have a stream of results (e.g. `Bar`), you could run some side-effect on each element as it comes through,
-collect them all to a list, or do something else entirely!
-
-# Examples in Code
-
-The [examples project](https://github.com/dylemma/xml-stream/tree/overhaul/examples/src/main/scala/io/dylemma/xml/example)
-has a collection of small examples.
+A `Splitter[In, Context]` combines with a `Parser[Context, Out]` to create a `Transformer[In, Out]`.  
+It divides the incoming stream into "substreams", each of which have some "context" value, then runs the parser
+on each of the substreams, passing the parser's result downstream.  
+This is how you can write a `Parser` that only gets events from inside a particular element, like a `<comment>`.
 
 # Writing a Parser by Example
 
@@ -267,9 +257,3 @@ difference is that the output of a `Parser` will always be a `Try`.
 Exceptions thrown by parsers' inner handlers will be caught and wrapped as `Failure`s. For example if the
 `StatsParser` encountered a `"asdf"` as the value for the "likes" attribute, the `_.toInt` would throw an exception,
 which would be caught, causing the result for that element to be an `Failure(NumberFormatException)`.
-
-# Low Level Details
-
-Under the hood, `Parser`, `Transformer`, and `Consumer` are all immutable factories for different kinds of `Handler`s.
-A `Handler` is a *stateful* object that handles the stream data and eventually produces a result. If you use the
-`parse` or `consume` convenience methods, you will never need to deal directly with a `Handler`.
