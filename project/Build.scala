@@ -2,29 +2,31 @@ import scala.util.control.NonFatal
 
 import sbt._
 import Keys._
-import spray.boilerplate.BoilerplatePlugin.Boilerplate
+import spray.boilerplate.BoilerplatePlugin
 
 object XmlStreamBuild extends Build {
 
 	lazy val commonSettings = Seq(
-		version := "0.1",
-		crossScalaVersions := Seq("2.10.5", "2.11.6"),
+		version := "0.2-SNAPSHOT",
+		scalaVersion := "2.11.8",
 		scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
 		organization := "io.dylemma"
 	)
 
-	lazy val core = (project in file("core")) //Project("xml-stream", file("core"))
-		.settings(name := "xml-stream")
+	lazy val core = (project in file("core"))
+		.settings(name := "spac")
 		.settings(commonSettings: _*)
-		.settings(libraryDependencies += "com.typesafe.play" %% "play-iteratees" % "2.4.3")
 		.settings(libraryDependencies += "org.scalatest" %% "scalatest" % "2.2.4" % "test")
-		.settings(Boilerplate.settings: _*)
+		.enablePlugins(BoilerplatePlugin)
 		.settings(apiDocSettings: _*)
 		.settings(publishingSettings: _*)
 
 	lazy val examples = (project in file("examples"))
 		.settings(commonSettings: _*)
-		.settings(publish := {})
+		.settings(
+			publish := {},
+			libraryDependencies += "joda-time" % "joda-time" % "2.9.4"
+		)
 		.dependsOn(core)
 
 	lazy val root = (project in file("."))

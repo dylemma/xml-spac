@@ -1,0 +1,54 @@
+package io.dylemma.spac
+
+import javax.xml.stream.events.XMLEvent
+import io.dylemma.spac.handlers.CompoundHandler
+import scala.util.Try
+
+trait ParserCombineMethods {
+	[2..22#
+	/** Combine the given 1 parsers that share a common context type.
+	  *
+	  * Example usage: {{{
+	  * combine(
+	  *   Parser.forText,
+	  *   Parser.forContext[String],
+	  *   Parser.forMandatoryAttribute("id").map(_.toInt)
+	  * ) as { (text, context, id) =>
+	  *   // return some value that combines the three inputs
+	  * }
+	  * }}}
+	  *
+	  * [#@param p1 A Parser[C1, R1] whose results will be passed as argument 1 to the combination function#
+	  * ]@param mst An implicit evidence parameter that states that the most specific type among the
+	  * types ([#`C1`#]) is the type `C`
+	  */
+	def combine[C, [#C1 >: C#], [#R1#]](
+		[#p1: Parser[C1, R1]#,
+		]
+	)(implicit mst: MostSpecificType.Among[Start ~ [#C1# ~ ], C]) = new PreCombined1[C, [#R1#]]([#p1#])
+
+	class PreCombined1[C, [#R1#]]([#p1: Parser[C, R1]#]) {
+		/** Create a single parser that combines the results of each of the parsers as a tuple. */
+		def asTuple = as(Tuple1.apply)
+
+		/** Create a single parser that combines the results of each of the parsers by passing
+		  * them into the given combination function `f`.
+		  * @param f The combination function that takes the results of the inner parsers to
+		  * produce a result of type `R`
+		  */
+		def as[R](f: ([#R1#]) => R): Parser[C, R] = new Parser[C, R] {
+			def makeHandler(context: C): Handler[XMLEvent, Try[R]] = {
+				val handlers = Vector([#p1#]).map(_ makeHandler context)
+				new CompoundHandler[XMLEvent, Any, Try[R]](handlers, { rawResults =>
+					for {
+						[#r1 <- rawResults(0).asInstanceOf[Try[R1]]#
+						]
+					} yield f([#r1#])
+				})
+			}
+			override def toString = s"Combined($f: [#$p1#])"
+		}
+	}
+	#
+	]
+}
