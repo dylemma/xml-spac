@@ -66,31 +66,4 @@ object ConsumableLike {
 			}
 		}
 	}
-
-//	protected def guessCloseFunc(iterator: Iterator[_]): Function0[Unit] = iterator match {
-//		case c: AutoCloseable => () => try c.close() catch { case NonFatal(_) => () }
-//		case _ => () => ()
-//	}
-//
-//	protected def runIterator[In, Out](
-//		iterator: Iterator[In],
-//		close: () => Unit,
-//		handler: Handler[In, Out]
-//	): Out = {
-//		// try to be smart about closeable iterators
-//		val closeFunc = iterator match {
-//			case c: AutoCloseable => Some{ () => c.close() }
-//			case _ => None
-//		}
-//		var result: Option[Out] = None
-//		try {
-//			while(iterator.hasNext && !handler.isFinished){
-//				result = handler.handleInput(iterator.next)
-//			}
-//			result getOrElse handler.handleEnd()
-//		} finally {
-//			// call the close function, if any
-//			close()
-//		}
-//	}
 }
