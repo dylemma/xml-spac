@@ -1,19 +1,23 @@
-SPaC
-====
+XML SPaC
+========
 
 [![Build Status](https://travis-ci.org/dylemma/xml-stream.svg?branch=master)](https://travis-ci.org/dylemma/xml-stream)
 
-**S**treaming **Pa**rser **C**ombinators lets you create declarative, composable, high-performance handlers for iterative data.
+**XML** **S**treaming **Pa**rser **C**ombinators is a Scala library for creating
+[StAX](https://docs.oracle.com/javase/7/docs/api/javax/xml/stream/package-summary.html) parsers that are:
 
-It's especially good at making [StAX](https://docs.oracle.com/javase/7/docs/api/javax/xml/stream/package-summary.html) handlers,
-allowing you to parse huge XML files without sacrificing speed, and without having to manage a bunch of internal state.
+ - **Declarative** - You write *what* you want to get, not *how* to get it.
+ - **Immutable** - Parsers that you create have no internal state.
+ - **Composable** - Combine and transform parsers to handle complex data structures. 
+ - **Fast** - With minimal abstraction to get in the way, speed rivals any hand-written handler.
+ - **Streaming** - Parse huge XML documents without loading it all into memory.
 
 # Get it!
 
 Add the following to your `build.sbt` file:
 
 ```sbt
-libraryDependencies += "io.dylemma" %% "spac" % "0.2"
+libraryDependencies += "io.dylemma" %% "xml-spac" % "0.2"
 ```
 
 # Use it!
@@ -61,7 +65,7 @@ between parsers is typically very difficult to share, as it is usually closely t
 
 # The New Way
 
-**SPaC** treats XML as a stream of events, and makes it easy to define consumers for that stream. There are three
+**XML SPaC** treats XML as a stream of events, and makes it easy to define consumers for that stream. There are three
 central concepts in the library: Parser, Splitter, and Transformer.
 
 ## Parser
