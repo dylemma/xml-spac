@@ -5,8 +5,10 @@ import javax.xml.stream.events.XMLEvent
 
 import io.dylemma.spac.handlers.{SplitOnMatchHandler, XMLContextSplitterHandler}
 
+import scala.util.Try
+
 trait Splitter[In, +Context] {
-	def through[Out](parser: Context => Handler[In, Result[Out]]): Transformer[In, Out]
+	def through[Out](parser: Context => Handler[In, Try[Out]]): Transformer[In, Out]
 
 	def through[Out](consumer: Consumer[In, Out]): Transformer[In, Out] = {
 		val safeConsumer = consumer.safe
@@ -46,7 +48,7 @@ trait XmlSplitter[+Context] extends Splitter[XMLEvent, Context] {
 object Splitter {
 
 	def apply[Context](matcher: ContextMatcher[Context]): XmlSplitter[Context] = new XmlSplitter[Context] { self =>
-		def through[P](parser: (Context) => Handler[XMLEvent, Result[P]]): Transformer[XMLEvent, P] = {
+		def through[P](parser: (Context) => Handler[XMLEvent, Try[P]]): Transformer[XMLEvent, P] = {
 			new Transformer[XMLEvent, P] {
 				def makeHandler[Out](next: Handler[P, Out]): Handler[XMLEvent, Out] = {
 					new XMLContextSplitterHandler(matcher, parser, next)
@@ -60,7 +62,7 @@ object Splitter {
 	def splitOnMatch[In, Context](matcher: PartialFunction[In, Context]): Splitter[In, Context] = {
 		new Splitter[In, Context] {self =>
 			override def toString = s"Splitter.splitOnMatch($matcher)"
-			def through[Out](parser: (Context) => Handler[In, Result[Out]]): Transformer[In, Out] = {
+			def through[Out](parser: (Context) => Handler[In, Try[Out]]): Transformer[In, Out] = {
 				new Transformer[In, Out] {
 					override def toString = s"$self{ $parser }"
 					def makeHandler[A](downstream: Handler[Out, A]): Handler[In, A] = {

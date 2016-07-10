@@ -5,23 +5,25 @@ import javax.xml.stream.events.XMLEvent
 
 import io.dylemma.spac.{Handler, Result}
 
+import scala.util.{Success, Try}
+
 class OptionalAttributeHandler(name: QName)
-	extends Handler[XMLEvent, Result[Option[String]]]
+	extends Handler[XMLEvent, Try[Option[String]]]
 	with ManualFinish
 	with FinishOnError
 {
 
 	override def toString = s"OptionalAttribute($name)"
 
-	def handleEnd() = finishWith(Result.Success.none)
+	def handleEnd() = finishWith(Success(None))
 
-	def handleInput(input: XMLEvent): Option[Result[Option[String]]] = maybeFinishWith {
+	def handleInput(input: XMLEvent): Option[Try[Option[String]]] = maybeFinishWith {
 		if(input.isStartElement){
 			val elem = input.asStartElement
 			val attr = elem.getAttributeByName(name)
 			Some{
-				if(attr == null) Result.Success.none
-				else Result.Success(Some(attr.getValue))
+				if(attr == null) Success(None)
+				else Success(Some(attr.getValue))
 			}
 		} else {
 			None

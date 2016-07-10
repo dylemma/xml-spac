@@ -5,17 +5,19 @@ import javax.xml.stream.events.XMLEvent
 
 import io.dylemma.spac.{Handler, Result}
 
+import scala.util.{Failure, Success, Try}
+
 class MandatoryAttributeHandler(name: QName)
-	extends Handler[XMLEvent, Result[String]]
+	extends Handler[XMLEvent, Try[String]]
 	with ManualFinish
 	with FinishOnError
 {
 	override def toString = s"Attribute($name)"
 
-	@inline private def errorResult(msg: String, event: XMLEvent) = Result.Error(XMLHandlerException(msg, event))
-	@inline private def errorResult(msg: String) = Result.Error(XMLHandlerException(msg))
+	@inline private def errorResult(msg: String, event: XMLEvent) = Failure(XMLHandlerException(msg, event))
+	@inline private def errorResult(msg: String) = Failure(XMLHandlerException(msg))
 
-	def handleEnd(): Result[String] = finishWith {
+	def handleEnd(): Try[String] = finishWith {
 		errorResult("end reached before attribute was found")
 	}
 
@@ -25,7 +27,7 @@ class MandatoryAttributeHandler(name: QName)
 			val attr = elem.getAttributeByName(name)
 			Some {
 				if (attr == null) errorResult(s"mandatory [$name] attribute missing", input)
-				else Result.Success(attr.getValue)
+				else Success(attr.getValue)
 			}
 		} else {
 			None

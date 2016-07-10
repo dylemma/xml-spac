@@ -4,11 +4,12 @@ import javax.xml.stream.events.{StartElement, XMLEvent}
 
 import io.dylemma.spac._
 
+import scala.util.{Failure, Try}
 import scala.util.control.NonFatal
 
 class XMLContextSplitterHandler[Context, P, Out](
 	matcher: ContextMatcher[Context],
-	makeInnerHandler: Context => Handler[XMLEvent, Result[P]], //Parser[Context, P],
+	makeInnerHandler: Context => Handler[XMLEvent, Try[P]],
 	val downstream: Handler[P, Out]
 ) extends SplitterHandlerBase[XMLEvent, Context, P, Out]{
 	override def toString = s"Splitter($matcher){ $makeInnerHandler } >> $downstream"
@@ -52,7 +53,7 @@ class XMLContextSplitterHandler[Context, P, Out](
 					matchStartDepth = stackSize
 					currentParserHandler = newMatch match {
 						case Result.Success(ctx) => Some(makeInnerHandler(ctx))
-						case e @ Result.Error(err) => Some(new OneShotHandler(e))
+						case Result.Error(err) => Some(new OneShotHandler(Failure(err)))
 						case _ => None // impossible, as we're in a !isEmpty check
 					}
 					debug(s"Entered context: $newMatch")

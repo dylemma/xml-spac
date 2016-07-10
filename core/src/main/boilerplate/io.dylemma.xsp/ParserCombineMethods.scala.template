@@ -2,6 +2,7 @@ package io.dylemma.spac
 
 import javax.xml.stream.events.XMLEvent
 import io.dylemma.spac.handlers.CompoundHandler
+import scala.util.Try
 
 trait ParserCombineMethods {
 	[2..22#
@@ -36,11 +37,11 @@ trait ParserCombineMethods {
 		  * produce a result of type `R`
 		  */
 		def as[R](f: ([#R1#]) => R): Parser[C, R] = new Parser[C, R] {
-			def makeHandler(context: C): Handler[XMLEvent, Result[R]] = {
+			def makeHandler(context: C): Handler[XMLEvent, Try[R]] = {
 				val handlers = Vector([#p1#]).map(_ makeHandler context)
-				new CompoundHandler[XMLEvent, Any, Result[R]](handlers, { rawResults =>
+				new CompoundHandler[XMLEvent, Any, Try[R]](handlers, { rawResults =>
 					for {
-						[#r1 <- rawResults(0).asInstanceOf[Result[R1]]#
+						[#r1 <- rawResults(0).asInstanceOf[Try[R1]]#
 						]
 					} yield f([#r1#])
 				})

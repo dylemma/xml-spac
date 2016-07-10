@@ -4,6 +4,8 @@ import javax.xml.stream.events.XMLEvent
 
 import io.dylemma.spac.{Consumer, Parser, Result, Transformer}
 
+import scala.util.Try
+
 trait TransformerSyntax {
 
 	implicit class TransformerParsingOps[A](t: Transformer[XMLEvent, A]) {
@@ -16,7 +18,7 @@ trait TransformerSyntax {
 			* @return A `Parser` whose result is the result of the `consumer`
 			*         after receiving events from this transformer.
 			*/
-		def parseWith[B](consumer: Consumer[A, Result[B]]): Parser[Any, B] = {
+		def parseWith[B](consumer: Consumer[A, Try[B]]): Parser[Any, B] = {
 			Parser.fromConsumer(t >> consumer)
 		}
 

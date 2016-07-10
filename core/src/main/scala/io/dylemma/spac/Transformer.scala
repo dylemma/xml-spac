@@ -4,6 +4,8 @@ import javax.xml.stream.events.XMLEvent
 
 import io.dylemma.spac.handlers._
 
+import scala.util.Try
+
 /** An immutable object that can be used to create a handler which wraps
 	* an existing handler, possibly transforming inputs before passing them
 	* along to the downstream handler.
@@ -35,10 +37,10 @@ trait Transformer[In, B] { self =>
 	def collect[C](pf: PartialFunction[B, C]): Transformer[In, C] = andThen(Transformer.Collect(pf))
 	def scan[S](init: S)(f: (S, B) => S): Transformer[In, S] = andThen(Transformer.Scan(init)(f))
 	def filter(p: B => Boolean): Transformer[In, B] = andThen(Transformer.Filter(p))
-	def flattenResults[T](implicit ev: B =:= Result[T]): Transformer[In, T] = {
-		asInstanceOf[Transformer[In, Result[T]]].andThen(Transformer.FlattenResults[T]())
+	def unwrapSafe[T](implicit ev: B =:= Try[T]): Transformer[In, T] = {
+		asInstanceOf[Transformer[In, Try[T]]].andThen(Transformer.UnwrapSafe[T]())
 	}
-	def expandResults: Transformer[In, Result[B]] = andThen(Transformer.ExpandResults())
+	def wrapSafe: Transformer[In, Try[B]] = andThen(Transformer.WrapSafe())
 	def withSideEffect(effect: B => Any): Transformer[In, B] = andThen(Transformer.SideEffect(effect))
 
 	def consumeToList: Consumer[In, List[B]] = andThen(Consumer.ToList())
@@ -103,18 +105,18 @@ object Transformer {
 		}
 	}
 
-	case class FlattenResults[A]() extends Transformer[Result[A], A] {
-		def makeHandler[Out](next: Handler[A, Out]): Handler[Result[A], Out] = {
-			new ResultFlatteningHandler(next)
+	case class UnwrapSafe[A]() extends Transformer[Try[A], A] {
+		def makeHandler[Out](next: Handler[A, Out]): Handler[Try[A], Out] = {
+			new UnwrapSafeTransformerHandler(next)
 		}
-		override def toString = "FlattenResults"
+		override def toString = "UnwrapSafe"
 	}
 
-	case class ExpandResults[A]() extends Transformer[A, Result[A]] {
-		def makeHandler[Out](next: Handler[Result[A], Out]): Handler[A, Out] = {
-			new ResultExpandingHandler(next)
+	case class WrapSafe[A]() extends Transformer[A, Try[A]] {
+		def makeHandler[Out](next: Handler[Try[A], Out]): Handler[A, Out] = {
+			new WrapSafeTransformerHandler(next)
 		}
-		override def toString = "ExpandResults"
+		override def toString = "WrapSafe"
 	}
 
 	case class SideEffect[A](effect: A => Any) extends Transformer[A, A] {

@@ -30,7 +30,7 @@ object Example2a_BrokenContext extends App {
 
 	val consumer = Splitter(contextMatcher)
 		.as[Comment] // parse the substreams created by the Splitter, using the implicit CommentParser
-		.expandResults // wrap inputs and errors as Results so we don't throw during the foreach
+		.wrapSafe // wrap inputs and errors as Results so we don't throw during the foreach
 		.consumeForEach(println) // println each of the results
 
 	consumer consume rawXml

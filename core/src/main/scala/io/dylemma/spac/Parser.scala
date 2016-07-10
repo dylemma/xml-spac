@@ -5,18 +5,19 @@ import javax.xml.stream.events.XMLEvent
 
 import io.dylemma.spac.handlers._
 
+import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
 
 trait Parser[-Context, +Out] { self =>
-	def makeHandler(context: Context): Handler[XMLEvent, Result[Out]]
+	def makeHandler(context: Context): Handler[XMLEvent, Try[Out]]
 
-	def mapResult[B](f: Result[Out] => Result[B]): Parser[Context, B] = new Parser[Context, B] {
+	def mapResult[B](f: Try[Out] => Try[B]): Parser[Context, B] = new Parser[Context, B] {
 		def makeHandler(context: Context) = new MappedConsumerHandler(f, self.makeHandler(context))
 		override def toString = s"$self >> Map($f)"
 	}
 
 	def map[B](f: Out => B): Parser[Context, B] = mapResult(_ map f)
-	def flatMap[B](f: Out => Result[B]): Parser[Context, B] = mapResult(_ flatMap f)
+	def flatMap[B](f: Out => Try[B]): Parser[Context, B] = mapResult(_ flatMap f)
 
 	/** Bind this `Parser` to a specific `context`.
 		* The resulting parser ignores all context information passed to it for
@@ -35,9 +36,9 @@ trait Parser[-Context, +Out] { self =>
 		* @param ev Implicit evidence that the parser's `Context` type is `Any`
 		* @return A representation of this parser as a `Consumer`
 		*/
-	def toConsumer(implicit ev: Any <:< Context): Consumer[XMLEvent, Result[Out]] = {
-		new Consumer[XMLEvent, Result[Out]] {
-			def makeHandler(): Handler[XMLEvent, Result[Out]] = self.makeHandler(ev(()))
+	def toConsumer(implicit ev: Any <:< Context): Consumer[XMLEvent, Try[Out]] = {
+		new Consumer[XMLEvent, Try[Out]] {
+			def makeHandler(): Handler[XMLEvent, Try[Out]] = self.makeHandler(ev(()))
 			override def toString = self.toString
 		}
 	}
@@ -45,10 +46,10 @@ trait Parser[-Context, +Out] { self =>
 	def parse[XML](xml: XML)(
 		implicit consumeXML: ConsumableLike[XML, XMLEvent],
 		anyContext: Any <:< Context
-	): Result[Out] = consumeXML(xml, makeHandler(anyContext(())))
+	): Try[Out] = consumeXML(xml, makeHandler(anyContext(())))
 }
 object Parser extends ParserCombineMethods {
-	def fromConsumer[Out](consumer: Consumer[XMLEvent, Result[Out]]): Parser[Any, Out] = {
+	def fromConsumer[Out](consumer: Consumer[XMLEvent, Try[Out]]): Parser[Any, Out] = {
 		new Parser[Any, Out] {
 			def makeHandler(context: Any) = consumer.makeHandler()
 			override def toString = consumer.toString
@@ -65,7 +66,7 @@ object Parser extends ParserCombineMethods {
 	// CONTEXT
 	def forContext[C]: Parser[C, C] = new ForContext[C]
 	class ForContext[C] extends Parser[C, C] {
-		def makeHandler(context: C) = new OneShotHandler(Result.Success(context))
+		def makeHandler(context: C) = new OneShotHandler(Success(context))
 		override def toString = "XMLContext"
 	}
 
@@ -90,12 +91,12 @@ object Parser extends ParserCombineMethods {
 	class ChooseApply[Context] {
 		def apply[Out](chooser: Context => Parser[Context, Out]): Parser[Context, Out] = {
 			new Parser[Context, Out] {
-				def makeHandler(context: Context): Handler[XMLEvent, Result[Out]] = {
+				def makeHandler(context: Context): Handler[XMLEvent, Try[Out]] = {
 					try chooser(context).makeHandler(context)
 					catch {
 						case NonFatal(err) =>
 							val wrapped = new Exception(s"Failed to choose a parser for context [$context]", err)
-							new OneShotHandler(Result.Error(wrapped))
+							new OneShotHandler(Failure(wrapped))
 					}
 				}
 				override def toString = s"Choose($chooser)"

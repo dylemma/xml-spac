@@ -2,17 +2,18 @@ package io.dylemma.spac
 
 import javax.xml.stream.XMLStreamException
 
-import io.dylemma.spac.Result.{Error, Success}
 import org.scalatest.{FunSpec, Matchers}
+
+import scala.util.{Failure, Success, Try}
 
 class ParserTests extends FunSpec with Matchers {
 
-	protected def testParserResult[R](rawXml: String, parser: Parser[Any, R], expected: Result[R]) = {
+	protected def testParserResult[R](rawXml: String, parser: Parser[Any, R], expected: Try[R]) = {
 		val result = parser parse rawXml
 		result should be(expected)
 	}
 
-	protected def testParserResultLike[R](rawXml: String, parser: Parser[Any, R])(testResult: Result[R] => Boolean) = {
+	protected def testParserResultLike[R](rawXml: String, parser: Parser[Any, R])(testResult: Try[R] => Boolean) = {
 		val result = parser parse rawXml
 		testResult(result) should be(true)
 	}
@@ -48,14 +49,14 @@ class ParserTests extends FunSpec with Matchers {
 			testParserResultLike[String](
 				"<foo/>",
 				Parser.forMandatoryAttribute("a")
-			)(_.isError)
+			)(_.isFailure)
 		}
 
 		it("should not return the attribute from an inner element") {
 			testParserResultLike[String](
 				"""<foo><bar a="123"/></foo>""",
 				Parser.forMandatoryAttribute("a")
-			)(_.isError)
+			)(_.isFailure)
 			testParserResult(
 				"""<foo a="123"><bar a="456"/></foo>""",
 				Parser.forMandatoryAttribute("a"),
@@ -115,7 +116,7 @@ class ParserTests extends FunSpec with Matchers {
 		}
 
 		it("should produce error results for invalid inputs") {
-			testParserResultLike[Int]("<foo>ABC</foo>", Parser.forText.map(_.toInt))(_.isError)
+			testParserResultLike[Int]("<foo>ABC</foo>", Parser.forText.map(_.toInt))(_.isFailure)
 		}
 	}
 
@@ -156,7 +157,7 @@ class ParserTests extends FunSpec with Matchers {
 					Parser.forMandatoryAttribute("a").map(_.toInt),
 					Parser.forText
 				).asTuple
-			)(_.isError)
+			)(_.isFailure)
 		}
 
 		it("should forbid combination of parsers with conflicting context types"){
@@ -222,7 +223,7 @@ class ParserTests extends FunSpec with Matchers {
 			testParserResultLike[Int](
 				"""<foo a="abc"><bar>Hello</bar></foo>""",
 				Splitter(attr("a").map(_.toInt)).through(Parser.forContext[Int]).parseFirst
-			)(_.isError)
+			)(_.isFailure)
 		}
 
 		it("should forbid parsers with a different context type from being attached"){
@@ -266,9 +267,9 @@ class ParserTests extends FunSpec with Matchers {
 				case "a" => Parser.forText.map(s => A(s.toInt))
 				// omit case "b" for errors
 			}
-			val parser = splitter.through(onlyAParser).expandResults.parseToList
+			val parser = splitter.through(onlyAParser).wrapSafe.parseToList
 			testParserResultLike(rawXml, parser){
-				case Success(List(Success(A(1)), Success(A(2)), Error(_), Success(A(4)), Error(_))) => true
+				case Success(List(Success(A(1)), Success(A(2)), Failure(_), Success(A(4)), Failure(_))) => true
 				case _ => false
 			}
 		}

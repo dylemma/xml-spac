@@ -2,6 +2,8 @@ package io.dylemma.spac
 
 import io.dylemma.spac.handlers._
 
+import scala.util.Try
+
 /** An immutable object that can be used to create `Handler`s.
 	*/
 trait Consumer[-In, +Out] { self =>
@@ -15,8 +17,8 @@ trait Consumer[-In, +Out] { self =>
 		def makeHandler(): Handler[In, U] = new MappedConsumerHandler(f, self.makeHandler())
 	}
 
-	def safe: Consumer[In, Result[Out]] = new Consumer[In, Result[Out]] {
-		def makeHandler(): Handler[In, Result[Out]] = new SafeConsumerHandler(self.makeHandler())
+	def safe: Consumer[In, Try[Out]] = new Consumer[In, Try[Out]] {
+		def makeHandler(): Handler[In, Try[Out]] = new SafeConsumerHandler(self.makeHandler())
 	}
 }
 

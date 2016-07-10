@@ -2,6 +2,7 @@ package io.dylemma.spac.handlers
 
 import io.dylemma.spac.{Handler, Result, debug}
 
+import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
 
 /**
@@ -9,7 +10,7 @@ import scala.util.control.NonFatal
 	*/
 trait SplitterHandlerBase[In, Context, P, Out] extends Handler[In, Out] {
 
-	protected var currentParserHandler: Option[Handler[In, Result[P]]] = None
+	protected var currentParserHandler: Option[Handler[In, Try[P]]] = None
 	protected def downstream: Handler[P, Out]
 	protected def debugName: String
 
@@ -28,7 +29,7 @@ trait SplitterHandlerBase[In, Context, P, Out] extends Handler[In, Out] {
 		  .flatMap(feedResultToDownstream)
 	}
 
-	protected def feedEndToCurrentParser(): Option[Result[P]] = {
+	protected def feedEndToCurrentParser(): Option[Try[P]] = {
 		for {
 			handler <- currentParserHandler
 			if !handler.isFinished
@@ -43,7 +44,7 @@ trait SplitterHandlerBase[In, Context, P, Out] extends Handler[In, Out] {
 		}
 	}
 
-	protected def feedEventToCurrentParser(input: In): Option[Result[P]] = {
+	protected def feedEventToCurrentParser(input: In): Option[Try[P]] = {
 		for {
 			handler <- currentParserHandler
 			if !handler.isFinished
@@ -59,7 +60,7 @@ trait SplitterHandlerBase[In, Context, P, Out] extends Handler[In, Out] {
 		}
 	}
 
-	protected def feedErrorToCurrentParser(err: Throwable): Option[Result[P]] = {
+	protected def feedErrorToCurrentParser(err: Throwable): Option[Try[P]] = {
 		for {
 			handler <- currentParserHandler
 			if !handler.isFinished
@@ -75,13 +76,12 @@ trait SplitterHandlerBase[In, Context, P, Out] extends Handler[In, Out] {
 		}
 	}
 
-	protected def feedResultToDownstream(result: Result[P]): Option[Out] = {
+	protected def feedResultToDownstream(result: Try[P]): Option[Out] = {
 		try {
 			if (downstream.isFinished) None
 			else result match {
-				case Result.Success(p) => downstream.handleInput(p)
-				case Result.Empty => None
-				case Result.Error(err) => downstream.handleError(err)
+				case Success(p) => downstream.handleInput(p)
+				case Failure(err) => downstream.handleError(err)
 			}
 		} catch {
 			case NonFatal(err) => throw new Exception(

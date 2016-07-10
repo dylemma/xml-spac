@@ -1,9 +1,9 @@
 package io.dylemma.spac
 
-import io.dylemma.spac.Result.Success
 import io.dylemma.spac.handlers.ManualFinish
 import org.scalatest.{FunSpec, Matchers}
 
+import scala.util.{Failure, Success}
 import scala.util.control.NonFatal
 
 class TransformerTests extends FunSpec with Matchers {
@@ -116,7 +116,7 @@ class TransformerTests extends FunSpec with Matchers {
 		it("should catch errors thrown by the function and call handleError on the downstream handler"){
 			val result = Transformer.Map{s: String => s.toInt} >> Consumer.ToList[Int].safe consume List("not a number")
 			result should matchPattern {
-				case Result.Error(err: NumberFormatException) =>
+				case Failure(err: NumberFormatException) =>
 			}
 		}
 		enforceIsFinishedContract(
@@ -132,7 +132,7 @@ class TransformerTests extends FunSpec with Matchers {
 		}
 		it("should catch errors thrown by the collector function and pass them downstream via handleError"){
 			val result = Transformer.Collect[String, Int]{ case s => s.toInt } >> Consumer.ToList[Int].safe consume List("1", "2", "hi")
-			result should matchPattern { case Result.Error(e: NumberFormatException) => }
+			result should matchPattern { case Failure(e: NumberFormatException) => }
 		}
 		enforceIsFinishedContract(
 			Transformer.Collect[Int, String]{ case 1 => "hi" }
@@ -147,14 +147,14 @@ class TransformerTests extends FunSpec with Matchers {
 		}
 		it("should catch errors thrown by the state advancement function and call handleError on the downstream handler"){
 			runTransformer(List("1", "2", "hello"))(
-				Transformer.Scan[Int, String](0)(_ + _.toInt).expandResults
+				Transformer.Scan[Int, String](0)(_ + _.toInt).wrapSafe
 			) should matchPattern {
-				case List(Success(1), Success(3), Result.Error(err: NumberFormatException)) =>
+				case List(Success(1), Success(3), Failure(err: NumberFormatException)) =>
 			}
 			runTransformer(List("hello", "1", "2"))(
-				Transformer.Scan[Int, String](0)(_ + _.toInt).expandResults
+				Transformer.Scan[Int, String](0)(_ + _.toInt).wrapSafe
 			) should matchPattern {
-				case List(Result.Error(err: NumberFormatException), Success(1), Success(3)) =>
+				case List(Failure(err: NumberFormatException), Success(1), Success(3)) =>
 			}
 		}
 		enforceIsFinishedContract(Transformer.Scan(0)(_ + _))
