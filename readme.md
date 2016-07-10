@@ -3,9 +3,10 @@ SPaC
 
 [![Build Status](https://travis-ci.org/dylemma/xml-stream.svg?branch=master)](https://travis-ci.org/dylemma/xml-stream)
 
-**S**treaming **Pa**rser **C**ombinators lets you create declarative, composable, high-performance handlers that work on 
-[streaming XML](https://docs.oracle.com/javase/7/docs/api/javax/xml/stream/package-summary.html),
-without all of the boilerplate that usually comes with SAX or StAX.
+**S**treaming **Pa**rser **C**ombinators lets you create declarative, composable, high-performance handlers for handling iterative data.
+
+It's especially good at making [StAX](https://docs.oracle.com/javase/7/docs/api/javax/xml/stream/package-summary.html) handlers,
+allowing you to parse huge XML files without sacrificing speed, and without having to manage a bunch of internal state.
 
 # Get it!
 
