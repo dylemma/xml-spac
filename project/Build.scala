@@ -9,6 +9,7 @@ object XmlStreamBuild extends Build {
 	lazy val commonSettings = Seq(
 		version := "0.2-SNAPSHOT",
 		scalaVersion := "2.11.8",
+		crossScalaVersions := Seq("2.9.3", "2.10.6", "2.11.8"),
 		scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
 		organization := "io.dylemma"
 	)
@@ -51,7 +52,7 @@ object XmlStreamBuild extends Build {
 			val sourceTree =
 				if(version endsWith "-SNAPSHOT") snapshotBranch
 				else version
-			val sourceUrl = "https://github.com/dylemma/xml-stream/tree/" + sourceTree + "\u20ac{FILE_PATH}.scala"
+			val sourceUrl = "https://github.com/dylemma/xml-spac/tree/" + sourceTree + "\u20ac{FILE_PATH}.scala"
 			Seq(
 				"-sourcepath", sourcePath,
 				"-doc-source-url", sourceUrl
@@ -71,7 +72,7 @@ object XmlStreamBuild extends Build {
 		publishArtifact in Test := false,
 		pomIncludeRepository := { _ => false },
 		pomExtra := (
-			<url>https://github.com/dylemma/xml-stream</url>
+			<url>https://github.com/dylemma/xml-spac</url>
 			<licenses>
 				<license>
 					<name>MIT</name>
@@ -80,8 +81,8 @@ object XmlStreamBuild extends Build {
 				</license>
 			</licenses>
 			<scm>
-				<url>git@github.com:dylemma/xml-stream.git</url>
-				<connection>scm:git:git@github.com:dylemma/xml-stream.git</connection>
+				<url>git@github.com:dylemma/xml-spac.git</url>
+				<connection>scm:git:git@github.com:dylemma/xml-spac.git</connection>
 			</scm>
 			<developers>
 				<developer>
