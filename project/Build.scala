@@ -15,7 +15,7 @@ object XmlStreamBuild extends Build {
 	)
 
 	lazy val core = (project in file("core"))
-		.settings(name := "spac")
+		.settings(name := "xml-spac")
 		.settings(commonSettings: _*)
 		.settings(libraryDependencies += "org.scalatest" %% "scalatest" % "2.2.4" % "test")
 		.enablePlugins(BoilerplatePlugin)
