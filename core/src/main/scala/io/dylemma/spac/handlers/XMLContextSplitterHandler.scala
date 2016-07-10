@@ -4,7 +4,7 @@ import javax.xml.stream.events.{StartElement, XMLEvent}
 
 import io.dylemma.spac._
 
-import scala.util.{Failure, Try}
+import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
 
 class XMLContextSplitterHandler[Context, P, Out](
@@ -35,7 +35,7 @@ class XMLContextSplitterHandler[Context, P, Out](
 	}
 	// =================
 
-	private var currentContext: Result[Context] = Result.Empty
+	private var currentContext: Option[Try[Context]] = None
 	private var matchStartDepth = 0
 
 	def handleInput(input: XMLEvent): Option[Out] = {
@@ -47,14 +47,16 @@ class XMLContextSplitterHandler[Context, P, Out](
 
 			// attempt to match a context if there isn't one already
 			if(currentContext.isEmpty){
-				val newMatch = matcher(stackBuffer, 0, stackSize)
+				val newMatch = Try{ matcher(stackBuffer, 0, stackSize) } match {
+					case Success(ctxOpt) => ctxOpt.map(Success(_))
+					case f @ Failure(err) => Some(Failure(err))
+				}
 				if(!newMatch.isEmpty){
 					currentContext = newMatch
 					matchStartDepth = stackSize
-					currentParserHandler = newMatch match {
-						case Result.Success(ctx) => Some(makeInnerHandler(ctx))
-						case Result.Error(err) => Some(new OneShotHandler(Failure(err)))
-						case _ => None // impossible, as we're in a !isEmpty check
+					currentParserHandler = newMatch map {
+						case Success(ctx) => makeInnerHandler(ctx)
+						case Failure(err) => new OneShotHandler(Failure(err))
 					}
 					debug(s"Entered context: $newMatch")
 				}
@@ -82,7 +84,7 @@ class XMLContextSplitterHandler[Context, P, Out](
 				if (stackSize < matchStartDepth) {
 					matchStartDepth = 0
 					debug(s"Left context: $currentContext")
-					currentContext = Result.Empty
+					currentContext = None
 
 					// if the context is ending, we need to feed an EOF to any unfinished parser
 					feedEndToCurrentParser()

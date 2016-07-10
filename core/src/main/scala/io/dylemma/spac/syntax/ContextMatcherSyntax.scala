@@ -12,7 +12,7 @@ trait ContextMatcherSyntax {
 	/** Context matcher that always matches without consuming any of the tag stack.
 		*/
 	object Root extends ChainingContextMatcher[Unit, Start] {
-		protected def applyChain(stack: IndexedSeq[StartElement], offset: Int, length: Int) = Result.Success(Start -> 0)
+		protected def applyChain(stack: IndexedSeq[StartElement], offset: Int, length: Int) = Some(Start -> 0)
 		protected val minStackLength = Some(0)
 		protected val chainRep = ChainRep.UnitChainRep
 	}
@@ -37,11 +37,11 @@ trait ContextMatcherSyntax {
 
 	/** Context matcher that extracts the (local) name of the element at the head of the stack.
 		*/
-	val extractElemName = SingleElementContextMatcher("elem(?)", { e => Result(e.getName.getLocalPart) })
+	val extractElemName = SingleElementContextMatcher("elem(?)", { e => Some(e.getName.getLocalPart) })
 
 	/** Context matcher that extracts the (qualified) name of the element at the head of the stack.
 		*/
-	val extractElemQName = SingleElementContextMatcher("elem(?:?)", { e => Result(e.getName) })
+	val extractElemQName = SingleElementContextMatcher("elem(?:?)", { e => Some(e.getName) })
 
 	/** Implicitly convert a `String` to an `elem` matcher */
 	implicit def stringToElemMatcher(name: String) = elem(name)
@@ -55,7 +55,7 @@ trait ContextMatcherSyntax {
 		*/
 	def attr(qname: QName) = SingleElementContextMatcher(
 		s"attr($qname)",
-		{ e => Result fromOption Option(e getAttributeByName qname).map(_.getValue) }
+		{ e => Option(e getAttributeByName qname).map(_.getValue) }
 	)
 
 	/** Context matcher that extracts the given attribute from the element at the head of the stack.
