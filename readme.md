@@ -40,7 +40,7 @@ libraryDependencies += "io.dylemma" %% "xml-spac" % "0.2"
 
 ```scala
 trait ConsumableLike[-S, +In]{
-	def apply[Out](source: S, handler: Handler[In, Out]
+	def apply[Out](source: S, handler: Handler[In, Out]): Out
 }
 ```
 
