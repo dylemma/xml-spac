@@ -217,14 +217,14 @@ Note the common functionality between `PostParser` and `CommentParser` for getti
 functionality can be pulled out to some common location and reused anywhere, e.g.
 
 ```scala
-val dateAttributeParser = (* % "date").map(commentDateFormat.parseLocalDate)
-val authorElementParser = (* / "author").as[Author]
+val dateAttributeParser = Parser.forMandatoryAttribute("date").map(commentDateFormat.parseLocalDate)
+val authorElementParser = Splitter(* \ "author").first[Author]
 
-implicit val CommentParser: Parser[Comment] = (
-  dateAttributeParser &
-  authorElementParser &
-  (* / "body" / Text)
-).join(Comment)
+implicit val CommentParser: Parser[Comment] = Parser.combine(
+	dateAttributeParser,
+	authorElementParser,
+	Splitter(* \ "body").first.asText
+).as(Comment)
 ```
 
 ## Using the Parser
