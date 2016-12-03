@@ -7,7 +7,7 @@ import spray.boilerplate.BoilerplatePlugin
 object XmlStreamBuild extends Build {
 
 	lazy val commonSettings = Seq(
-		version := "0.2",
+		version := "0.3-SNAPSHOT",
 		scalaVersion := "2.11.8",
 		crossScalaVersions := Seq("2.10.6", "2.11.8"),
 		scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
@@ -54,6 +54,7 @@ object XmlStreamBuild extends Build {
 				else version
 			val sourceUrl = "https://github.com/dylemma/xml-spac/tree/" + sourceTree + "\u20ac{FILE_PATH}.scala"
 			Seq(
+				"-implicits",
 				"-sourcepath", sourcePath,
 				"-doc-source-url", sourceUrl
 			)
