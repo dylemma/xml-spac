@@ -56,4 +56,9 @@ object Consumer {
 		def makeHandler() = new ForEachHandler(f)
 		override def toString = s"ForEach($f)"
 	}
+
+	case class Constant[A](result: A) extends Consumer[Any, A] {
+		def makeHandler(): Handler[Any, A] = new ConstantHandler(result)
+		override def toString = s"Constant($result)"
+	}
 }
