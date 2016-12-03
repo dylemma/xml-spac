@@ -31,6 +31,8 @@ trait Parser[-Context, +Out] { self =>
 		override def toString = s"$self.inContext($context)"
 	}
 
+	def mapContext[C](f: C => Context): Parser[C, Out] = new ParserWithMappedContext(f, self)
+
 	/** If a `Parser` is context-independent, it can be treated to a `Consumer`.
 		*
 		* @param ev Implicit evidence that the parser's `Context` type is `Any`
@@ -48,7 +50,13 @@ trait Parser[-Context, +Out] { self =>
 		anyContext: Any <:< Context
 	): Try[Out] = consumeXML(xml, makeHandler(anyContext(())))
 }
-object Parser extends ParserCombineMethods {
+
+private class ParserWithMappedContext[C, C2, Out](f: C => C2, p: Parser[C2, Out]) extends Parser[C, Out] {
+	def makeHandler(context: C): Handler[XMLEvent, Try[Out]] = p makeHandler f(context)
+	override def mapContext[C0](g: (C0) => C): Parser[C0, Out] = new ParserWithMappedContext(g andThen f, p)
+}
+
+object Parser {
 	def fromConsumer[Out](consumer: Consumer[XMLEvent, Try[Out]]): Parser[Any, Out] = {
 		new Parser[Any, Out] {
 			def makeHandler(context: Any) = consumer.makeHandler()

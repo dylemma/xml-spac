@@ -86,8 +86,8 @@ object Example2_Contexts extends App {
 	the parser's substream to create a Comment.
 	 */
 	case class Comment(body: String, context: PostContext)
-	val postParser = Parser.combine(
-		Parser.forText,
+	val postParser: Parser[PostContext, Comment] = (
+		Parser.forText and
 		Parser.forContext[PostContext]
 	).as(Comment)
 

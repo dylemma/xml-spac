@@ -20,9 +20,9 @@ object Example2a_BrokenContext extends App {
 
 	case class Comment(postId: Int, user: String, text: String)
 
-	implicit val CommentParser: Parser[Int, Comment] = Parser.combine(
-		Parser.forContext[Int],
-		Parser.forMandatoryAttribute("user"),
+	implicit val CommentParser: Parser[Int, Comment] = (
+		Parser.forContext[Int] and
+		Parser.forMandatoryAttribute("user") and
 		Parser.forText
 	).as(Comment)
 

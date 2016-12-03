@@ -41,29 +41,29 @@ object Example_FromReadme extends App {
 	val commentDateFormat = DateTimeFormat.forPattern("yyyy-MM-dd")
 	val dateAttributeParser = Parser.forMandatoryAttribute("date").map(commentDateFormat.parseLocalDate)
 
-	implicit val AuthorParser: Parser[Any, Author] = Parser.combine(
-		Parser.forMandatoryAttribute("id"),
+	implicit val AuthorParser: Parser[Any, Author] = (
+		Parser.forMandatoryAttribute("id") and
 		Parser.forMandatoryAttribute("name")
 	).as(Author)
 
 	val authorElementParser = Splitter(* \ "author").first[Author]
 
-	implicit val StatsParser: Parser[Any, Stats] = Parser.combine(
-		Parser.forMandatoryAttribute("likes").map(_.toInt),
+	implicit val StatsParser: Parser[Any, Stats] = (
+		Parser.forMandatoryAttribute("likes").map(_.toInt) and
 		Parser.forMandatoryAttribute("tweets").map(_.toInt)
 	).as(Stats)
 
-	implicit val CommentParser: Parser[Any, Comment] = Parser.combine(
-		dateAttributeParser,
-		authorElementParser,
+	implicit val CommentParser: Parser[Any, Comment] = (
+		dateAttributeParser and
+		authorElementParser and
 		Splitter(* \ "body").first.asText
 	).as(Comment)
 
-	implicit val PostParser: Parser[Any, Post] = Parser.combine(
-		dateAttributeParser,
-		authorElementParser,
-		Splitter(* \ "stats").first[Stats],
-		Splitter(* \ "body").first.asText,
+	implicit val PostParser: Parser[Any, Post] = (
+		dateAttributeParser and
+		authorElementParser and
+		Splitter(* \ "stats").first[Stats] and
+		Splitter(* \ "body").first.asText and
 		Splitter(* \ "comments" \ "comment").asListOf[Comment]
 	).as(Post)
 
