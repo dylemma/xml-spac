@@ -235,6 +235,21 @@ class ParserTests extends FunSpec with Matchers {
 		}
 	}
 
+	describe("Parser.constant"){
+		it("should emit the result immediately"){
+			testParserResult("<a></a>", Parser.constant(123), Success(123))
+		}
+
+		it("should pass errors through instead of the result"){
+			val e = new Exception("test error")
+			Parser.constant(123).makeHandler(()).handleError(e) should equal(Some(Failure(e)))
+		}
+
+		it("should emit in response to an EOF"){
+			Parser.constant(123).makeHandler(()).handleEnd() should equal(Success(123))
+		}
+	}
+
 	describe("Parser.choose"){
 		val rawXml = """<foo>
 		|	<a>1</a>

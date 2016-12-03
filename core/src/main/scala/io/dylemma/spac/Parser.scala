@@ -104,6 +104,13 @@ object Parser extends ParserCombineMethods {
 		}
 	}
 
+	// CONSTANT
+	def constant[A](result: A): Parser[Any, A] = new Parser[Any, A] {
+		def makeHandler(context: Any): Handler[XMLEvent, Try[A]] = {
+			new SafeConsumerHandler(new ConstantHandler(result))
+		}
+		override def toString = s"Constant($result)"
+	}
 }
 
 
