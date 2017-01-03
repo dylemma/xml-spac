@@ -12,7 +12,7 @@ XML SPaC
  - **Fast** - With minimal abstraction to get in the way, speed rivals any hand-written handler.
  - **Streaming** - Parse huge XML documents from events, not a DOM.
 
-You can jump into a full [tutorial](blob/master/tutorial.md), or check out the [examples](https://github.com/dylemma/xml-spac/tree/master/examples/src/main/scala/io/dylemma/xml/example),
+You can jump into a full [tutorial](tutorial.md), or check out the [examples](examples/src/main/scala/io/dylemma/xml/example),
 but here's a taste of how you'd write a parser for a relatively-complex blog post XML structure:
 
 ```scala
