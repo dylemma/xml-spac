@@ -33,6 +33,9 @@ Add the following to your `build.sbt` file:
 libraryDependencies += "io.dylemma" %% "xml-spac" % "0.2"
 ```
 
+*Note: the readme and tutorial documents currently reflect the upcoming 0.3-SNAPSHOT API. 
+For documentation relevant to the latest release (v0.2), please refer to [the old readme](https://github.com/dylemma/xml-spac/blob/0.2/readme.md)*
+
 # Main Concepts
 
 The classes you'll interact with most in **XML SPaC** are `Parser`, `Transformer`, `Splitter`, and `Consumer`.  

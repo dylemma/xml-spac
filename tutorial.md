@@ -1,6 +1,10 @@
 Tutorial
 ========
 
+*Note: the readme and tutorial documents currently reflect the upcoming 0.3-SNAPSHOT API. 
+For documentation relevant to the latest release (v0.2), please refer to [the old readme](https://github.com/dylemma/xml-spac/blob/0.2/readme.md)*
+---
+
 Let's write a parser for this pretend blog data file.
 
 ```xml
