@@ -8,12 +8,12 @@ import scala.util.{Failure, Success, Try}
 
 class ParserTests extends FunSpec with Matchers {
 
-	protected def testParserResult[R](rawXml: String, parser: Parser[Any, R], expected: Try[R]) = {
+	protected def testParserResult[R](rawXml: String, parser: Parser[R], expected: Try[R]) = {
 		val result = parser parse rawXml
 		result should be(expected)
 	}
 
-	protected def testParserResultLike[R](rawXml: String, parser: Parser[Any, R])(testResult: Try[R] => Boolean) = {
+	protected def testParserResultLike[R](rawXml: String, parser: Parser[R])(testResult: Try[R] => Boolean) = {
 		val result = parser parse rawXml
 		testResult(result) should be(true)
 	}
@@ -154,26 +154,26 @@ class ParserTests extends FunSpec with Matchers {
 			)(_.isFailure)
 		}
 
-		it("should forbid combination of parsers with conflicting context types"){
-			val intContextParser = Parser.forContext[Int]
-			val stringContextParser = Parser.forContext[String]
-			assertCompiles("intContextParser and intContextParser")
-			assertDoesNotCompile("intContextParser and stringContextParser")
-		}
-
-		it("should pick the most-specific context type when combining parsers"){
-			class A
-			class B extends A
-			class C extends B
-			val abcParser = (
-				Parser.forContext[A] and
-				Parser.forContext[B] and
-				Parser.forContext[C]
-			).asTuple
-			assertDoesNotCompile("val x: Parser[A, (A, B, C)] = abcParser")
-			assertDoesNotCompile("val x: Parser[B, (A, B, C)] = abcParser")
-			assertCompiles("val x: Parser[C, (A, B, C)] = abcParser")
-		}
+//		it("should forbid combination of parsers with conflicting context types"){
+//			val intContextParser = Parser.forContext[Int]
+//			val stringContextParser = Parser.forContext[String]
+//			assertCompiles("intContextParser and intContextParser")
+//			assertDoesNotCompile("intContextParser and stringContextParser")
+//		}
+//
+//		it("should pick the most-specific context type when combining parsers"){
+//			class A
+//			class B extends A
+//			class C extends B
+//			val abcParser = (
+//				Parser.forContext[A] and
+//				Parser.forContext[B] and
+//				Parser.forContext[C]
+//			).asTuple
+//			assertDoesNotCompile("val x: Parser[A, (A, B, C)] = abcParser")
+//			assertDoesNotCompile("val x: Parser[B, (A, B, C)] = abcParser")
+//			assertCompiles("val x: Parser[C, (A, B, C)] = abcParser")
+//		}
 
 		it("should pass the same context value to its inner parsers if it requires a context"){
 			class A
@@ -181,10 +181,19 @@ class ParserTests extends FunSpec with Matchers {
 			val splitter: XmlSplitter[A] = Splitter(attr("a").map(_ => new A))
 			val rawXml = """<foo a="123"><x>Hello</x><y>Goodbye</y></foo>"""
 			// the two inner parsers should receive the same 'A' instance passed to this parser from a splitter
-			val combinedContextualParser: Parser[A, (AText, AText)] = (
-				(Parser.forContext[A] and Splitter(* \ "x").first.asText).as(AText) and
-				(Parser.forContext[A] and Splitter(* \ "y").first.asText).as(AText)
-			).asTuple
+			def parseAText(context: A, elem: String) = {
+				(Parser.constant(context) and Splitter(* \ elem).first.asText).as(AText)
+			}
+//			def parseAText(elem: String) = splitter.first { ctx =>
+//				(Parser.constant(ctx) and Splitter(* \ elem).first.asText).as(AText)
+//			}
+			val combinedContextualParser: Parser[(AText, AText)] = splitter.first{ a =>
+				(parseAText(a, "x") and parseAText(a, "y")).asTuple
+			}
+//			val combinedContextualParser: Parser[A, (AText, AText)] = (
+//				(Parser.forContext[A] and Splitter(* \ "x").first.asText).as(AText) and
+//				(Parser.forContext[A] and Splitter(* \ "y").first.asText).as(AText)
+//			).asTuple
 			testParserResultLike(rawXml, splitter.first(combinedContextualParser)){
 				case Success((x, y)) => x.a === y.a
 				case _ => false
@@ -192,39 +201,39 @@ class ParserTests extends FunSpec with Matchers {
 		}
 	}
 
-	describe("Parser.forContext") {
-		it("should use the context provided from the Splitter"){
-			val splitter = Splitter(attr("a") \ "bar")
-			val barParser = (Parser.forContext[String] and Parser.forText).asTuple
-			val parser = splitter.through(barParser).parseFirst
-
-			testParserResult(
-				"""<foo a="abc"><bar>Hello</bar></foo>""",
-				parser,
-				Success("abc" -> "Hello")
-			)
-			testParserResult(
-				"""<foo a="def"><bar>Hello</bar></foo>""",
-				parser,
-				Success("def" -> "Hello")
-			)
-		}
-
-		it("should result in an Error when the context match throws an exception"){
-			testParserResultLike[Int](
-				"""<foo a="abc"><bar>Hello</bar></foo>""",
-				Splitter(attr("a").map(_.toInt)).through(Parser.forContext[Int]).parseFirst
-			)(_.isFailure)
-		}
-
-		it("should forbid parsers with a different context type from being attached"){
-			val splitter: XmlSplitter[String] = Splitter(attr("a"))
-			val parserString: Parser[String, String] = Parser.forContext[String]
-			val parserInt: Parser[Int, Int] = Parser.forContext[Int]
-			assertCompiles("splitter through parserString")
-			assertDoesNotCompile("splitter through parserInt")
-		}
-	}
+//	describe("Parser.forContext") {
+//		it("should use the context provided from the Splitter"){
+//			val splitter = Splitter(attr("a") \ "bar")
+//			val barParser = (Parser.forContext[String] and Parser.forText).asTuple
+//			val parser = splitter.through(barParser).parseFirst
+//
+//			testParserResult(
+//				"""<foo a="abc"><bar>Hello</bar></foo>""",
+//				parser,
+//				Success("abc" -> "Hello")
+//			)
+//			testParserResult(
+//				"""<foo a="def"><bar>Hello</bar></foo>""",
+//				parser,
+//				Success("def" -> "Hello")
+//			)
+//		}
+//
+//		it("should result in an Error when the context match throws an exception"){
+//			testParserResultLike[Int](
+//				"""<foo a="abc"><bar>Hello</bar></foo>""",
+//				Splitter(attr("a").map(_.toInt)).through(Parser.forContext[Int]).parseFirst
+//			)(_.isFailure)
+//		}
+//
+//		it("should forbid parsers with a different context type from being attached"){
+//			val splitter: XmlSplitter[String] = Splitter(attr("a"))
+//			val parserString: Parser[String, String] = Parser.forContext[String]
+//			val parserInt: Parser[Int, Int] = Parser.forContext[Int]
+//			assertCompiles("splitter through parserString")
+//			assertDoesNotCompile("splitter through parserInt")
+//		}
+//	}
 
 	describe("Parser.constant"){
 		it("should emit the result immediately"){
@@ -233,11 +242,11 @@ class ParserTests extends FunSpec with Matchers {
 
 		it("should pass errors through instead of the result"){
 			val e = new Exception("test error")
-			Parser.constant(123).makeHandler(()).handleError(e) should equal(Some(Failure(e)))
+			Parser.constant(123).makeHandler().handleError(e) should equal(Some(Failure(e)))
 		}
 
 		it("should emit in response to an EOF"){
-			Parser.constant(123).makeHandler(()).handleEnd() should equal(Success(123))
+			Parser.constant(123).makeHandler().handleEnd() should equal(Success(123))
 		}
 	}
 
@@ -257,23 +266,23 @@ class ParserTests extends FunSpec with Matchers {
 
 
 		it("should choose the right sub-parser based on the context"){
-			val abParser = Parser.choose[String] {
+			val abTransformer = splitter through {
 				case "a" => Parser.forText.map(s => A(s.toInt))
 				case "b" => Parser.forText.map(s => B(s.toInt))
 			}
 
-			testParserResultLike(rawXml, (splitter through abParser).parseToList){
+			testParserResultLike(rawXml, abTransformer.parseToList){
 				case Success(A(1) :: A(2) :: B(3) :: A(4) :: B(5) :: Nil) => true
 				case _ => false
 			}
 		}
 
 		it("should yield error results where the chooser function fails"){
-			val onlyAParser = Parser.choose[String] {
+			val onlyATransformer = splitter through {
 				case "a" => Parser.forText.map(s => A(s.toInt))
 				// omit case "b" for errors
 			}
-			val parser = splitter.through(onlyAParser).wrapSafe.parseToList
+			val parser = onlyATransformer.wrapSafe.parseToList
 			testParserResultLike(rawXml, parser){
 				case Success(List(Success(A(1)), Success(A(2)), Failure(_), Success(A(4)), Failure(_))) => true
 				case _ => false

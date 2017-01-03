@@ -163,7 +163,7 @@ class TransformerTests extends FunSpec with Matchers {
 	describe("Splitter.splitOnMatch"){
 		def collectListsStartingWithOne(numbers: Int*) = {
 			runTransformer(List(numbers: _*)){
-				Splitter.splitOnMatch[Int](_ == 1) through Consumer.ToList[Int]
+				Splitter.splitOnMatch[Int](_ == 1) join Consumer.ToList[Int]
 			}
 		}
 

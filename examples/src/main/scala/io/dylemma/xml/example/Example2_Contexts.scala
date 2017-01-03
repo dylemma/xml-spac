@@ -86,12 +86,11 @@ object Example2_Contexts extends App {
 	the parser's substream to create a Comment.
 	 */
 	case class Comment(body: String, context: PostContext)
-	val postParser: Parser[PostContext, Comment] = (
+	def postParser(context: PostContext): Parser[Comment] = (
 		Parser.forText and
-		Parser.forContext[PostContext]
+		Parser.constant(context)
 	).as(Comment)
 
 	// assemble the consumer and run it on the xml
 	postSplitter through postParser consumeForEach println consume rawXml
-
 }

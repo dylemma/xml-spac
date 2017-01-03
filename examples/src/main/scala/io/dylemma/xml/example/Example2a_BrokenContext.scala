@@ -20,8 +20,8 @@ object Example2a_BrokenContext extends App {
 
 	case class Comment(postId: Int, user: String, text: String)
 
-	implicit val CommentParser: Parser[Int, Comment] = (
-		Parser.forContext[Int] and
+	def CommentParser(idFromContext: Int): Parser[Comment] = (
+		Parser.constant(idFromContext) and
 		Parser.forMandatoryAttribute("user") and
 		Parser.forText
 	).as(Comment)
@@ -29,7 +29,7 @@ object Example2a_BrokenContext extends App {
 	val contextMatcher = "blog" \ ("post" & attr("id").map(_.toInt)) \ "comment"
 
 	val consumer = Splitter(contextMatcher)
-		.as[Comment] // parse the substreams created by the Splitter, using the implicit CommentParser
+		.through(CommentParser) // parse the substreams created by the Splitter, using the implicit CommentParser
 		.wrapSafe // wrap inputs and errors as `scala.util.Try` so we don't throw during the foreach
 		.consumeForEach(println) // println each of the results
 
