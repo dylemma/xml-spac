@@ -6,8 +6,7 @@ import scala.util.Try
 
 /** An immutable object that can be used to create `Handler`s.
 	*/
-trait Consumer[-In, +Out] { self =>
-	def makeHandler(): Handler[In, Out]
+trait Consumer[-In, +Out] extends HandlerFactory[In, Out] { self =>
 
 	def consume[S](source: S)(implicit consume: ConsumableLike[S, In]): Out = {
 		consume(source, makeHandler())

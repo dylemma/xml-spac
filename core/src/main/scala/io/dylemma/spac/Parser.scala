@@ -8,8 +8,7 @@ import io.dylemma.spac.handlers._
 import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
 
-trait Parser[+Out] { self =>
-	def makeHandler(): Handler[XMLEvent, Try[Out]]
+trait Parser[+Out] extends HandlerFactory[XMLEvent, Try[Out]] { self =>
 
 	def mapResult[B](f: Try[Out] => Try[B]): Parser[B] = new Parser[B] {
 		def makeHandler() = new MappedConsumerHandler(f, self.makeHandler())

@@ -68,14 +68,14 @@ object Example3_EntryList extends App {
 	Then we'll use the ToList consumer to collect the keys and values from each substream,
 	then map the results from that consumer to `Entry` instances.
 	 */
-	val kvToEntryTransformer: Transformer[KeyOrValue, Entry] = Splitter.splitOnMatch[KeyOrValue]{ _.isLeft }.join {
+	val kvToEntryTransformer: Transformer[KeyOrValue, Entry] = Splitter.splitOnMatch[KeyOrValue]{ _.isLeft } through {
 		Consumer.ToList[KeyOrValue].map { keyAndValues =>
 			// we can safely assume that there will be at least one element in the `keyAndValues`
 			// list, and that it is a `Left`, due to the `splitOnMatch` condition
 			val Left(key) :: valueRights = keyAndValues
 			val values = valueRights collect { case Right(value) => value }
 			Entry(key, values)
-		}
+		}.wrapSafe
 	}
 
 	/*
