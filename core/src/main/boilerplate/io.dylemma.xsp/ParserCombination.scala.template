@@ -10,17 +10,15 @@ object ParserCombination {
 	  * Instances of this class can be combined with an additional parser using the `and` method (aliased as `~`).
 	  * The combination can be finalized to an actual parser using the `as` or `asTuple` methods.
 	  */
-	class Combined1[C, [#R1#]]([#p1: Parser[C, R1]#]) {
-		def and[Cx, R2](p2: Parser[Cx, R2])(implicit ev: Cx <:< C) = new Combined2[Cx, [#R1#], R2]([#p1 mapContext ev#], p2)
-		def ~[Cx, R2](p2: Parser[Cx, R2])(implicit ev: Cx <:< C) = new Combined2[Cx, [#R1#], R2]([#p1 mapContext ev#], p2)
-		def and[Cx >: C, R2](p2: Parser[Cx, R2]) = new Combined2[C, [#R1#], R2]([#p1#], p2)
-		def ~[Cx >: C, R2](p2: Parser[Cx, R2]) = new Combined2[C, [#R1#], R2]([#p1#], p2)
+	class Combined1[[#+R1#]]([#p1: Parser[R1]#]) {
+		def and[R2](p2: Parser[R2]) = new Combined2[[#R1#], R2]([#p1#], p2)
+		def ~[R2](p2: Parser[R2]) = new Combined2[[#R1#], R2]([#p1#], p2)
 
-		def asTuple: Parser[C, ([#R1#])] = asNamed("Tuple1", Tuple1.apply)
-		def as[R](f: ([#R1#]) => R): Parser[C, R] = asNamed(f.toString, f)
-		private def asNamed[R](fName: String, f: ([#R1#]) => R): Parser[C, R] = new Parser[C, R] {
-			def makeHandler(context: C): Handler[XMLEvent, Try[R]] = {
-				val handlers = Vector([#p1#]).map(_ makeHandler context)
+		def asTuple: Parser[([#R1#])] = asNamed("Tuple1", Tuple1.apply)
+		def as[R](f: ([#R1#]) => R): Parser[R] = asNamed(f.toString, f)
+		private def asNamed[R](fName: String, f: ([#R1#]) => R): Parser[R] = new Parser[R] {
+			def makeHandler(): Handler[XMLEvent, Try[R]] = {
+				val handlers = Vector([#p1#]).map(_.makeHandler())
 				new CompoundHandler[XMLEvent, Any, Try[R]](handlers, { rawResults =>
 				for {
 						[#r1 <- rawResults(0).asInstanceOf[Try[R1]]#
@@ -40,12 +38,12 @@ object ParserCombination {
 	  * does not include the `and` or `~` methods which would normally be used to add another parser.
 	  * The combination can be finalized to an actual parser using the `as` or `asTuple` methods.
 	  */
-	class Combined1[C, [#R1#]]([#p1: Parser[C, R1]#]) {
-		def asTuple: Parser[C, ([#R1#])] = asNamed("Tuple1", Tuple1.apply)
-		def as[R](f: ([#R1#]) => R): Parser[C, R] = asNamed(f.toString, f)
-		private def asNamed[R](fName: String, f: ([#R1#]) => R): Parser[C, R] = new Parser[C, R] {
-			def makeHandler(context: C): Handler[XMLEvent, Try[R]] = {
-				val handlers = Vector([#p1#]).map(_ makeHandler context)
+	class Combined1[[#+R1#]]([#p1: Parser[R1]#]) {
+		def asTuple: Parser[([#R1#])] = asNamed("Tuple1", Tuple1.apply)
+		def as[R](f: ([#R1#]) => R): Parser[R] = asNamed(f.toString, f)
+		private def asNamed[R](fName: String, f: ([#R1#]) => R): Parser[R] = new Parser[R] {
+			def makeHandler(): Handler[XMLEvent, Try[R]] = {
+				val handlers = Vector([#p1#]).map(_.makeHandler())
 				new CompoundHandler[XMLEvent, Any, Try[R]](handlers, { rawResults =>
 				for {
 						[#r1 <- rawResults(0).asInstanceOf[Try[R1]]#

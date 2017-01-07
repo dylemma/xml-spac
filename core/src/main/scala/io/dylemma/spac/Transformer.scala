@@ -10,7 +10,7 @@ import scala.util.Try
 	* an existing handler, possibly transforming inputs before passing them
 	* along to the downstream handler.
 	*/
-trait Transformer[In, B] { self =>
+trait Transformer[-In, +B] { self =>
 	def makeHandler[Out](next: Handler[B, Out]): Handler[In, Out]
 
 	def andThen[C](nextT: Transformer[B, C]): Transformer[In, C] = >>(nextT)
@@ -37,7 +37,7 @@ trait Transformer[In, B] { self =>
 	def collect[C](pf: PartialFunction[B, C]): Transformer[In, C] = andThen(Transformer.Collect(pf))
 	def scan[S](init: S)(f: (S, B) => S): Transformer[In, S] = andThen(Transformer.Scan(init)(f))
 	def filter(p: B => Boolean): Transformer[In, B] = andThen(Transformer.Filter(p))
-	def unwrapSafe[T](implicit ev: B =:= Try[T]): Transformer[In, T] = {
+	def unwrapSafe[T](implicit ev: B <:< Try[T]): Transformer[In, T] = {
 		asInstanceOf[Transformer[In, Try[T]]].andThen(Transformer.UnwrapSafe[T]())
 	}
 	def wrapSafe: Transformer[In, Try[B]] = andThen(Transformer.WrapSafe())

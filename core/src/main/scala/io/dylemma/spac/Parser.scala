@@ -8,113 +8,69 @@ import io.dylemma.spac.handlers._
 import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
 
-trait Parser[-Context, +Out] { self =>
-	def makeHandler(context: Context): Handler[XMLEvent, Try[Out]]
+trait Parser[+Out] extends HandlerFactory[XMLEvent, Try[Out]] { self =>
 
-	def mapResult[B](f: Try[Out] => Try[B]): Parser[Context, B] = new Parser[Context, B] {
-		def makeHandler(context: Context) = new MappedConsumerHandler(f, self.makeHandler(context))
+	def mapResult[B](f: Try[Out] => Try[B]): Parser[B] = new Parser[B] {
+		def makeHandler() = new MappedConsumerHandler(f, self.makeHandler())
 		override def toString = s"$self >> Map($f)"
 	}
 
-	def map[B](f: Out => B): Parser[Context, B] = mapResult(_ map f)
-	def flatMap[B](f: Out => Try[B]): Parser[Context, B] = mapResult(_ flatMap f)
+	def map[B](f: Out => B): Parser[B] = mapResult(_ map f)
+	def flatMap[B](f: Out => Try[B]): Parser[B] = mapResult(_ flatMap f)
 
-	/** Bind this `Parser` to a specific `context`.
-		* The resulting parser ignores all context information passed to it for
-		* purposes of creating a handler; it instead uses the context passed to
-		* this method.
-		*
-		* @param context The `Context` value that will be used to create handlers
-		*/
-	def inContext(context: Context): Parser[Any, Out] = new Parser[Any, Out] {
-		def makeHandler(ignored: Any) = self.makeHandler(context)
-		override def toString = s"$self.inContext($context)"
-	}
-
-	def mapContext[C](f: C => Context): Parser[C, Out] = new ParserWithMappedContext(f, self)
+	def and[O2](p2: Parser[O2]) = new ParserCombination.Combined2(self, p2)
+	def ~[O2](p2: Parser[O2]) = new ParserCombination.Combined2(self, p2)
 
 	/** If a `Parser` is context-independent, it can be treated to a `Consumer`.
 		*
-		* @param ev Implicit evidence that the parser's `Context` type is `Any`
 		* @return A representation of this parser as a `Consumer`
 		*/
-	def toConsumer(implicit ev: Any <:< Context): Consumer[XMLEvent, Try[Out]] = {
+	def toConsumer: Consumer[XMLEvent, Try[Out]] = {
 		new Consumer[XMLEvent, Try[Out]] {
-			def makeHandler(): Handler[XMLEvent, Try[Out]] = self.makeHandler(ev(()))
+			def makeHandler(): Handler[XMLEvent, Try[Out]] = self.makeHandler()
 			override def toString = self.toString
 		}
 	}
 
 	def parse[XML](xml: XML)(
-		implicit consumeXML: ConsumableLike[XML, XMLEvent],
-		anyContext: Any <:< Context
-	): Try[Out] = consumeXML(xml, makeHandler(anyContext(())))
-}
-
-private class ParserWithMappedContext[C, C2, Out](f: C => C2, p: Parser[C2, Out]) extends Parser[C, Out] {
-	def makeHandler(context: C): Handler[XMLEvent, Try[Out]] = p makeHandler f(context)
-	override def mapContext[C0](g: (C0) => C): Parser[C0, Out] = new ParserWithMappedContext(g andThen f, p)
+		implicit consumeXML: ConsumableLike[XML, XMLEvent]
+	): Try[Out] = consumeXML(xml, makeHandler())
 }
 
 object Parser {
-	def fromConsumer[Out](consumer: Consumer[XMLEvent, Try[Out]]): Parser[Any, Out] = {
-		new Parser[Any, Out] {
-			def makeHandler(context: Any) = consumer.makeHandler()
+	def fromConsumer[Out](consumer: Consumer[XMLEvent, Try[Out]]): Parser[Out] = {
+		new Parser[Out] {
+			def makeHandler() = consumer.makeHandler()
 			override def toString = consumer.toString
 		}
 	}
 
 	// TEXT
-	def forText: Parser[Any, String] = ForText
-	object ForText extends Parser[Any, String] {
-		def makeHandler(context: Any) = new TextCollectorHandler
+	def forText: Parser[String] = ForText
+	object ForText extends Parser[String] {
+		def makeHandler() = new TextCollectorHandler
 		override def toString = "XMLText"
 	}
 
-	// CONTEXT
-	def forContext[C]: Parser[C, C] = new ForContext[C]
-	class ForContext[C] extends Parser[C, C] {
-		def makeHandler(context: C) = new OneShotHandler(Success(context))
-		override def toString = "XMLContext"
-	}
-
 	// ATTRIBUTE
-	def forMandatoryAttribute(name: QName): Parser[Any, String] = new ForMandatoryAttribute(name)
-	def forMandatoryAttribute(name: String): Parser[Any, String] = new ForMandatoryAttribute(new QName(name))
-	class ForMandatoryAttribute(name: QName) extends Parser[Any, String] {
-		def makeHandler(context: Any) = new MandatoryAttributeHandler(name)
+	def forMandatoryAttribute(name: QName): Parser[String] = new ForMandatoryAttribute(name)
+	def forMandatoryAttribute(name: String): Parser[String] = new ForMandatoryAttribute(new QName(name))
+	class ForMandatoryAttribute(name: QName) extends Parser[String] {
+		def makeHandler() = new MandatoryAttributeHandler(name)
 		override def toString = s"Attribute($name)"
 	}
 
 	// OPTIONAL ATTRIBUTE
-	def forOptionalAttribute(name: QName): Parser[Any, Option[String]] = new ForOptionalAttribute(name)
-	def forOptionalAttribute(name: String): Parser[Any, Option[String]] = new ForOptionalAttribute(new QName(name))
-	class ForOptionalAttribute(name: QName) extends Parser[Any, Option[String]] {
-		def makeHandler(context: Any) = new OptionalAttributeHandler(name)
+	def forOptionalAttribute(name: QName): Parser[Option[String]] = new ForOptionalAttribute(name)
+	def forOptionalAttribute(name: String): Parser[Option[String]] = new ForOptionalAttribute(new QName(name))
+	class ForOptionalAttribute(name: QName) extends Parser[Option[String]] {
+		def makeHandler() = new OptionalAttributeHandler(name)
 		override def toString = s"OptionalAttribute($name)"
 	}
 
-	// CHOOSE
-	def choose[Context] = new ChooseApply[Context]
-	class ChooseApply[Context] {
-		def apply[Out](chooser: Context => Parser[Context, Out]): Parser[Context, Out] = {
-			new Parser[Context, Out] {
-				def makeHandler(context: Context): Handler[XMLEvent, Try[Out]] = {
-					try chooser(context).makeHandler(context)
-					catch {
-						case NonFatal(err) =>
-							val wrapped = new Exception(s"Failed to choose a parser for context [$context]", err)
-							new OneShotHandler(Failure(wrapped))
-					}
-				}
-				override def toString = s"Choose($chooser)"
-			}
-		}
-	}
-
 	// CONSTANT
-	def constant[A](result: A): Parser[Any, A] = new Parser[Any, A] {
-		def makeHandler(context: Any): Handler[XMLEvent, Try[A]] = {
+	def constant[A](result: A): Parser[A] = new Parser[A] {
+		def makeHandler(): Handler[XMLEvent, Try[A]] = {
 			new SafeConsumerHandler(new ConstantHandler(result))
 		}
 		override def toString = s"Constant($result)"

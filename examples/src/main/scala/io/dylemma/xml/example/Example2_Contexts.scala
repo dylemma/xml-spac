@@ -54,16 +54,21 @@ object Example2_Contexts extends App {
 	Doing so results in a `ChainingContextMatcher`, which still has `\`, but does
 	not have the individual combiners like `&` and `|`.
 
-	Chained matchers have chain-like results. A "chain" is actually just a nested
-	Tuple2, where the right part is a value, but the right part could be another
-	Tuple2. The most convenient way to interact with these chains is with the `~`
-	extractor object that comes from `import syntax._`
+	Chained matchers have chain-like results. A "chain" is like a right-associative
+	`shapeless.HList`, where the "endpoint" is at the start instead of the end.
+	The most convenient way to interact with these chains is with the `~`
+	extractor object that comes from `import syntax._` (analagous to `::` with HList)
 	 */
 	val chainedMatcher: ChainingContextMatcher[(String, String, Int), Start ~ String ~ String ~ Int] = {
 		attr("title") \ (attr("author") & attr("id").map(_.toInt)) \ "comment"
 	}
 
-	// remember a chaining context matcher is still just a context matcher
+	/*
+	Note that you generally don't need to think about what the chain type is.
+	It's really just there to help the compiler figure out what the resulting
+	matcher type should be when you use `\` to chain it to the next matcher.
+	A ChainingContextMatcher is still just a ContextMatcher.
+	 */
 	val chainedMatcher2: ContextMatcher[(String, String, Int)] = chainedMatcher
 
 	/*
@@ -81,17 +86,33 @@ object Example2_Contexts extends App {
 
 	/*
 	Create a `Comment` class then create a parser for it.
-	By using `Parser.forContext[PostContext]` we cause the resulting parser
-	to *require* a `PostContext` as context. We combine it with the text from
-	the parser's substream to create a Comment.
+	The comment parser can't create a `Comment` without a `PostContext`,
+	since that comes from an xml element further up the tree. We'll get
+	that context from the `Splitter` (via the `through` method), so for
+	now we only create a `PostContext => Parser[Comment]` to represent
+	that dependency.
 	 */
 	case class Comment(body: String, context: PostContext)
-	val postParser: Parser[PostContext, Comment] = (
+	def commentParser(context: PostContext): Parser[Comment] = (
 		Parser.forText and
-		Parser.forContext[PostContext]
+		Parser.constant(context)
 	).as(Comment)
 
-	// assemble the consumer and run it on the xml
-	postSplitter through postParser consumeForEach println consume rawXml
+	/*
+	Note: for this particular use case it might be more convenient to
+	insert the `context` with a `map` on the text parser.
+	 */
+	def alternateCommentParser(context: PostContext): Parser[Comment] = {
+		Parser.forText.map(Comment(_, context))
+	}
 
+	/*
+	With splitter's `through` method, the `commentParser` method will be
+	called for each substream, with that substream's context as the argument.
+
+	- `postSplitter through commentParser` creates a transformer
+	- `[...] consumeForeach println` creates a consumer
+	- `[...] consume rawXml` runs that consumer on the raw xml
+	 */
+	postSplitter through commentParser consumeForEach println consume rawXml
 }

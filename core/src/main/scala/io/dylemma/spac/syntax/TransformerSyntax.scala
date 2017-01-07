@@ -18,14 +18,14 @@ trait TransformerSyntax {
 			* @return A `Parser` whose result is the result of the `consumer`
 			*         after receiving events from this transformer.
 			*/
-		def parseWith[B](consumer: Consumer[A, Try[B]]): Parser[Any, B] = {
+		def parseWith[B](consumer: Consumer[A, Try[B]]): Parser[B] = {
 			Parser.fromConsumer(t >> consumer)
 		}
 
-		def parseToList: Parser[Any, List[A]] = parseWith(Consumer.ToList().wrapSafe)
-		def parseFirst: Parser[Any, A] = parseWith(Consumer.First().wrapSafe)
-		def parseFirstOption: Parser[Any, Option[A]] = parseWith(Consumer.FirstOption().wrapSafe)
-		def parseAsFold[R](init: R)(f: (R, A) => R): Parser[Any, R] = parseWith(Consumer.Fold(init, f).wrapSafe)
+		def parseToList: Parser[List[A]] = parseWith(Consumer.ToList().wrapSafe)
+		def parseFirst: Parser[A] = parseWith(Consumer.First().wrapSafe)
+		def parseFirstOption: Parser[Option[A]] = parseWith(Consumer.FirstOption().wrapSafe)
+		def parseAsFold[R](init: R)(f: (R, A) => R): Parser[R] = parseWith(Consumer.Fold(init, f).wrapSafe)
 	}
 
 }

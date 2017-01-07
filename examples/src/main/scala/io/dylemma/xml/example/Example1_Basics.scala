@@ -18,13 +18,11 @@ object Example1_Basics extends App {
 		|</library>""".stripMargin
 
 	/*
-	A `Parser[Context, Out]` is able to parse a stream of XMLEvents to produce a `Try[Out]`.
-	Some parsers require a specific context value to be passed in before they can start parsing,
-	but this one doesn't, so its `Context` type is `Any`.
+	A `Parser[Out]` is able to parse a stream of XMLEvents to produce a `Try[Out]`.
 
 	The `Parser.forText` parser will collect all of the `Characters` events it encounters, and concatenate them.
 	 */
-	val bookParser: Parser[Any, String] = Parser.forText
+	val bookParser: Parser[String] = Parser.forText
 
 	/*
 	If we run the `bookParser` by itself on the `libraryXml`, we get the titles of all of the
@@ -63,7 +61,7 @@ object Example1_Basics extends App {
 	They can also be turned into Parsers as long as their input type is XMLEvent.
 	 */
 	val bookListConsumer: Consumer[XMLEvent, List[String]] = bookTransformer.consumeToList
-	val bookListParser: Parser[Any, List[String]] = bookTransformer.parseToList
+	val bookListParser: Parser[List[String]] = bookTransformer.parseToList
 
 	/*
 	The underlying handler created by a Consumer may throw exceptions when handling inputs.
