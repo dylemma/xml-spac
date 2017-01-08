@@ -120,6 +120,23 @@ class ParserTests extends FunSpec with Matchers {
 		}
 	}
 
+	describe("Parser#mapF (from FunctorSyntax)"){
+		val rawXml = """<foo>
+		| <node id="1"/>
+		| <node id="2"/>
+		| <node/>
+		| <node id="4"/>
+		|</foo>""".stripMargin
+
+		it("should provide a convenient alternate syntax for map(_.map(f))") {
+			val idParser = Parser.forOptionalAttribute("id").mapF(_.toInt)
+			val allIdsParser = Splitter("foo" \ "node").asListOf(idParser)
+			testParserResult(rawXml, allIdsParser, Success(
+				List(Some(1), Some(2), None, Some(4))
+			))
+		}
+	}
+
 	describe("Splitter") {
 		it("should filter out unmached events"){
 			testParserResult(

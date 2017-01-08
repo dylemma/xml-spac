@@ -5,18 +5,23 @@ import javax.xml.stream.events.XMLEvent
 
 import io.dylemma.spac.handlers._
 
-import scala.util.{Failure, Success, Try}
-import scala.util.control.NonFatal
+import scala.language.higherKinds
+import scala.util.Try
 
-trait Parser[+Out] extends HandlerFactory[XMLEvent, Try[Out]] { self =>
+/** A HandlerFactory specialized for XMLEvents, which produces results wrapped in a `Try`.
+  * Parsers can be combined and run to process complex XML structures.
+  *
+  * @tparam Out Result type
+  *
+  * @define hf parser
+  * @define HF `Parser`
+  */
+trait Parser[+Out] extends AbstractHandlerFactory[XMLEvent, Out, Try, ({ type H[-in,+out] = Parser[out] })#H] { self =>
 
 	def mapResult[B](f: Try[Out] => Try[B]): Parser[B] = new Parser[B] {
 		def makeHandler() = new MappedConsumerHandler(f, self.makeHandler())
 		override def toString = s"$self >> Map($f)"
 	}
-
-	def map[B](f: Out => B): Parser[B] = mapResult(_ map f)
-	def flatMap[B](f: Out => Try[B]): Parser[B] = mapResult(_ flatMap f)
 
 	def and[O2](p2: Parser[O2]) = new ParserCombination.Combined2(self, p2)
 	def ~[O2](p2: Parser[O2]) = new ParserCombination.Combined2(self, p2)
