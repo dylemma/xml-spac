@@ -21,6 +21,32 @@ trait ContextMatcherSyntax {
 		*/
 	val * = SingleElementContextMatcher.predicate("*", {_ => true})
 
+	object ** extends ChainingContextMatcher[Unit, Start] {
+		protected def applyChain(stack: IndexedSeq[StartElement], offset: Int, length: Int): Option[(Start, Int)] = Some(Start -> 0)
+		protected def minStackLength: Option[Int] = Some(0)
+		protected def chainRep: ChainRep[Unit, Start] = ChainRep.UnitChainRep
+		/** Chain this matcher with the `next` matcher, returning a new matcher which represents the chain.
+			*
+			* @param next    The next matcher in the chain
+			* @param concat  An implicitly-available object that knows how to combine the chain representations
+			*                of this matcher and the `next` matcher
+			* @param thatRep An implicitly-available object that serves as the `chainRep` for the resulting parser
+			* @tparam B         The result type of the `next` parser
+			* @tparam BChain    The chain representation of the `next` parser's result type
+			* @tparam That      The result type of the combined parser
+			* @tparam ThatChain The chain representation of the combined parser's result type
+			* @return A new matcher which combines this matcher and the `next` in a chain
+			*/
+		override def \[B, BChain <: Chain, That, ThatChain <: Chain](
+			next: ChainingContextMatcher[B, BChain]
+		)(
+			implicit concat: ChainConcat[Start, BChain, ThatChain],
+			thatRep: ChainRep[That, ThatChain]
+		): ChainingContextMatcher[That, ThatChain] = {
+			Root \ next.lookDeeper
+		}
+	}
+
 	/** Context matcher that matches the element at the head of the stack
 		* as long as its name is equal to the given `qname`.
  *

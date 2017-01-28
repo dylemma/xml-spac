@@ -141,6 +141,24 @@ trait ChainingContextMatcher[A, AChain <: Chain] extends ContextMatcher[A] { sel
 			override def toString = s"$self / $next"
 		}
 	}
+
+	def lookDeeper: ChainingContextMatcher[A, AChain] = new ChainingContextMatcher[A, AChain] {
+		protected def applyChain(stack: IndexedSeq[StartElement], offset: Int, length: Int): Option[(AChain, Int)] = {
+			val minLen = minStackLength getOrElse 0
+			def search(numSkipped: Int, sOffset: Int, sLength: Int): Option[(Int, (AChain, Int))] = {
+				if(sLength < minLen) None
+				else {
+					val m = self.applyChain(stack, sOffset, sLength) map { numSkipped -> _ }
+					m orElse search(numSkipped + 1, sOffset + 1, sLength - 1)
+				}
+			}
+			search(0, offset, length) map { case (numSkipped, (aChain, matchedLength)) =>
+				aChain -> (numSkipped + matchedLength)
+			}
+		}
+		protected val minStackLength: Option[Int] = self.minStackLength
+		protected val chainRep: ChainRep[A, AChain] = self.chainRep
+	}
 }
 
 
