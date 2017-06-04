@@ -14,10 +14,17 @@ object XmlStreamBuild extends Build {
 		organization := "io.dylemma"
 	)
 
+	lazy val testSettings = Seq(
+		libraryDependencies ++= Seq(
+			"org.scalatest" %% "scalatest" % "2.2.4" % Test,
+			"org.scalamock" %% "scalamock-scalatest-support" % "3.6.0" % Test
+		)
+	)
+
 	lazy val core = (project in file("core"))
 		.settings(name := "xml-spac")
 		.settings(commonSettings: _*)
-		.settings(libraryDependencies += "org.scalatest" %% "scalatest" % "2.2.4" % "test")
+		.settings(testSettings: _*)
 		.enablePlugins(BoilerplatePlugin)
 		.settings(apiDocSettings: _*)
 		.settings(publishingSettings: _*)

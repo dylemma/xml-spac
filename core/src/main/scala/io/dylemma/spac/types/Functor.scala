@@ -1,6 +1,6 @@
 package io.dylemma.spac.types
 
-import io.dylemma.spac.{Consumer, Parser}
+import io.dylemma.spac.{Consumer, ContextMatcher, Parser, SingleElementContextMatcher}
 
 import scala.language.higherKinds
 import scala.util.Try
@@ -29,5 +29,11 @@ object Functor {
 	}
 	implicit def consumerFunctor[In] = new Functor[({ type C[A] = Consumer[In, A] })#C] {
 		def map[A, B](c: Consumer[In, A], f: (A) => B): Consumer[In, B] = c map f
+	}
+	implicit def contextMatcherFunctor[In] = new Functor[ContextMatcher] {
+		def map[A, B](c: ContextMatcher[A], f: A => B): ContextMatcher[B] = c map f
+	}
+	implicit def singleElementContextMatcherFunctor[In] = new Functor[SingleElementContextMatcher] {
+		def map[A, B](c: SingleElementContextMatcher[A], f: A => B): SingleElementContextMatcher[B] = c map f
 	}
 }
