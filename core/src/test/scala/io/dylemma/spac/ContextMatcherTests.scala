@@ -220,5 +220,10 @@ class ContextMatcherTests extends FunSpec with Matchers with MockFactory {
 			val stack = ('a' to 'z').map(c => mockElem(c.toString))
 			m(stack, 0, stack.length) should be('isDefined)
 		}
+		it("should match the remainder of the stack if used at the end of the chain"){
+			val m = elem("a") \ **
+			val stack = ('a' to 'z').map(c => mockElem(c.toString))
+			m(stack, 0, stack.length) should be('isDefined)
+		}
 	}
 }
