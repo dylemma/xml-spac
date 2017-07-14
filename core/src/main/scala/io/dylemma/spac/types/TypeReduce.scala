@@ -9,30 +9,30 @@ package io.dylemma.spac.types
 	*   TypeReduce.Aux[(L, R)]{ type Out = (L, R) }
 	* }}}
 	*/
-trait TypeReduce[-In] {
+trait TypeReduce[-In1, -In2] {
 	type Out
-	def apply(in: In): Out
+	def apply(in1: In1, in2: In2): Out
 }
 
 object TypeReduce extends LowPriorityTypeReduceImplicits {
-	type Aux[In, O2] = TypeReduce[In] { type Out = O2 }
+	type Aux[In1, In2, O2] = TypeReduce[In1, In2] { type Out = O2 }
 
-	implicit val flattenTwoUnits: Aux[(Unit, Unit), Unit] = new TypeReduce[(Unit, Unit)] {
+	implicit val flattenTwoUnits: Aux[Unit, Unit, Unit] = new TypeReduce[Unit, Unit] {
 		type Out = Unit
-		def apply(v: (Unit, Unit)) = ()
+		def apply(in1: Unit, in2: Unit): Unit = ()
 	}
-	implicit def flattenLeftUnit[T]: Aux[(Unit, T), T] = new TypeReduce[(Unit, T)] {
+	implicit def flattenLeftUnit[T]: Aux[Unit, T, T] = new TypeReduce[Unit, T] {
 		type Out = T
-		def apply(v: (Unit, T)) = v._2
+		def apply(in1: Unit, in2: T): T = in2
 	}
-	implicit def flattenRightUnit[T]: Aux[(T, Unit), T] = new TypeReduce[(T, Unit)] {
+	implicit def flattenRightUnit[T]: Aux[T, Unit, T] = new TypeReduce[T, Unit] {
 		type Out = T
-		def apply(v: (T, Unit)) = v._1
+		def apply(in1: T, in2: Unit): T = in1
 	}
 }
 trait LowPriorityTypeReduceImplicits {
-	implicit def noopFlatten[L, R]: TypeReduce.Aux[(L, R), (L, R)] = new TypeReduce[(L, R)] {
+	implicit def noopFlatten[L, R]: TypeReduce.Aux[L, R, (L, R)] = new TypeReduce[L, R] {
 		type Out = (L, R)
-		def apply(v: (L, R)) = v
+		def apply(in1: L, in2: R): (L, R) = (in1, in2)
 	}
 }

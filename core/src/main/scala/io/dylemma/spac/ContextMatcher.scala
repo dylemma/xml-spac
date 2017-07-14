@@ -68,11 +68,12 @@ trait ContextMatcher[+A] {
 	  *
 	  * @param next   A matcher which will be used to match the "inner" context
 	  * @param reduce The `TypeReduce` rule to help omit `Unit` from the resulting context type
+	  * @tparam A1 To satisfy covariance on A
 	  * @tparam B The `next` matcher's context type
 	  * @tparam R The "reduced" content type, derived from the tuple type `(A, B)` based on the `reduce` rule.
 	  * @return A matcher which delegates to `this` matcher first, then the `next` matcher for the remaining stack.
 	  */
-	def \[B, R](next: ContextMatcher[B])(implicit reduce: TypeReduce.Aux[(A, B), R]): ContextMatcher[R] = ContextMatcher.Chained(this, next)
+	def \[A1 >: A, B, R](next: ContextMatcher[B])(implicit reduce: TypeReduce.Aux[A1, B, R]): ContextMatcher[R] = ContextMatcher.Chained(this, next)
 
 	/** Create a new ContextMatcher which takes the match result of this matcher and passes it through the
 	  * transformation function `f`.
@@ -181,13 +182,13 @@ object ContextMatcher {
 	  * @tparam T The tail result type
 	  * @tparam F The combined result type
 	  */
-	case class Chained[H, T, F](headM: ContextMatcher[H], tailM: ContextMatcher[T])(implicit reduce: TypeReduce.Aux[(H, T), F]) extends ContextMatcher[F] {
+	case class Chained[H, T, F](headM: ContextMatcher[H], tailM: ContextMatcher[T])(implicit reduce: TypeReduce.Aux[H, T, F]) extends ContextMatcher[F] {
 		override def toString = s"$headM \\ $tailM"
 		override def apply(stack: IndexedSeq[Elem], offset: Int, avail: Int): Option[F] = {
-			headM.applyChained(stack, offset, avail, tailM) map {reduce.apply}
+			headM.applyChained(stack, offset, avail, tailM) map { (lr) => reduce.apply(lr._1, lr._2) }
 		}
 		def applyChained[N](stack: IndexedSeq[Elem], offset: Int, avail: Int, next: ContextMatcher[N]): Option[(F, N)] = {
-			headM.applyChained(stack, offset, avail, tailM \ next) map { case (h, (t, n)) => (reduce(h -> t), n) }
+			headM.applyChained(stack, offset, avail, tailM \ next) map { case (h, (t, n)) => (reduce(h, t), n) }
 		}
 	}
 
@@ -266,15 +267,16 @@ trait SingleElementContextMatcher[+A] extends ContextMatcher[A] {
 	  *
 	  * @param that   The matcher to combine
 	  * @param reduce The `TypeReduce` rule for combining the two match results
+	  * @tparam A1 To satisfy covariance on A
 	  * @tparam B The other matcher's result type
 	  * @tparam R The combined result type
 	  * @return A new matcher which combines the results of `this` and `that`
 	  */
-	def and[B, R](that: SingleElementContextMatcher[B])(implicit reduce: TypeReduce.Aux[(A, B), R]): SingleElementContextMatcher[R] = {
+	def and[A1 >: A, B, R](that: SingleElementContextMatcher[B])(implicit reduce: TypeReduce.Aux[A1, B, R]): SingleElementContextMatcher[R] = {
 		SingleElementContextMatcher.And(this, that)
 	}
 	/** Operator version of `and` */
-	def &[B, R](that: SingleElementContextMatcher[B])(implicit reduce: TypeReduce.Aux[(A, B), R]): SingleElementContextMatcher[R] = {
+	def &[A1 >: A, B, R](that: SingleElementContextMatcher[B])(implicit reduce: TypeReduce.Aux[A1, B, R]): SingleElementContextMatcher[R] = {
 		SingleElementContextMatcher.And(this, that)
 	}
 }
@@ -351,13 +353,13 @@ object SingleElementContextMatcher {
 	  * @tparam B The right matcher's context type
 	  * @tparam R The type reduction of `(A, B)`
 	  */
-	case class And[A, B, R](left: SingleElementContextMatcher[A], right: SingleElementContextMatcher[B])(implicit reduce: TypeReduce.Aux[(A, B), R]) extends SingleElementContextMatcher[R] {
+	case class And[A, B, R](left: SingleElementContextMatcher[A], right: SingleElementContextMatcher[B])(implicit reduce: TypeReduce.Aux[A, B, R]) extends SingleElementContextMatcher[R] {
 		override def toString = s"($left & $right)"
 		def applyElem(elem: Elem): Option[R] = {
 			for {
 				a <- left.applyElem(elem)
 				b <- right.applyElem(elem)
-			} yield reduce(a -> b)
+			} yield reduce(a, b)
 		}
 	}
 

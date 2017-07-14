@@ -9,14 +9,14 @@ object XmlStreamBuild extends Build {
 	lazy val commonSettings = Seq(
 		version := "0.3-SNAPSHOT",
 		scalaVersion := "2.11.8",
-		crossScalaVersions := Seq("2.10.6", "2.11.8"),
+		crossScalaVersions := Seq("2.10.6", "2.11.11", "2.12.2"),
 		scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
 		organization := "io.dylemma"
 	)
 
 	lazy val testSettings = Seq(
 		libraryDependencies ++= Seq(
-			"org.scalatest" %% "scalatest" % "2.2.4" % Test,
+			"org.scalatest" %% "scalatest" % "3.0.3" % Test,
 			"org.scalamock" %% "scalamock-scalatest-support" % "3.6.0" % Test
 		)
 	)
