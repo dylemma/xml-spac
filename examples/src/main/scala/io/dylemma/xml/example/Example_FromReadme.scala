@@ -41,25 +41,25 @@ object Example_FromReadme extends App {
 	val commentDateFormat = DateTimeFormat.forPattern("yyyy-MM-dd")
 	val dateAttributeParser = Parser.forMandatoryAttribute("date").map(commentDateFormat.parseLocalDate)
 
-	implicit val AuthorParser: Parser[Any, Author] = (
+	implicit val AuthorParser: Parser[Author] = (
 		Parser.forMandatoryAttribute("id") and
 		Parser.forMandatoryAttribute("name")
 	).as(Author)
 
 	val authorElementParser = Splitter(* \ "author").first[Author]
 
-	implicit val StatsParser: Parser[Any, Stats] = (
+	implicit val StatsParser: Parser[Stats] = (
 		Parser.forMandatoryAttribute("likes").map(_.toInt) and
 		Parser.forMandatoryAttribute("tweets").map(_.toInt)
 	).as(Stats)
 
-	implicit val CommentParser: Parser[Any, Comment] = (
+	implicit val CommentParser: Parser[Comment] = (
 		dateAttributeParser and
 		authorElementParser and
 		Splitter(* \ "body").first.asText
 	).as(Comment)
 
-	implicit val PostParser: Parser[Any, Post] = (
+	implicit val PostParser: Parser[Post] = (
 		dateAttributeParser and
 		authorElementParser and
 		Splitter(* \ "stats").first[Stats] and

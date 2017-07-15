@@ -20,58 +20,69 @@ object Example2_Contexts extends App {
 	extracting "context" values based on an XML tag stack, and providing
 	them to an associated `Splitter`. (see Example1 for info on Splitters).
 
-	The simplest `ContextMatcher` type is `ContextMatcher[A]`, which extracts
-	contexts of type `A`.
-
-	After that, there's `ChainingContextMatcher[A, AChain]`. Chaining matchers
-	can be combined with each other to form a chain. This is the most commonly-
-	used type of context matcher. A `ChainingContextMatcher` uses an internal
-	representation of its results as a "Chain", which helps the compiler figure
-	out how to combine them. Most times, you will not need to know the actual
-	chain type, but for the sake of the example they will be explicitly stated.
-
-	Finally, there's `SingleElementContextMatcher[A, AChain]`. These matchers
-	are a special kind of chaining matcher which always operates on exactly
-	one element from the stack. When creating custom context matchers, you will
-	usually start with one of these, then chain it with another.
+	A `ContextMatcher[A]` extracts a context value of type `A` from the XML
+	tag stack, and may look at any number of elements to do so. Context
+	matchers have a variety of transformation and combination methods like
+	`map`, `flatMap`, `filter`, `\\` (backslash), and `or`.
+	A more specific `ContextMatcher` is the `SingleElementContextMatcher[A]`
+	which extracts a context from the first element (bottom) of the stack,
+	and has the additional combination method, `and`.
+	When constructing a custom ContextMatcher, you will typically start with
+	a single-element matcher, then use the `\` operator to chain to another.
 
 	By importing `spac.syntax._`, you get access to several convenience methods
 	for creating matchers. Most notable are `elem` and `attr`.
-	 */
-	val titleAttributeMatcher: SingleElementContextMatcher[String, Start ~ String] = attr("title")
-	val idAttributeMatcher: SingleElementContextMatcher[String, Start ~ String] = attr("id")
-	val commentElementMatcher: SingleElementContextMatcher[Unit, Start] = elem("comment")
+	*/
 
-	// you can also implicitly call `elem` on a `String` or a `QName`
-	val commentElementMatcher2: SingleElementContextMatcher[Unit, Start] = "comment"
+	// extracts the "title" attribute from the first element in the stack,
+	// but does not match if that element is missing the "title" attribute.
+	val titleAttributeMatcher: SingleElementContextMatcher[String] = attr("title")
+
+	// same as above, but for the "id" attribute
+	val idAttributeMatcher: SingleElementContextMatcher[String] = attr("id")
+
+	// extracts nothing, and only matches if the name of the element is "comment"
+	val commentElementMatcher: SingleElementContextMatcher[Unit] = elem("comment")
+
+	// the `syntax._` import gives an implicit conversion from `String` or `QName` to a matcher
+	val commentElementMatcher2: SingleElementContextMatcher[Unit] = "comment"
 
 	/*
-	SingleElementContextMatchers can be combined with each other using `&` and `|`
-	to create combinations of rules that apply to the element in their respective
-	position.
+	ContextMatchers can be chained together with the `\` (backslash) method.
+	When combining two matchers as a chain, their two context types will be
+	combined as a Tuple2, then reduced according to the rules of the
+	`TypeReduce` typeclass. Essentially, `Unit` will be stripped out unless
+	it is the only thing left.
+	*/
+	val chainExample1: ContextMatcher[Unit] = "blog" \ "post" \ "comment"
+	val chainExample2: ContextMatcher[String] = "blog" \ attr("id") \ "comment"
+	val chainExample3: ContextMatcher[(String, String)] = "blog" \ attr("id") \ attr("stuff")
 
-	They can also be chained together using the `\` (backslash) method.
-	Doing so results in a `ChainingContextMatcher`, which still has `\`, but does
-	not have the individual combiners like `&` and `|`.
+	/*
+	The same type reduction logic also applies when combining two single-element
+	matchers with the `&` ("and") method. The matcher below will extract both the
+	"id" and "author" attributes from the first element in the stack. If the context
+	is matched successfully, the result will be an `(id, author)` tuple.
+	*/
+	val andExample1: SingleElementContextMatcher[(String, String)] = attr("id") & attr("author")
 
-	Chained matchers have chain-like results. A "chain" is actually just a nested
-	Tuple2, where the right part is a value, but the right part could be another
-	Tuple2. The most convenient way to interact with these chains is with the `~`
-	extractor object that comes from `import syntax._`
+	/*
+	Complicated context matchers can be built from the combination methods
 	 */
-	val chainedMatcher: ChainingContextMatcher[(String, String, Int), Start ~ String ~ String ~ Int] = {
+	val chainedMatcher: ContextMatcher[(String, (String, Int))] = {
+		// The individual segments are [String] + [(String, Int)] + [Unit].
+		// Unit is stripped, leaving a tuple of `String` and `(String, Int)`
 		attr("title") \ (attr("author") & attr("id").map(_.toInt)) \ "comment"
 	}
 
-	// remember a chaining context matcher is still just a context matcher
-	val chainedMatcher2: ContextMatcher[(String, String, Int)] = chainedMatcher
-
 	/*
-	You can map the results of a `ContextMatcher` using its `map`, `flatMap`,
-	and `mapWith` methods.
+	You can map the results of a `ContextMatcher` using its `map` method (shown below),
+	as well as its `flatMap` and `filter` methods (not shown).
 	 */
 	case class PostContext(blogTitle: String, author: String, postId: Int)
-	val postContextMatcher: ContextMatcher[PostContext] = chainedMatcher map PostContext.tupled
+	val postContextMatcher: ContextMatcher[PostContext] = chainedMatcher map {
+		case (title, (author, postId)) => PostContext(title, author, postId)
+	}
 
 	/*
 	Now you can use the `postContextMatcher` to create a splitter that
@@ -81,17 +92,33 @@ object Example2_Contexts extends App {
 
 	/*
 	Create a `Comment` class then create a parser for it.
-	By using `Parser.forContext[PostContext]` we cause the resulting parser
-	to *require* a `PostContext` as context. We combine it with the text from
-	the parser's substream to create a Comment.
+	The comment parser can't create a `Comment` without a `PostContext`,
+	since that comes from an xml element further up the tree. We'll get
+	that context from the `Splitter` (via the `through` method), so for
+	now we only create a `PostContext => Parser[Comment]` to represent
+	that dependency.
 	 */
 	case class Comment(body: String, context: PostContext)
-	val postParser: Parser[PostContext, Comment] = (
+	def commentParser(context: PostContext): Parser[Comment] = (
 		Parser.forText and
-		Parser.forContext[PostContext]
+		Parser.constant(context)
 	).as(Comment)
 
-	// assemble the consumer and run it on the xml
-	postSplitter through postParser consumeForEach println consume rawXml
+	/*
+	Note: for this particular use case it might be more convenient to
+	insert the `context` with a `map` on the text parser.
+	 */
+	def alternateCommentParser(context: PostContext): Parser[Comment] = {
+		Parser.forText.map(Comment(_, context))
+	}
 
+	/*
+	With splitter's `through` method, the `commentParser` method will be
+	called for each substream, with that substream's context as the argument.
+
+	- `postSplitter through commentParser` creates a transformer
+	- `[...] consumeForeach println` creates a consumer
+	- `[...] consume rawXml` runs that consumer on the raw xml
+	 */
+	postSplitter through commentParser consumeForEach println consume rawXml
 }

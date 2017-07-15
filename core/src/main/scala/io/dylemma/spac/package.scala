@@ -5,9 +5,9 @@ import io.dylemma.spac.syntax._
 package object spac
 	extends TransformerSyntax
 	with ContextMatcherSyntax
-	with ParserSyntax
+	with FunctorSyntax
 {
 	object TransformerSyntax extends TransformerSyntax
 	object ContextMatcherSyntax extends ContextMatcherSyntax
-	object ParserSyntax extends ParserSyntax
+	object FunctorSyntax extends FunctorSyntax
 }

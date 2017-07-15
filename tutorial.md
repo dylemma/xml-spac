@@ -55,7 +55,7 @@ import io.dylemma.spac._
 We'll start by defining a parser for the `Author` class:
 
 ```scala
-implicit val AuthorParser: Parser[Any, Author] = (
+implicit val AuthorParser: Parser[Author] = (
 	Parser.forMandatoryAttribute("id") and
 	Parser.forMandatoryAttribute("name")
 ).as(Author)
@@ -68,8 +68,6 @@ We combine the "id" and "name" parsers using the `and` method (you could also us
 then calling `.as(Author)` on the result.
 This works because `Author` is a case class, and therefore the `Author` companion object can be treated as a
 `(String, String) => Author`, which fits the signature of `.as`.
-The `Any` in the type signature is the parser's context type. Some parsers require a context value in order to work.
-This one doesn't require any particular context type.
 We mark the `AuthorParser` as implicit so that it can be used with some of the parser convenience methods later on.
 
 ### Parser[Stats]
@@ -77,7 +75,7 @@ We mark the `AuthorParser` as implicit so that it can be used with some of the p
 Building on the concepts from the `Author` parser, we can define the `Stats` parser.
 
 ```scala
-implicit val StatsParser: Parser[Any, Stats] = (
+implicit val StatsParser: Parser[Stats] = (
 	Parser.forMandatoryAttribute("likes").map(_.toInt) and
 	Parser.forMandatoryAttribute("tweets").map(_.toInt)
 ).as(Stats)
@@ -94,7 +92,7 @@ Using some new concepts, we can define the `Comment` parser.
 
 ```scala
 val commentDateFormat = DateTimeFormat.forPattern("yyyy-MM-dd")
-implicit val CommentParser: Parser[Any, Comment] = (
+implicit val CommentParser: Parser[Comment] = (
 	Parser.forMandatoryAttribute("date").map(commentDateFormat.parseLocalDate) and
 	Splitter(* \ "author").first[Author] and
 	Splitter(* \ "body").first.asText
@@ -115,7 +113,7 @@ element. Any `Characters` events encountered within that substream will be conca
 Combining the parsers and concepts from above, we can define the `Post` parser.
 
 ```scala
-implicit val PostParser: Parser[Any, Post] = (
+implicit val PostParser: Parser[Post] = (
 	Parser.forMandatoryAttribute("date").map(commentDateFormat.parseLocalDate) and
 	Splitter(* \ "author").first[Author] and
 	Splitter(* \ "stats").first[Stats] and

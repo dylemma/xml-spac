@@ -1,12 +1,12 @@
 package io.dylemma.spac.handlers
 
-import io.dylemma.spac.{Handler, debug}
+import io.dylemma.spac.{Handler, HandlerFactory, debug}
 
 import scala.util.{Failure, Success, Try}
 
 class SplitOnMatchHandler[In, Context, P, Out](
 	matcher: PartialFunction[In, Context],
-	makeInnerHandler: Context => Handler[In, Try[P]],
+	joiner: Context => HandlerFactory[In, Try[P]],
 	val downstream: Handler[P, Out]
 ) extends SplitterHandlerBase[In, Context, P, Out]{
 
@@ -21,10 +21,7 @@ class SplitOnMatchHandler[In, Context, P, Out](
 
 			// if the inner result did not cause the downstream to end, start a new substream
 			downstreamResult.orElse {
-				currentParserHandler = Try(matcher(input)) match {
-					case Success(ctx) => Some(makeInnerHandler(ctx))
-					case Failure(err) => Some(new OneShotHandler(Failure(err)))
-				}
+				currentParserHandler = Some(Util.initHandler(Try(matcher(input)), joiner))
 
 				// feed the input to the newly-created inner handler, possibly getting an input
 				// to feed to the downstream handler

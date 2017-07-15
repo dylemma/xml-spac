@@ -42,13 +42,12 @@ The classes you'll interact with most in **XML SPaC** are `Parser`, `Transformer
 
 A **`Consumer[In, Out]`** knows how to consume a stream of `In` events, producing an `Out` result.
 
-A **`Parser[Context, Out]`** is like a `Consumer` of [XMLEvents](https://docs.oracle.com/javase/8/docs/api/javax/xml/stream/events/XMLEvent.html),
-except that it also requires a "context" value, and that it wraps its results in a `Try[Out]`.
-Most parsers have a `Context` type of `Any`, implying that the context value doesn't matter.
+A **`Parser[Out]`** is like a `Consumer` of [XMLEvents](https://docs.oracle.com/javase/8/docs/api/javax/xml/stream/events/XMLEvent.html)
+which wraps its results in a `Try[Out]`.
 
 A **`Transformer[A, B]`** turns a stream of `A` events into a stream of `B` events.
 
-A **`Splitter[In, Context]`** combines with a `Parser[Context, Out]` to create a `Transformer[In, Out]`.  
+A **`Splitter[In, Context]`** combines with a `Context => Parser[Out]` to create a `Transformer[In, Out]`.  
 A Splitter "splits" a stream into "substreams", assigning a context value to each substream.
 A parser can be run on each of the substreams, and the resulting values become the contents of the transformed stream.
 
@@ -133,7 +132,7 @@ trait Consumer[-In, +Out] {
 	def makeHandler(): Handler[In, Out]
 }
 
-trait Parser[-Context, +Out] {
+trait Parser[+Out] {
 	def makeHandler(): Handler[XMLEvent, Try[Out]] 
 }
 
