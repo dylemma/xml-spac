@@ -1,11 +1,6 @@
 Tutorial
 ========
 
-<em>Note: the readme and tutorial documents currently reflect the upcoming 0.3-SNAPSHOT API. 
-For documentation relevant to the latest release (v0.2), please refer to [the old readme](https://github.com/dylemma/xml-spac/blob/0.2/readme.md)</em>
-
----
-
 Let's write a parser for this pretend blog data file.
 
 ```xml
@@ -64,7 +59,7 @@ implicit val AuthorParser: Parser[Author] = (
 What happened here is that we actually defined two parsers, then joined them together.
 `forMandatoryAttribute("id")` is a parser that takes the "id" attribute from the first `StartElement` event it encounters.
 Similarly, `forMandatoryAttribute("name")` is a parser that takes the "name" attribute.
-We combine the "id" and "name" parsers using the `and` method (you could also use `~` if you prefer operators), 
+We combine the "id" and "name" parsers using the `and` method (you could also use `~` if you prefer operators),
 then calling `.as(Author)` on the result.
 This works because `Author` is a case class, and therefore the `Author` companion object can be treated as a
 `(String, String) => Author`, which fits the signature of `.as`.
