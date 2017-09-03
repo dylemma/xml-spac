@@ -87,13 +87,13 @@ trait Parser[+Out] extends AbstractHandlerFactory[XMLEvent, Out, Try, ({ type H[
 	  *         to combine this Parser and a Transformer in a sequence.
 	  */
 	object followedByStream extends FollowedBy[({ type F[+T2] = Transformer[XMLEvent, T2] })#F, Out] {
-		def apply[T2](getTransformer: Out => Transformer[XMLEvent, T2]) = new Transformer[XMLEvent, T2] {
+		def apply[T2](getTransformer: Out => Transformer[XMLEvent, T2]): Transformer[XMLEvent, T2] = new Transformer[XMLEvent, T2] {
 			override def toString = s"$self.followedByStream($getTransformer)"
 			def makeHandler[End](next: Handler[T2, End]): Handler[XMLEvent, End] = {
 				val handler1 = self.makeHandler()
 				def getHandler2(h1Result: Try[Out]): Handler[XMLEvent, End] = h1Result match {
 					case Success(result) => getTransformer(result).makeHandler(next)
-					case Failure(err) => TransformerHandler[XMLEvent, Nothing, End](next, _ => throw err)
+					case Failure(err) => new EndWithErrorTransformerHandler[XMLEvent, End](err, next)
 				}
 				new SequencedInStackHandler(handler1, getHandler2)
 			}

@@ -1,7 +1,7 @@
 package io.dylemma.spac
 
 import io.dylemma.spac.handlers._
-import io.dylemma.spac.types.{Id, Stackable}
+import io.dylemma.spac.types.Id
 
 import scala.language.higherKinds
 import scala.util.Try

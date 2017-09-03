@@ -40,7 +40,7 @@ trait ConsumerSyntax {
 		  *         to combine this Consumer and another in a sequence.
 		  */
 		def followedBy = new FollowedBy[({ type M[+T2] = Consumer[In, T2] })#M, T1] {
-			def apply[T2](getNext: T1 => Consumer[In, T2]) = new Consumer[In, T2] {
+			def apply[T2](getNext: T1 => Consumer[In, T2]): Consumer[In, T2] = new Consumer[In, T2] {
 				override def toString = s"$consumer.followedBy($getNext)"
 				def makeHandler(): Handler[In, T2] = {
 					new SequencedInStackHandler[In, T1, T2](consumer.makeHandler(), r1 => getNext(r1).makeHandler())
