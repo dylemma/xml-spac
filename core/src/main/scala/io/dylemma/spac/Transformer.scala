@@ -1,8 +1,7 @@
 package io.dylemma.spac
 
-import javax.xml.stream.events.XMLEvent
-
 import io.dylemma.spac.handlers._
+import io.dylemma.spac.types.Stackable
 
 import scala.util.Try
 
@@ -124,5 +123,13 @@ object Transformer {
 			new SideEffectHandler(effect, next)
 		}
 		override def toString = s"SideEffect($effect)"
+	}
+
+	case class Sequenced[In: Stackable, T1, T2](consumer: Consumer[In, T1], getTransformer: T1 => Transformer[In, T2]) extends Transformer[In, T2] {
+		def makeHandler[Out](next: Handler[T2, Out]): Handler[In, Out] = {
+			val handler1 = consumer.makeHandler()
+			def getHandler2(h1Result: T1) = getTransformer(h1Result).makeHandler(next)
+			new SequencedInStackHandler(handler1, getHandler2)
+		}
 	}
 }

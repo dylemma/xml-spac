@@ -1,7 +1,7 @@
 package io.dylemma.spac
 
 import io.dylemma.spac.handlers._
-import io.dylemma.spac.types.Id
+import io.dylemma.spac.types.{Id, Stackable}
 
 import scala.language.higherKinds
 import scala.util.Try
@@ -19,12 +19,17 @@ trait Consumer[-In, +Out] extends AbstractHandlerFactory[In, Out, Id, Consumer] 
 	}
 
 	def wrapSafe: Consumer[In, Try[Out]] = Consumer.WrapSafe(this)
+	def unwrapSafe[T](implicit ev: Out <:< Try[T]): Consumer[In, T] = Consumer.UnwrapSafe(asInstanceOf[Consumer[In, Try[T]]])
 }
 
 object Consumer {
 
 	case class WrapSafe[In, Out](self: Consumer[In, Out]) extends Consumer[In, Try[Out]] {
 		def makeHandler(): Handler[In, Try[Out]] = new SafeConsumerHandler(self.makeHandler())
+	}
+
+	case class UnwrapSafe[In, Out](self: Consumer[In, Try[Out]]) extends Consumer[In, Out] {
+		def makeHandler(): Handler[In, Out] = new UnwrapSafeConsumerHandler(self.makeHandler())
 	}
 
 	case class ToList[A]() extends Consumer[A, List[A]] {
