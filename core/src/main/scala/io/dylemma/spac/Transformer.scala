@@ -36,6 +36,7 @@ trait Transformer[-In, +B] { self =>
 	def collect[C](pf: PartialFunction[B, C]): Transformer[In, C] = andThen(Transformer.Collect(pf))
 	def scan[S](init: S)(f: (S, B) => S): Transformer[In, S] = andThen(Transformer.Scan(init)(f))
 	def filter(p: B => Boolean): Transformer[In, B] = andThen(Transformer.Filter(p))
+	def withFilter(p: B => Boolean): Transformer[In, B] = andThen(Transformer.Filter(p))
 	def unwrapSafe[T](implicit ev: B <:< Try[T]): Transformer[In, T] = {
 		asInstanceOf[Transformer[In, Try[T]]].andThen(Transformer.UnwrapSafe[T]())
 	}
