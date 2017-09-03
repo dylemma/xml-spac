@@ -1,6 +1,7 @@
 package io.dylemma.spac
 
 import javax.xml.stream.XMLStreamException
+import javax.xml.stream.events.XMLEvent
 
 import org.scalatest.{FunSpec, Matchers}
 
@@ -241,6 +242,98 @@ class ParserTests extends FunSpec with Matchers {
 			testParserResultLike(rawXml, parser){
 				case Success(List(Success(A(1)), Success(A(2)), Failure(_), Success(A(4)), Failure(_))) => true
 				case _ => false
+			}
+		}
+	}
+
+	describe("Parser.followedBy"){
+		it("should pass the result of the followed parser to create the resulting parser"){
+			val xml = "<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
+			val idParser = Splitter(* \ "id").first.asText
+			val msgsParser = idParser.followedBy(id => Splitter(* \ "msg").asText.map(msg => s"$id:$msg").parseToList)
+			testParserResult(xml, msgsParser, Success(List("123:Hello", "123:Goodbye")))
+		}
+		it("should provide convenient flatMap syntax that works the same way"){
+			val xml = "<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
+			val msgsParser = for {
+				id <- Splitter(* \ "id").first.asText.followedBy
+				msgs <- Splitter(* \ "msg").asText.map(msg => s"$id:$msg").parseToList
+			} yield msgs
+			testParserResult(xml, msgsParser, Success(List("123:Hello", "123:Goodbye")))
+		}
+		it("should not pass a result until the followed parser has finished"){
+			val xml = "<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
+			// this parser does not give a result until the containing element ends,
+			// so the "following" parser will never receive any events (besides the stack replay)
+			val idsParser = Splitter(* \ "id").asText.parseToList.map(_.mkString)
+			val msgsParser = idsParser.followedBy(id => Splitter(* \ "msg").asText.map(msg => s"$id:$msg").parseToList)
+			testParserResult(xml, msgsParser, Success(Nil))
+		}
+		it("should yield an error if the followed parser yields an error"){
+			val xml = "<x><id>ABC</id><msg>Hello</msg><msg>Goodbye</msg></x>"
+			val idParser = Splitter(* \ "id").first.asText.map(_.toInt) // will yield a Failure because of "ABC".toInt
+			val msgsParser = idParser.followedBy(id => Splitter(* \ "msg").asText.map(msg => s"$id:$msg").parseToList)
+			testParserResultLike(xml, msgsParser){
+				case Failure(_) => true
+				case _ => false
+			}
+		}
+		it("should yield whatever errors the 'following' parser yields"){
+			val xml = "<x><name>dylemma</name><num>1</num><num>B</num><num>3</num></x>"
+			val nameParser = Splitter(* \ "name").first.asText
+			val numsParser = nameParser.followedBy { name =>
+				Splitter(* \ "num").asText.map(s => s"$name:${s.toInt}").wrapSafe.parseToList
+			}
+			testParserResultLike(xml, numsParser){
+				case Success(Success("dylemma:1") :: Failure(_) :: Success("dylemma:3") :: Nil) => true
+				case _ => false
+			}
+		}
+
+	}
+
+	describe("Parser.followedByStream"){
+		// convenience for testing behavior of transformers
+		def runTransformer[Out](xml: String, t: Transformer[XMLEvent, Out]): List[Out] = t.consumeToList.consume(xml)
+
+		it("should pass the result of the followed parser to create the resulting transformer"){
+			val xml = "<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
+			val idParser = Splitter(* \ "id").first.asText
+			val msgsStream = idParser.followedByStream{ id => Splitter(* \ "msg").asText.map(msg => s"$id:$msg") }
+			runTransformer(xml, msgsStream) should be(List("123:Hello", "123:Goodbye"))
+		}
+		it("should provide convenient flatMap syntax that works the same way"){
+			val xml = "<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
+			val msgsStream = for {
+				id <- Splitter(* \ "id").first.asText.followedByStream
+				msg <- Splitter(* \ "msg").asText
+			} yield s"$id:$msg"
+			runTransformer(xml, msgsStream) should be(List("123:Hello", "123:Goodbye"))
+		}
+		it("should not pass a result until the followed parser has finished"){
+			val xml = "<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
+			// this parser does not give a result until the containing element ends,
+			// so the "following" parser will never receive any events (besides the stack replay)
+			val idsParser = Splitter(* \ "id").asText.parseToList.map(_.mkString)
+			val msgsParser = idsParser.followedByStream(id => Splitter(* \ "msg").asText.map(msg => s"$id:$msg"))
+			runTransformer(xml, msgsParser) should be(Nil)
+		}
+		it("should yield a *single* error if the followed parser yields an error"){
+			val xml = "<x><id>ABC</id><msg>Hello</msg><msg>Goodbye</msg></x>"
+			val idParser = Splitter(* \ "id").first.asText.map(_.toInt) // will yield a Failure because of "ABC".toInt
+			val msgsStream = idParser.followedByStream(id => Splitter(* \ "msg").asText.map(msg => s"$id:$msg")).wrapSafe
+			runTransformer(xml, msgsStream) should matchPattern{
+				case List(Failure(_)) =>
+			}
+		}
+		it("should yield whatever errors the 'following' parser yields"){
+			val xml = "<x><name>dylemma</name><num>1</num><num>B</num><num>3</num></x>"
+			val nameParser = Splitter(* \ "name").first.asText
+			val numsStream = nameParser.followedByStream { name =>
+				Splitter(* \ "num").asText.map(s => s"$name:${s.toInt}").wrapSafe
+			}
+			runTransformer(xml, numsStream) should matchPattern {
+				case Success("dylemma:1") :: Failure(_) :: Success("dylemma:3") :: Nil =>
 			}
 		}
 	}

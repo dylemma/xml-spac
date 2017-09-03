@@ -28,3 +28,10 @@ trait TransformerHandler[A, B, Out] extends Handler[A, Out] {
 
 	def handleEnd() = downstream.handleEnd()
 }
+
+object TransformerHandler {
+	def apply[A, B, Out](downstreamHandler: Handler[B, Out], f: A => Option[B]): TransformerHandler[A, B, Out] = new TransformerHandler[A, B, Out] {
+		protected val downstream = downstreamHandler
+		protected def transformInput(input: A) = f(input)
+	}
+}
