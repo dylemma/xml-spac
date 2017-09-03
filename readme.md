@@ -30,7 +30,7 @@ val PostParser = (
 Add the following to your `build.sbt` file:
 
 ```sbt
-libraryDependencies += "io.dylemma" %% "xml-spac" % "0.3"
+libraryDependencies += "io.dylemma" %% "xml-spac" % "0.4"
 ```
 
 # Main Concepts
@@ -78,9 +78,9 @@ val rootParser = transformer.parseToList
 assert(rootParser.parse(xml) == Success(List("bar", "baz")))
 ```
 
-Check out the docs for [ContextMatcherSyntax](http://static.javadoc.io/io.dylemma/xml-spac_2.11/0.3/index.html#io.dylemma.spac.syntax.ContextMatcherSyntax),
+Check out the docs for [ContextMatcherSyntax](http://static.javadoc.io/io.dylemma/xml-spac_2.11/0.4/index.html#io.dylemma.spac.syntax.ContextMatcherSyntax),
 which defines helpers for creating the arguments to a `Splitter`,
-and [Parser](http://static.javadoc.io/io.dylemma/xml-spac_2.11/0.3/index.html#io.dylemma.spac.Parser$),
+and [Parser](http://static.javadoc.io/io.dylemma/xml-spac_2.11/0.4/index.html#io.dylemma.spac.Parser$),
 which provides lots of convenience implementations of xml parsers.
 
 # Under the Hood
