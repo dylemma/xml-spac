@@ -1,7 +1,7 @@
 XML SPaC
 ========
 
-[![Build Status](https://travis-ci.org/dylemma/xml-spac.svg?branch=master)](https://travis-ci.org/dylemma/xml-spac)  
+[![Build Status](https://travis-ci.org/dylemma/xml-spac.svg?branch=master)](https://travis-ci.org/dylemma/xml-spac)
 [Scaladoc](http://javadoc.io/doc/io.dylemma/xml-spac_2.12/0.4)
 
 **XML** **S**treaming **Pa**rser **C**ombinators is a Scala library for creating event-based
@@ -79,9 +79,9 @@ val rootParser = transformer.parseToList
 assert(rootParser.parse(xml) == Success(List("bar", "baz")))
 ```
 
-Check out the docs for [ContextMatcherSyntax](http://static.javadoc.io/io.dylemma/xml-spac_2.11/0.4/index.html#io.dylemma.spac.syntax.ContextMatcherSyntax),
+Check out the docs for [ContextMatcherSyntax](http://static.javadoc.io/io.dylemma/xml-spac_2.11/0.5/index.html#io.dylemma.spac.syntax.ContextMatcherSyntax),
 which defines helpers for creating the arguments to a `Splitter`,
-and [Parser](http://static.javadoc.io/io.dylemma/xml-spac_2.11/0.4/index.html#io.dylemma.spac.Parser$),
+and [Parser](http://static.javadoc.io/io.dylemma/xml-spac_2.11/0.5/index.html#io.dylemma.spac.Parser$),
 which provides lots of convenience implementations of xml parsers.
 
 # Under the Hood
