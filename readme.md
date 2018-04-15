@@ -2,7 +2,7 @@ XML SPaC
 ========
 
 [![Build Status](https://travis-ci.org/dylemma/xml-spac.svg?branch=master)](https://travis-ci.org/dylemma/xml-spac)
-[Scaladoc](http://javadoc.io/doc/io.dylemma/xml-spac_2.12/0.4)
+[Scaladoc](http://javadoc.io/doc/io.dylemma/xml-spac_2.12/0.5)
 
 **XML** **S**treaming **Pa**rser **C**ombinators is a Scala library for creating event-based
 [StAX](https://docs.oracle.com/javase/8/docs/api/javax/xml/stream/package-summary.html) parsers that are:
