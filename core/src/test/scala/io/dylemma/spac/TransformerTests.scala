@@ -191,23 +191,23 @@ class TransformerTests extends FunSpec with Matchers {
 		}
 	}
 
-	describe("Transformer.FunnelAll"){
+	describe("Transformer.Parallel"){
 		val nums = List(1,2,3,4,5,6)
 		val multiplesOfThree = Transformer.Collect[Int, String]{ case i if i%3 == 0 => s"$i/3" }
 		val multiplesOfTwo = Transformer.Collect[Int, String]{ case i if i%2 == 0 => s"$i/2" }
 
-		enforceIsFinishedContract(multiplesOfThree funnel multiplesOfTwo)
+		enforceIsFinishedContract(multiplesOfThree parallel multiplesOfTwo)
 
-		it("should funnel results of each transformer to the downstream consumer"){
-			val funnel = Transformer.FunnelAll(multiplesOfTwo :: multiplesOfThree :: Nil).consumeToList
-			funnel.consume(nums) should be(
+		it("should send results of each transformer to the downstream consumer"){
+			val parallel = Transformer.Parallel(multiplesOfTwo :: multiplesOfThree :: Nil).consumeToList
+			parallel.consume(nums) should be(
 				List("2/2", "3/3", "4/2", "6/2", "6/3")
 			)
 		}
 
-		it("should send results in the order of the transformers in the funnel"){
-			val funnel = Transformer.FunnelAll(multiplesOfThree :: multiplesOfTwo :: Nil).consumeToList
-			funnel.consume(nums) should be(
+		it("should send results in the order of the transformers in the constructor"){
+			val parallel = Transformer.Parallel(multiplesOfThree :: multiplesOfTwo :: Nil).consumeToList
+			parallel.consume(nums) should be(
 				List("2/2", "3/3", "4/2", "6/3", "6/2")
 			)
 		}
@@ -217,31 +217,31 @@ class TransformerTests extends FunSpec with Matchers {
 			var rightCount = 0
 			val leftTransform = Transformer.SideEffect[Int](_ => leftCount += 1)
 			val rightTransform = Transformer.SideEffect[Int](_ => rightCount += 1)
-			val funnel = leftTransform.funnel(rightTransform) >> Consumer.Constant("hi")
+			val parallel = leftTransform.parallel(rightTransform) >> Consumer.Constant("hi")
 			// early-exit thanks to "Constant" consumer.
 			// The left transformer would have handled one input just to activate the consumer,
 			// which would have returned a result, causing the early exit, ensuring the "right"
 			// transformer's handler never runs.
-			funnel.consume(nums) should be("hi")
+			parallel.consume(nums) should be("hi")
 			leftCount should be(1)
 			rightCount should be(0)
 		}
 
-		it("should exit early if all of the funnel handlers finish"){
+		it("should exit early if all of the parallel handlers finish"){
 			val take1 = Transformer.Take[Int](1)
 			val take2 = Transformer.Take[Int](2)
-			val funnel = (take1 funnel take2).consumeToList.makeHandler()
+			val parallel = (take1 parallel take2).consumeToList.makeHandler()
 
 			// manually drive the consumption of a data source, so we can test exactly when the "exit" condition is hit
-			funnel.handleInput(1) should be(None)
-			funnel.handleInput(2) should be(Some(List(1, 1, 2)))
+			parallel.handleInput(1) should be(None)
+			parallel.handleInput(2) should be(Some(List(1, 1, 2)))
 		}
 
-		it("should continue if the downstream and at least one funnel is unfinished"){
+		it("should continue if the downstream and at least one member is unfinished"){
 			val take1 = Transformer.Take[Int](1)
 			val passThrough = Transformer.SideEffect[Int](_ => ())
-			val funnel = (take1 funnel passThrough).consumeToList
-			funnel.consume(nums) should be(List(1, 1, 2, 3, 4, 5, 6))
+			val parallel = (take1 parallel passThrough).consumeToList
+			parallel.consume(nums) should be(List(1, 1, 2, 3, 4, 5, 6))
 		}
 	}
 }

@@ -36,8 +36,8 @@ trait Transformer[-In, +B] { self =>
 	def collect[C](pf: PartialFunction[B, C]): Transformer[In, C] = andThen(Transformer.Collect(pf))
 	def scan[S](init: S)(f: (S, B) => S): Transformer[In, S] = andThen(Transformer.Scan(init)(f))
 	def filter(p: B => Boolean): Transformer[In, B] = andThen(Transformer.Filter(p))
-	def funnel[In2 <: In, B2 >: B](other: Transformer[In2, B2]): Transformer[In2, B2] = Transformer.FunnelAll(this :: other :: Nil)
-	def funnelEither[In2 <: In, C](other: Transformer[In2, C]): Transformer[In2, Either[B, C]] = Transformer.FunnelEither(this, other)
+	def parallel[In2 <: In, B2 >: B](other: Transformer[In2, B2]): Transformer[In2, B2] = Transformer.Parallel(this :: other :: Nil)
+	def parallelEither[In2 <: In, C](other: Transformer[In2, C]): Transformer[In2, Either[B, C]] = Transformer.ParallelEither(this, other)
 	def withFilter(p: B => Boolean): Transformer[In, B] = andThen(Transformer.Filter(p))
 	def unwrapSafe[T](implicit ev: B <:< Try[T]): Transformer[In, T] = {
 		asInstanceOf[Transformer[In, Try[T]]].andThen(Transformer.UnwrapSafe[T]())
@@ -89,37 +89,37 @@ object Transformer {
 	}
 
 	/** Transformer that feeds all inputs to all of the transformers in `ts`,
-	  * funnelling transformed inputs from each to a downstream handler.
+	  * passing all transformed inputs from each to a downstream handler.
 	  * Each of the transformers should have the same transformed type `T`.
 	  * If your transformers all have different types, consider mapping
 	  * them to a sealed trait/coproduct/Either. If you have exactly two
 	  * transformers to merge, use `MergeEither` instead.
 	  *
-	  * @param toMerge The "funnel" handlers
+	  * @param toMerge A list of Transformers to be run in parallel
 	  * @tparam A The input type
 	  * @tparam T The common "transformed" type
 	  */
-	case class FunnelAll[A, T](toMerge: List[Transformer[A, T]]) extends Transformer[A, T] {
+	case class Parallel[A, T](toMerge: List[Transformer[A, T]]) extends Transformer[A, T] {
 		def makeHandler[Out](next: Handler[T, Out]): Handler[A, Out] = {
-			new FunnelledTransformerHandler[A, T, Out](next, toMerge)
+			new ParallelTransformerHandler[A, T, Out](next, toMerge)
 		}
 	}
 
-	/** Convenience version of `FunnelAll` for exactly two transformers of arbitrary types.
+	/** Convenience version of `Parallel` for exactly two transformers of arbitrary types.
 	  * Results from `t1` will be wrapped as `Left`, and results from `t2` will be wrapped as `Right`.
 	  * The downstream handler will receive results of type `Either[T1, T2]`.
 	  *
-	  * @param t1 The "left" transformer
-	  * @param t2 The "right" transformer
+	  * @param left The "left" transformer
+	  * @param right The "right" transformer
 	  * @tparam A The input type
-	  * @tparam T1 The "left" transformer's "transformed" type
-	  * @tparam T2 The "right" transformer's "transformed" type
+	  * @tparam L The "left" transformer's "transformed" type
+	  * @tparam R The "right" transformer's "transformed" type
 	  */
-	case class FunnelEither[A, T1, T2](t1: Transformer[A, T1], t2: Transformer[A, T2]) extends Transformer[A, Either[T1, T2]] {
-		def makeHandler[Out](next: Handler[Either[T1, T2], Out]): Handler[A, Out] = {
-			new FunnelledTransformerHandler[A, Either[T1, T2], Out](next, List(
-				t1.map(Left(_)),
-				t2.map(Right(_))
+	case class ParallelEither[A, L, R](left: Transformer[A, L], right: Transformer[A, R]) extends Transformer[A, Either[L, R]] {
+		def makeHandler[Out](next: Handler[Either[L, R], Out]): Handler[A, Out] = {
+			new ParallelTransformerHandler[A, Either[L, R], Out](next, List(
+				left.map(Left(_)),
+				right.map(Right(_))
 			))
 		}
 	}
