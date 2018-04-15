@@ -31,7 +31,7 @@ val PostParser = (
 Add the following to your `build.sbt` file:
 
 ```sbt
-libraryDependencies += "io.dylemma" %% "xml-spac" % "0.4"
+libraryDependencies += "io.dylemma" %% "xml-spac" % "0.5"
 ```
 
 # Main Concepts
