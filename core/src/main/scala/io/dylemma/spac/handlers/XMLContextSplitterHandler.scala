@@ -7,7 +7,7 @@ import io.dylemma.spac._
 import scala.util.{Failure, Success, Try}
 
 class XMLContextSplitterHandler[Context, P, Out](
-	matcher: ContextMatcher[Context],
+	matcher: ContextMatcher[StartElement, Context],
 	joiner: Context => HandlerFactory[XMLEvent, Try[P]],
 	val downstream: Handler[P, Out]
 ) extends SplitterHandlerBase[XMLEvent, Context, P, Out]{

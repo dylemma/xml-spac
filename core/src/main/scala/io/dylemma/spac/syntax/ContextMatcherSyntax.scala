@@ -1,6 +1,7 @@
 package io.dylemma.spac.syntax
 
 import javax.xml.namespace.QName
+import javax.xml.stream.events.StartElement
 
 import io.dylemma.spac._
 
@@ -10,13 +11,13 @@ trait ContextMatcherSyntax {
 
 	/** Context matcher that always matches without consuming any of the tag stack.
 	  */
-	val Root = ContextMatcher.noopSuccess
+	val Root = ContextMatcher.noopSuccess[StartElement]
 
 	/** Context matcher that matches any single element at the head of the tag stack.
 	  */
 	val * = SingleElementContextMatcher.predicate("*", { _ => true })
 
-	val ** = ContextMatcher.variableLength
+	val ** = ContextMatcher.variableLength[StartElement]
 
 	/** Context matcher that matches the element at the head of the stack
 	  * as long as its name is equal to the given `qname`.

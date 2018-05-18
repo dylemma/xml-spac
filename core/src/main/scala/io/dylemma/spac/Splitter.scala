@@ -1,7 +1,7 @@
 package io.dylemma.spac
 
 import javax.xml.namespace.QName
-import javax.xml.stream.events.XMLEvent
+import javax.xml.stream.events.{StartElement, XMLEvent}
 
 import io.dylemma.spac.handlers.{SplitOnMatchHandler, XMLContextSplitterHandler}
 
@@ -38,7 +38,7 @@ trait XmlSplitter[+Context] extends Splitter[XMLEvent, Context] { splitterSelf =
 
 object Splitter {
 
-	def apply[Context](matcher: ContextMatcher[Context]): XmlSplitter[Context] = new XmlSplitter[Context] { self =>
+	def apply[Context](matcher: ContextMatcher[StartElement, Context]): XmlSplitter[Context] = new XmlSplitter[Context] { self =>
 		def through[P](joiner: Context => HandlerFactory[XMLEvent, Try[P]]): Transformer[XMLEvent, P] = {
 			new Transformer[XMLEvent, P] {
 				def makeHandler[Out](next: Handler[P, Out]): Handler[XMLEvent, Out] = {

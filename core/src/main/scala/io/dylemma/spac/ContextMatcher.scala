@@ -1,6 +1,6 @@
 package io.dylemma.spac
 
-import javax.xml.stream.events.{StartElement => Elem}
+import javax.xml.stream.events.StartElement
 
 import io.dylemma.spac.types.TypeReduce
 
@@ -16,7 +16,7 @@ import io.dylemma.spac.types.TypeReduce
   *
   * @tparam A The type of the matched context.
   */
-trait ContextMatcher[+A] {
+trait ContextMatcher[Elem, +A] {
 
 	/** The underlying context match method.
 	  *
@@ -41,7 +41,7 @@ trait ContextMatcher[+A] {
 	  * @return If the match succeeded, and the `next` match succeded, an Option containing a tuple of both match results.
 	  *         If the match failed, or if the `next` match failed, `None`.
 	  */
-	def applyChained[B](stack: IndexedSeq[Elem], offset: Int, avail: Int, next: ContextMatcher[B]): Option[(A, B)]
+	def applyChained[B](stack: IndexedSeq[Elem], offset: Int, avail: Int, next: ContextMatcher[Elem, B]): Option[(A, B)]
 
 	/** The main context match method.
 	  *
@@ -73,7 +73,7 @@ trait ContextMatcher[+A] {
 	  * @tparam R The "reduced" content type, derived from the tuple type `(A, B)` based on the `reduce` rule.
 	  * @return A matcher which delegates to `this` matcher first, then the `next` matcher for the remaining stack.
 	  */
-	def \[A1 >: A, B, R](next: ContextMatcher[B])(implicit reduce: TypeReduce.Aux[A1, B, R]): ContextMatcher[R] = ContextMatcher.Chained(this, next)
+	def \[A1 >: A, B, R](next: ContextMatcher[Elem, B])(implicit reduce: TypeReduce.Aux[A1, B, R]): ContextMatcher[Elem, R] = ContextMatcher.Chained(this, next)
 
 	/** Create a new ContextMatcher which takes the match result of this matcher and passes it through the
 	  * transformation function `f`.
@@ -82,7 +82,7 @@ trait ContextMatcher[+A] {
 	  * @tparam B The transformed context type
 	  * @return A new matcher with transformed results
 	  */
-	def map[B](f: A => B): ContextMatcher[B] = ContextMatcher.Mapped(this, "map") { a => Some(f(a)) }
+	def map[B](f: A => B): ContextMatcher[Elem, B] = ContextMatcher.Mapped(this, "map") { a => Some(f(a)) }
 
 	/** Create a new ContextMatcher which takes the match result of this matcher and passes it through the
 	  * combined transformation/validation function `f`. If `f` returns `None`, the match is unsuccessful;
@@ -92,7 +92,7 @@ trait ContextMatcher[+A] {
 	  * @tparam B The transformed context type
 	  * @return A new matcher with transformed and validated results
 	  */
-	def flatMap[B](f: A => Option[B]): ContextMatcher[B] = ContextMatcher.Mapped(this, "flatMap")(f)
+	def flatMap[B](f: A => Option[B]): ContextMatcher[Elem, B] = ContextMatcher.Mapped(this, "flatMap")(f)
 
 	/** Create a new ContextMatcher which takes the match result of this matcher and passes it through the
 	  * validation function `f`. If `f` returns `false`, the match is unsuccessful.
@@ -100,7 +100,7 @@ trait ContextMatcher[+A] {
 	  * @param p The filter predicate, i.e. the validation function
 	  * @return A new matcher with validated results
 	  */
-	def filter(p: A => Boolean): ContextMatcher[A] = ContextMatcher.Mapped(this, "filter") { a => if (p(a)) Some(a) else None }
+	def filter(p: A => Boolean): ContextMatcher[Elem, A] = ContextMatcher.Mapped(this, "filter") { a => if (p(a)) Some(a) else None }
 
 	/** Create a new ContextMatcher which will fall back to a second matcher in the event that this
 	  * matcher fails to match a context.
@@ -109,34 +109,34 @@ trait ContextMatcher[+A] {
 	  * @tparam A2 The resulting context type (common supertype between this matcher and `that`)
 	  * @return A matcher that falls back to another matcher in case of failure
 	  */
-	def or[A2 >: A](that: ContextMatcher[A2]): ContextMatcher[A2] = ContextMatcher.Or(this, that)
+	def or[A2 >: A](that: ContextMatcher[Elem, A2]): ContextMatcher[Elem, A2] = ContextMatcher.Or(this, that)
 
 	/** Operator version of `or` */
-	def |[A2 >: A](that: ContextMatcher[A2]): ContextMatcher[A2] = or(that)
+	def |[A2 >: A](that: ContextMatcher[Elem, A2]): ContextMatcher[Elem, A2] = or(that)
 }
 
 object ContextMatcher {
 	/** A matcher that quickly matches any input as `()` without consuming any stack. */
-	val noopSuccess: ContextMatcher[Unit] = new ContextMatcher[Unit] {
+	def noopSuccess[Elem]: ContextMatcher[Elem, Unit] = new ContextMatcher[Elem, Unit] {
 		override def toString = "noopSuccess"
 		private val result = Some(())
 		override def apply(stack: IndexedSeq[Elem], offset: Int, avail: Int) = result
-		def applyChained[B](stack: IndexedSeq[Elem], offset: Int, avail: Int, next: ContextMatcher[B]): Option[(Unit, B)] = next(stack, offset, avail) map {() -> _}
+		def applyChained[B](stack: IndexedSeq[Elem], offset: Int, avail: Int, next: ContextMatcher[Elem, B]): Option[(Unit, B)] = next(stack, offset, avail) map {() -> _}
 	}
 
 	/** A matcher that quickly rejects any input */
-	val noopFailure: ContextMatcher[Unit] = new ContextMatcher[Unit] {
+	def noopFailure[Elem]: ContextMatcher[Elem, Unit] = new ContextMatcher[Elem, Unit] {
 		override def toString = "noopFailure"
 		override def apply(stack: IndexedSeq[Elem], offset: Int, avail: Int): Option[Unit] = None
-		def applyChained[B](stack: IndexedSeq[Elem], offset: Int, avail: Int, next: ContextMatcher[B]): Option[(Unit, B)] = None
+		def applyChained[B](stack: IndexedSeq[Elem], offset: Int, avail: Int, next: ContextMatcher[Elem, B]): Option[(Unit, B)] = None
 	}
 
 	/** A matcher that matches any input as long as the next matcher in
 	  * the chain will match some segment of that input.
 	  */
-	val variableLength: ContextMatcher[Unit] = new ContextMatcher[Unit] {
+	def variableLength[Elem]: ContextMatcher[Elem, Unit] = new ContextMatcher[Elem, Unit] {
 		override def toString = "**"
-		def applyChained[B](stack: IndexedSeq[Elem], offset: Int, avail: Int, next: ContextMatcher[B]): Option[(Unit, B)] = {
+		def applyChained[B](stack: IndexedSeq[Elem], offset: Int, avail: Int, next: ContextMatcher[Elem, B]): Option[(Unit, B)] = {
 			next(stack, offset, avail) map {() -> _} orElse {
 				if (avail <= 0) None
 				else applyChained(stack, offset + 1, avail - 1, next)
@@ -164,8 +164,8 @@ object ContextMatcher {
 	  * @tparam A The matcher function's result type
 	  * @return A new matcher which uses `f` to determine how (and how much of) the stack is matched
 	  */
-	def greedy[A](f: (IndexedSeq[Elem], Int, Int) => Option[(A, Int)]): ContextMatcher[A] = new ContextMatcher[A] {
-		def applyChained[B](stack: IndexedSeq[Elem], offset: Int, avail: Int, next: ContextMatcher[B]): Option[(A, B)] = {
+	def greedy[Elem, A](f: (IndexedSeq[Elem], Int, Int) => Option[(A, Int)]): ContextMatcher[Elem, A] = new ContextMatcher[Elem, A] {
+		def applyChained[B](stack: IndexedSeq[Elem], offset: Int, avail: Int, next: ContextMatcher[Elem, B]): Option[(A, B)] = {
 			for {
 				(a, numConsumed) <- f(stack, offset, avail)
 				b <- next(stack, offset + numConsumed, avail - numConsumed)
@@ -182,12 +182,12 @@ object ContextMatcher {
 	  * @tparam T The tail result type
 	  * @tparam F The combined result type
 	  */
-	case class Chained[H, T, F](headM: ContextMatcher[H], tailM: ContextMatcher[T])(implicit reduce: TypeReduce.Aux[H, T, F]) extends ContextMatcher[F] {
+	case class Chained[Elem, H, T, F](headM: ContextMatcher[Elem, H], tailM: ContextMatcher[Elem, T])(implicit reduce: TypeReduce.Aux[H, T, F]) extends ContextMatcher[Elem, F] {
 		override def toString = s"$headM \\ $tailM"
 		override def apply(stack: IndexedSeq[Elem], offset: Int, avail: Int): Option[F] = {
 			headM.applyChained(stack, offset, avail, tailM) map { (lr) => reduce.apply(lr._1, lr._2) }
 		}
-		def applyChained[N](stack: IndexedSeq[Elem], offset: Int, avail: Int, next: ContextMatcher[N]): Option[(F, N)] = {
+		def applyChained[N](stack: IndexedSeq[Elem], offset: Int, avail: Int, next: ContextMatcher[Elem, N]): Option[(F, N)] = {
 			headM.applyChained(stack, offset, avail, tailM \ next) map { case (h, (t, n)) => (reduce(h, t), n) }
 		}
 	}
@@ -200,17 +200,17 @@ object ContextMatcher {
 	  * @tparam A The type of the matched context.
 	  * @tparam B The transformed context type
 	  */
-	case class Mapped[A, B](inner: ContextMatcher[A], op: String = "map")(f: A => Option[B]) extends ContextMatcher[B] {
+	case class Mapped[Elem, A, B](inner: ContextMatcher[Elem, A], op: String = "map")(f: A => Option[B]) extends ContextMatcher[Elem, B] {
 		override def toString = s"$inner.$op($f)"
-		def applyChained[T](stack: IndexedSeq[Elem], offset: Int, avail: Int, next: ContextMatcher[T]): Option[(B, T)] = {
+		def applyChained[T](stack: IndexedSeq[Elem], offset: Int, avail: Int, next: ContextMatcher[Elem, T]): Option[(B, T)] = {
 			for {
 				(a, t) <- inner.applyChained(stack, offset, avail, next)
 				b <- f(a)
 			} yield b -> t
 		}
-		override def map[B2](g: B => B2): ContextMatcher[B2] = Mapped(inner, s"$op+map") { a => f(a).map(g) }
-		override def flatMap[B2](g: B => Option[B2]): ContextMatcher[B2] = Mapped(inner, s"$op+flatMap") { a => f(a).flatMap(g) }
-		override def filter(p: B => Boolean): ContextMatcher[B] = Mapped(inner, s"$op+filter") { a => f(a).filter(p) }
+		override def map[B2](g: B => B2): ContextMatcher[Elem, B2] = Mapped(inner, s"$op+map") { a => f(a).map(g) }
+		override def flatMap[B2](g: B => Option[B2]): ContextMatcher[Elem, B2] = Mapped(inner, s"$op+flatMap") { a => f(a).flatMap(g) }
+		override def filter(p: B => Boolean): ContextMatcher[Elem, B] = Mapped(inner, s"$op+filter") { a => f(a).filter(p) }
 	}
 
 	/** Matcher implementation for `left | right`.
@@ -219,9 +219,9 @@ object ContextMatcher {
 	  * @param right The right matcher (i.e. the fallback)
 	  * @tparam A The type of the matched context.
 	  */
-	case class Or[A](left: ContextMatcher[A], right: ContextMatcher[A]) extends ContextMatcher[A] {
+	case class Or[Elem, A](left: ContextMatcher[Elem, A], right: ContextMatcher[Elem, A]) extends ContextMatcher[Elem, A] {
 		override def toString = s"($left | $right)"
-		def applyChained[B](stack: IndexedSeq[Elem], offset: Int, avail: Int, next: ContextMatcher[B]): Option[(A, B)] = {
+		def applyChained[B](stack: IndexedSeq[Elem], offset: Int, avail: Int, next: ContextMatcher[Elem, B]): Option[(A, B)] = {
 			left.applyChained(stack, offset, avail, next) orElse right.applyChained(stack, offset, avail, next)
 		}
 	}
@@ -235,15 +235,15 @@ object ContextMatcher {
   *
   * @tparam A The type of the matched context.
   */
-trait SingleElementContextMatcher[+A] extends ContextMatcher[A] {
+trait SingleElementContextMatcher[+A] extends ContextMatcher[StartElement, A] {
 	/** The matching operation for single-element matchers.
 	  *
 	  * @param elem The first element in the XML tag stack
 	  * @return `Some(context)` for a successful match, `None` otherwise
 	  */
-	def applyElem(elem: Elem): Option[A]
+	def applyElem(elem: StartElement): Option[A]
 
-	def applyChained[B](stack: IndexedSeq[Elem], offset: Int, avail: Int, next: ContextMatcher[B]): Option[(A, B)] = {
+	def applyChained[B](stack: IndexedSeq[StartElement], offset: Int, avail: Int, next: ContextMatcher[StartElement, B]): Option[(A, B)] = {
 		if (avail >= 1) {
 			for {
 				a <- applyElem(stack(offset))
@@ -290,7 +290,7 @@ object SingleElementContextMatcher {
 	  * @tparam A The match result type
 	  * @return A new single-element matcher which applies `f` to the stack head
 	  */
-	def apply[A](f: Elem => Option[A]): SingleElementContextMatcher[A] = new Default(f)
+	def apply[A](f: StartElement => Option[A]): SingleElementContextMatcher[A] = new Default(f)
 
 	/** Create a new single-element matcher which calls the given matcher function `f` on the first
 	  * element of the stack. If `f` returns `None`, the match fails, otherwise, the match succeeds.
@@ -300,7 +300,7 @@ object SingleElementContextMatcher {
 	  * @tparam A The match result type
 	  * @return A new single-element matcher which applies `f` to the stack head
 	  */
-	def apply[A](name: String, f: Elem => Option[A]): SingleElementContextMatcher[A] = new Default(f) {
+	def apply[A](name: String, f: StartElement => Option[A]): SingleElementContextMatcher[A] = new Default(f) {
 		override def toString = name
 	}
 
@@ -310,7 +310,7 @@ object SingleElementContextMatcher {
 	  * @param f The predicate function
 	  * @return A new single-element matcher which uses `f` to determine a match
 	  */
-	def predicate(f: Elem => Boolean): SingleElementContextMatcher[Unit] = new Predicate(f)
+	def predicate(f: StartElement => Boolean): SingleElementContextMatcher[Unit] = new Predicate(f)
 
 	/** Create a new single-element matcher which calls the given predicate function `f` on the first
 	  * element of the stack. If `f` returns `true`, the match succeeds. Otherwise, the match fails.
@@ -319,7 +319,7 @@ object SingleElementContextMatcher {
 	  * @param f    The predicate function
 	  * @return A new single-element matcher which uses `f` to determine a match
 	  */
-	def predicate(name: String, f: Elem => Boolean): SingleElementContextMatcher[Unit] = new Predicate(f) {
+	def predicate(name: String, f: StartElement => Boolean): SingleElementContextMatcher[Unit] = new Predicate(f) {
 		override def toString = name
 	}
 
@@ -328,8 +328,8 @@ object SingleElementContextMatcher {
 	  * @param f A function that performs the context match on a single element
 	  * @tparam A The matched context type
 	  */
-	class Default[A](f: Elem => Option[A]) extends SingleElementContextMatcher[A] {
-		def applyElem(elem: Elem): Option[A] = f(elem)
+	class Default[A](f: StartElement => Option[A]) extends SingleElementContextMatcher[A] {
+		def applyElem(elem: StartElement): Option[A] = f(elem)
 	}
 
 	/** SingleElementContextMatcher that successfully matches (with no result) if the
@@ -337,8 +337,8 @@ object SingleElementContextMatcher {
 	  *
 	  * @param f The predicate function
 	  */
-	class Predicate(f: Elem => Boolean) extends SingleElementContextMatcher[Unit] {
-		def applyElem(elem: Elem): Option[Unit] = if (f(elem)) predicateSuccess else None
+	class Predicate(f: StartElement => Boolean) extends SingleElementContextMatcher[Unit] {
+		def applyElem(elem: StartElement): Option[Unit] = if (f(elem)) predicateSuccess else None
 	}
 	private val predicateSuccess = Some(())
 
@@ -355,7 +355,7 @@ object SingleElementContextMatcher {
 	  */
 	case class And[A, B, R](left: SingleElementContextMatcher[A], right: SingleElementContextMatcher[B])(implicit reduce: TypeReduce.Aux[A, B, R]) extends SingleElementContextMatcher[R] {
 		override def toString = s"($left & $right)"
-		def applyElem(elem: Elem): Option[R] = {
+		def applyElem(elem: StartElement): Option[R] = {
 			for {
 				a <- left.applyElem(elem)
 				b <- right.applyElem(elem)
@@ -366,13 +366,13 @@ object SingleElementContextMatcher {
 	/** Similar to `ContextMatcher.Or`, but specialized for `SingleElementContextMatcher` */
 	case class Or[A](left: SingleElementContextMatcher[A], right: SingleElementContextMatcher[A]) extends SingleElementContextMatcher[A] {
 		override def toString = s"($left | $right)"
-		def applyElem(elem: Elem): Option[A] = left.applyElem(elem) orElse right.applyElem(elem)
+		def applyElem(elem: StartElement): Option[A] = left.applyElem(elem) orElse right.applyElem(elem)
 	}
 
 	/** Similar to `ContextMatcher.Mapped`, but specialized for `SingleElementContextMatcher` */
 	case class Mapped[A, B](inner: SingleElementContextMatcher[A], op: String = "map")(f: A => Option[B]) extends SingleElementContextMatcher[B] {
 		override def toString = s"$inner.$op($f)"
-		def applyElem(elem: Elem): Option[B] = inner.applyElem(elem).flatMap(f)
+		def applyElem(elem: StartElement): Option[B] = inner.applyElem(elem).flatMap(f)
 		override def map[B2](g: B => B2): SingleElementContextMatcher[B2] = Mapped(inner, s"$op+map") { a => f(a).map(g) }
 		override def flatMap[B2](g: B => Option[B2]): SingleElementContextMatcher[B2] = Mapped(inner, s"$op+flatMap") { a => f(a).flatMap(g) }
 		override def filter(p: B => Boolean): SingleElementContextMatcher[B] = Mapped(inner, s"$op+filter") { a => f(a).filter(p) }
