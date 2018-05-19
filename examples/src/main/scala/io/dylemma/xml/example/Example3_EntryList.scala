@@ -75,7 +75,7 @@ object Example3_EntryList extends App {
 			val Left(key) :: valueRights = keyAndValues
 			val values = valueRights collect { case Right(value) => value }
 			Entry(key, values)
-		}.wrapSafe
+		}
 	}
 
 	/*

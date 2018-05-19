@@ -1,5 +1,7 @@
 package io.dylemma.xml.example
 
+import javax.xml.stream.events.StartElement
+
 import io.dylemma.spac._
 
 object Example2_Contexts extends App {
@@ -48,15 +50,24 @@ object Example2_Contexts extends App {
 	val commentElementMatcher2: SingleElementContextMatcher[Unit] = "comment"
 
 	/*
+	The base `ContextMatcher` trait has two type parameters:
+	 1. The "context stack type"
+	 2. The context match output type
+	Since we're dealing with XML, the "context stack type" will always be `StartElement`,
+	so we'll define a type alias to avoid typing "StartElement" over and over.
+	 */
+	type XmlContextMatcher[+A] = ContextMatcher[StartElement, A]
+
+	/*
 	ContextMatchers can be chained together with the `\` (backslash) method.
 	When combining two matchers as a chain, their two context types will be
 	combined as a Tuple2, then reduced according to the rules of the
 	`TypeReduce` typeclass. Essentially, `Unit` will be stripped out unless
 	it is the only thing left.
 	*/
-	val chainExample1: ContextMatcher[Unit] = "blog" \ "post" \ "comment"
-	val chainExample2: ContextMatcher[String] = "blog" \ attr("id") \ "comment"
-	val chainExample3: ContextMatcher[(String, String)] = "blog" \ attr("id") \ attr("stuff")
+	val chainExample1: XmlContextMatcher[Unit] = "blog" \ "post" \ "comment"
+	val chainExample2: XmlContextMatcher[String] = "blog" \ attr("id") \ "comment"
+	val chainExample3: XmlContextMatcher[(String, String)] = "blog" \ attr("id") \ attr("stuff")
 
 	/*
 	The same type reduction logic also applies when combining two single-element
@@ -69,7 +80,7 @@ object Example2_Contexts extends App {
 	/*
 	Complicated context matchers can be built from the combination methods
 	 */
-	val chainedMatcher: ContextMatcher[(String, (String, Int))] = {
+	val chainedMatcher: XmlContextMatcher[(String, (String, Int))] = {
 		// The individual segments are [String] + [(String, Int)] + [Unit].
 		// Unit is stripped, leaving a tuple of `String` and `(String, Int)`
 		attr("title") \ (attr("author") & attr("id").map(_.toInt)) \ "comment"
@@ -80,7 +91,7 @@ object Example2_Contexts extends App {
 	as well as its `flatMap` and `filter` methods (not shown).
 	 */
 	case class PostContext(blogTitle: String, author: String, postId: Int)
-	val postContextMatcher: ContextMatcher[PostContext] = chainedMatcher map {
+	val postContextMatcher: ContextMatcher[StartElement, PostContext] = chainedMatcher map {
 		case (title, (author, postId)) => PostContext(title, author, postId)
 	}
 
