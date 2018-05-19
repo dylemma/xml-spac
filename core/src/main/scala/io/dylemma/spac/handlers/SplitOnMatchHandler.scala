@@ -6,7 +6,7 @@ import scala.util.{Failure, Success, Try}
 
 class SplitOnMatchHandler[In, Context, P, Out](
 	matcher: PartialFunction[In, Context],
-	joiner: Context => HandlerFactory[In, Try[P]],
+	joiner: Context => HandlerFactory[In, P],
 	val downstream: Handler[P, Out]
 ) extends SplitterHandlerBase[In, Context, P, Out]{
 

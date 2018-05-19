@@ -10,7 +10,7 @@ import scala.util.{Failure, Success, Try}
 	*/
 trait SplitterHandlerBase[In, Context, P, Out] extends Handler[In, Out] {
 
-	protected var currentParserHandler: Option[Handler[In, Try[P]]] = None
+	protected var currentParserHandler: Option[Handler[In, P]] = None
 	protected def downstream: Handler[P, Out]
 	protected def debugName: String
 
@@ -29,7 +29,7 @@ trait SplitterHandlerBase[In, Context, P, Out] extends Handler[In, Out] {
 		  .flatMap(feedResultToDownstream)
 	}
 
-	protected def feedEndToCurrentParser(): Option[Try[P]] = {
+	protected def feedEndToCurrentParser(): Option[P] = {
 		for {
 			handler <- currentParserHandler
 			if !handler.isFinished
@@ -44,7 +44,7 @@ trait SplitterHandlerBase[In, Context, P, Out] extends Handler[In, Out] {
 		}
 	}
 
-	protected def feedEventToCurrentParser(input: In): Option[Try[P]] = {
+	protected def feedEventToCurrentParser(input: In): Option[P] = {
 		for {
 			handler <- currentParserHandler
 			if !handler.isFinished
@@ -60,7 +60,7 @@ trait SplitterHandlerBase[In, Context, P, Out] extends Handler[In, Out] {
 		}
 	}
 
-	protected def feedErrorToCurrentParser(err: Throwable): Option[Try[P]] = {
+	protected def feedErrorToCurrentParser(err: Throwable): Option[P] = {
 		for {
 			handler <- currentParserHandler
 			if !handler.isFinished
@@ -76,16 +76,25 @@ trait SplitterHandlerBase[In, Context, P, Out] extends Handler[In, Out] {
 		}
 	}
 
-	protected def feedResultToDownstream(result: Try[P]): Option[Out] = {
+	protected def feedResultToDownstream(result: P): Option[Out] = {
 		try {
 			if (downstream.isFinished) None
-			else result match {
-				case Success(p) => downstream.handleInput(p)
-				case Failure(err) => downstream.handleError(err)
-			}
+			else downstream.handleInput(result)
 		} catch {
 			case NonFatal(err) => throw new Exception(
 				s"Error passing [$result] to downstream handler [$downstream] while running $debugName",
+				err
+			)
+		}
+	}
+
+	protected def feedErrorToDownstream(err: Throwable): Option[Out] = {
+		try {
+			if(downstream.isFinished) None
+			else downstream.handleError(err)
+		} catch {
+			case NonFatal(err) => throw new Exception(
+				s"Error [$err] re-thrown by downstream handler [$downstream] while running $debugName",
 				err
 			)
 		}

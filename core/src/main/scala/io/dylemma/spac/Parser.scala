@@ -4,75 +4,165 @@ import javax.xml.namespace.QName
 import javax.xml.stream.events.XMLEvent
 
 import io.dylemma.spac.handlers._
+import io.dylemma.spac.types.{Stackable}
 
 import scala.language.higherKinds
-import scala.util.{Failure, Success, Try}
 
-/** A HandlerFactory specialized for XMLEvents, which produces results wrapped in a `Try`.
-  * Parsers can be combined and run to process complex XML structures.
+/** Base class for parsers dealing with a fixed input type, e.g. XMLEvent or JSONEvent.
   *
-  * @tparam Out Result type
+  * @param handlerFactoryConverter
+  * @param stackable
+  * @tparam In The generated handler's input type
+  * @tparam Out The generated handler's output type
+  * @tparam Self
   *
-  * @define hf parser
-  * @define HF `Parser`
+  * @define Event event
+  * @define pl parser
+  * @define PL Parser
   */
-trait Parser[+Out] extends AbstractHandlerFactory[XMLEvent, Out, Try, ({ type H[-in,+out] = Parser[out] })#H] { self =>
+abstract class ParserLike[In, +Out, Self[+o] <: HandlerFactory[In, o]](
+	protected implicit val handlerFactoryConverter: FromHandlerFactory[In, Self],
+	protected implicit val stackable: Stackable[In]
+) extends HandlerFactory[In, Out] { self =>
 
-	def mapResult[B](f: Try[Out] => Try[B]): Parser[B] = new Parser[B] {
-		def makeHandler() = new MappedConsumerHandler(f, self.makeHandler())
-		override def toString = s"$self >> Map($f)"
+	/** Parse the given source object by spawning a handler and feeding events
+	  * from the source into that handler until it yields a result.
+	  *
+	  * @param src An object that can be treated as a stream of $Event
+	  * @param consumeXML Typeclass instance allowing instances of `Src` to be treated as a stream of $Event
+	  * @tparam Src The source object type
+	  * @return The parse result
+	  */
+	def parse[Src](src: Src)(implicit consumeXML: ConsumableLike[Src, In]): Out = {
+		consumeXML(src, makeHandler())
 	}
 
-	def and[O2](p2: Parser[O2]) = new ParserCombination.Combined2(self, p2)
-	def ~[O2](p2: Parser[O2]) = new ParserCombination.Combined2(self, p2)
+	/** Convert this $PL to a Consumer.
+	  *
+	  * @return A Consumer with the same behavior as this $PL
+	  */
+	def toConsumer: Consumer[In, Out] = new Consumer[In, Out] {
+		def makeHandler() = self.makeHandler()
+		override def toString = self.toString
+	}
 
-	/** An intermediate object with an `apply` and `flatMap` that both create a sequenced Parser
-	  * which combines this Parser with a function to create the next one.
+	/** Convert this $PL to another handler factory type.
+	  *
+	  * @param sfhf Typeclass instance facilitating construction of an `S[Out]` from
+	  *             the HandlerFactory logic in this $PL.
+	  * @tparam S Another handler factory type
+	  * @return An instance of `S[Out]` with the same behavior as this $PL
+	  */
+	def to[S[+_]](implicit sfhf: FromHandlerFactory[In, S]): S[Out] = {
+		sfhf.makeInstance(this, this.toString)
+	}
+
+	/** Starting point for $PL combination methods.
+	  *
+	  * @return A HandlerCombination instance for $PL
+	  */
+	@inline protected def combination = new HandlerCombination[In, Self]
+
+	/** Combine this $PL with another one.
+	  * Note that the value returned by this method is an intermediate object which should be finalized
+	  * by calling its `asTuple` or `as{(a,b) => result}` method.
+	  * Further combinations can be added by calling `and` again on the intermediate object.
+	  *
+	  * Example:
+	  * {{{
+	  * val p1: $PL[A] = /* ... */
+	  * val p2: $PL[B] = /* ... */
+	  * val pc: $PL[(A, B)] = (p1 and p2).asTuple
+	  * // or
+	  * val pc: $PL[R] = (p1 and p2).as{ (a, b) => combineResults(a, b) }
+	  * }}}
+	  *
+	  * @param other Another $PL to combine with
+	  * @tparam O2 The output type of the other $PL
+	  * @return An intermediate oject with `as` and `asTuple` methods that finish the combination
+	  */
+	def and[O2](other: Self[O2]): HandlerCombination[In, Self]#Combined2[Out, O2] = combination.combine(this, other)
+
+	/** Operator version of `and`; combines this $PL with another one.
+	  * Note that the value returned by this method is an intermediate object which should be finalized
+	  * by calling its `asTuple` or `as{(a,b) => result}` method.
+	  * Further combinations can be added by calling `~` again on the intermediate object.
+	  *
+	  * Example:
+	  * {{{
+	  * val p1: $PL[A] = /* ... */
+	  * val p2: $PL[B] = /* ... */
+	  * val pc: $PL[(A, B)] = (p1 and p2).asTuple
+	  * // or
+	  * val pc: $PL[R] = (p1 and p2).as{ (a, b) => combineResults(a, b) }
+	  * }}}
+	  *
+	  * @param other Another $PL to combine with
+	  * @tparam O2 The output type of the other $PL
+	  * @return An intermediate oject with `as` and `asTuple` methods that finish the combination
+	  */
+	def ~[O2](other: Self[O2]): HandlerCombination[In, Self]#Combined2[Out, O2] = combination.combine(this, other)
+
+	/** Transform this $PL's results using a transformation function.
+	  *
+ 	  * @param f The transformation function
+	  * @tparam B The result type of the transformation function
+	  * @return A new $PL instance which computes its results by applying `f` to the
+	  *         results computed by this $PL
+	  */
+	def map[B](f: Out => B): Self[B] = handlerFactoryConverter.makeInstance(
+		new HandlerFactory[In, B] {
+			def makeHandler() = new MappedConsumerHandler(f, self.makeHandler())
+		},
+		s"$self.map($f)"
+	)
+
+	/** An intermediate object with an `apply` and `flatMap` that both create a sequenced $PL
+	  * which combines this $PL with a function to create the next one.
 	  *
 	  * Examples:
 	  * {{{
-	  *    val p1: Parser[A] = /* ... */
-	  *    def getP2(p1Result: A): Parser[B] = /* ... */
-	  *    val combined: Parser[B] = p1.followedBy(getP2)
+	  *    val p1: $PL[A] = /* ... */
+	  *    def getP2(p1Result: A): $PL[B] = /* ... */
+	  *    val combined: $PL[B] = p1.followedBy(getP2)
 	  *
 	  *    // alternative `flatMap` syntax
-	  *    val combined: Parser[B] = for {
+	  *    val combined: $PL[B] = for {
 	  *      p1Result <- p1.followedBy
 	  *      p2Result <- getP2(p1Result)
 	  *    } yield p2Result
 	  * }}}
 	  *
-	  * An example of where this is useful is when a parser for XML element depends on values
+	  * An example of where this is useful is when a $pl for XML element depends on values
 	  * parsed from one of its previous siblings, but where you don't want to wait until the
 	  * end of their parent element before they can be combined.
 	  *
 	  * @return An intermediate object which has an `apply` and `flatMap` that can be used
-	  *         to combine this Parser and another in a sequence.
+	  *         to combine this $PL and another in a sequence.
 	  */
-	object followedBy extends FollowedBy[Parser, Out] {
-		def apply[T2](getNext: Out => Parser[T2]): Parser[T2] = new Parser[T2] {
-			override def toString = s"$self.followedBy($getNext)"
-			def makeHandler(): Handler[XMLEvent, Try[T2]] = {
-				val handler1 = self.makeHandler()
-				def getHandler2(h1Result: Try[Out]) = h1Result match {
-					case Success(result) => getNext(result).makeHandler()
-					case Failure(err) => new ConstantHandler(Failure(err))
+	object followedBy extends FollowedBy[Self, Out] {
+		def apply[T2](getNext: Out => Self[T2]): Self[T2] = handlerFactoryConverter.makeInstance(
+			new HandlerFactory[In, T2] {
+				def makeHandler(): Handler[In, T2] = {
+					val handler1 = self.makeHandler()
+					def getHandler2(h1Result: Out) = getNext(h1Result).makeHandler()
+					new SequencedInStackHandler(handler1, getHandler2)
 				}
-				new SequencedInStackHandler(handler1, getHandler2)
-			}
-		}
+			},
+			s"$self.followedBy($getNext)"
+		)
 	}
 
 	/** An intermediate object that can be used to create a Transformer from result of this Parser.
 	  *
 	  * Examples:
 	  * {{{
-	  *    val p1: Parser[A] = /* ... */
-	  *    def getP2Stream(p1Result: A): Transformer[XMLEvent, B] = /* ... */
-	  *    val combined: Transformer[XMLEvent, B] = p1.andThenStream(getP2Stream)
+	  *    val p1: $PL[A] = /* ... */
+	  *    def getP2Stream(p1Result: A): Transformer[$Event, B] = /* ... */
+	  *    val combined: Transformer[$Event, B] = p1.andThenStream(getP2Stream)
 	  *
 	  *    // alternative `flatMap` syntax
-	  *    val combined: Transformer[XMLEvent, B] = for {
+	  *    val combined: Transformer[$Event, B] = for {
 	  *      p1Result <- p1.andThenStream
 	  *      p2Result <- getP2Stream(p1Result)
 	  *    } yield p2Result
@@ -80,80 +170,80 @@ trait Parser[+Out] extends AbstractHandlerFactory[XMLEvent, Out, Try, ({ type H[
 	  *
 	  * An example of where this is useful is when an XML element contains some "dictionary" object
 	  * at the beginning, followed by a sequence of "data" objects which reference the dictionary.
-	  * For large sequences, combining them to a List (to use with Parser's `and` combiners) is undesireable;
+	  * For large sequences, combining them to a List (to use with $PL's `and` combiners) is undesireable;
 	  * we can use this approach to avoid doing so.
 	  *
 	  * @return An intermediate object which has an `apply` and `flatMap` that can be used
-	  *         to combine this Parser and a Transformer in a sequence.
+	  *         to combine this $PL and a Transformer in a sequence.
 	  */
-	object followedByStream extends FollowedBy[({ type F[+T2] = Transformer[XMLEvent, T2] })#F, Out] {
-		def apply[T2](getTransformer: Out => Transformer[XMLEvent, T2]): Transformer[XMLEvent, T2] = new Transformer[XMLEvent, T2] {
+	object followedByStream extends FollowedBy[({ type F[+T2] = Transformer[In, T2] })#F, Out] {
+		def apply[T2](getTransformer: Out => Transformer[In, T2]): Transformer[In, T2] = new Transformer[In, T2] {
 			override def toString = s"$self.followedByStream($getTransformer)"
-			def makeHandler[End](next: Handler[T2, End]): Handler[XMLEvent, End] = {
+			def makeHandler[End](next: Handler[T2, End]): Handler[In, End] = {
 				val handler1 = self.makeHandler()
-				def getHandler2(h1Result: Try[Out]): Handler[XMLEvent, End] = h1Result match {
-					case Success(result) => getTransformer(result).makeHandler(next)
-					case Failure(err) => new EndWithErrorTransformerHandler[XMLEvent, End](err, next)
-				}
+				def getHandler2(h1Result: Out): Handler[In, End] = getTransformer(h1Result).makeHandler(next)
 				new SequencedInStackHandler(handler1, getHandler2)
 			}
 		}
 	}
 
-	/** If a `Parser` is context-independent, it can be treated to a `Consumer`.
-		*
-		* @return A representation of this parser as a `Consumer`
-		*/
-	def toConsumer: Consumer[XMLEvent, Try[Out]] = {
-		new Consumer[XMLEvent, Try[Out]] {
-			def makeHandler(): Handler[XMLEvent, Try[Out]] = self.makeHandler()
-			override def toString = self.toString
-		}
-	}
-
-	def parse[XML](xml: XML)(
-		implicit consumeXML: ConsumableLike[XML, XMLEvent]
-	): Try[Out] = consumeXML(xml, makeHandler())
 }
 
-object Parser {
-	def fromConsumer[Out](consumer: Consumer[XMLEvent, Try[Out]]): Parser[Out] = {
-		new Parser[Out] {
-			def makeHandler() = consumer.makeHandler()
-			override def toString = consumer.toString
+/** A HandlerFactory specialized for XMLEvents, which produces results wrapped in a `Try`.
+  * Parsers can be combined and run to process complex XML structures.
+  *
+  * @tparam Out Result type
+  * @define hf    parser
+  * @define HF    `Parser`
+  * @define pl    parser
+  * @define PL    Parser
+  * @define Event XMLEvent
+  */
+abstract class Parser[+Out] extends ParserLike[XMLEvent, Out, Parser]
+
+trait ParserCompanion[In, Self[+_]] { self =>
+	implicit def handlerFactoryConverter: FromHandlerFactory[In, Self]
+
+	def from[Out](hf: HandlerFactory[In, Out]): Self[Out] = {
+		handlerFactoryConverter.makeInstance(hf, hf.toString)
+	}
+
+	def constant[Out](value: Out): Self[Out] = from(new HandlerFactory[In, Out]{
+		def makeHandler() = new ConstantHandler(value)
+		override def toString = s"$self.constant($value)"
+	})
+
+}
+
+object Parser extends ParserCompanion[XMLEvent, Parser] {
+
+	implicit val handlerFactoryConverter: FromHandlerFactory[XMLEvent, Parser] = new FromHandlerFactory[XMLEvent, Parser] {
+		override def makeInstance[Out](hf: HandlerFactory[XMLEvent, Out], debugName: String): Parser[Out] = new Parser[Out] {
+			def makeHandler() = hf.makeHandler()
+			override def toString = debugName
 		}
 	}
 
 	// TEXT
-	def forText: Parser[String] = ForText
-	object ForText extends Parser[String] {
+	val forText: Parser[String] = new Parser[String] {
 		def makeHandler() = new TextCollectorHandler
 		override def toString = "XMLText"
 	}
 
 	// ATTRIBUTE
-	def forMandatoryAttribute(name: QName): Parser[String] = new ForMandatoryAttribute(name)
-	def forMandatoryAttribute(name: String): Parser[String] = new ForMandatoryAttribute(new QName(name))
-	class ForMandatoryAttribute(name: QName) extends Parser[String] {
+	def forMandatoryAttribute(name: String): Parser[String] = forMandatoryAttribute(new QName(name))
+	def forMandatoryAttribute(name: QName): Parser[String] = new Parser[String] {
 		def makeHandler() = new MandatoryAttributeHandler(name)
 		override def toString = s"Attribute($name)"
 	}
 
 	// OPTIONAL ATTRIBUTE
-	def forOptionalAttribute(name: QName): Parser[Option[String]] = new ForOptionalAttribute(name)
-	def forOptionalAttribute(name: String): Parser[Option[String]] = new ForOptionalAttribute(new QName(name))
-	class ForOptionalAttribute(name: QName) extends Parser[Option[String]] {
+	def forOptionalAttribute(name: String): Parser[Option[String]] = forOptionalAttribute(new QName(name))
+	def forOptionalAttribute(name: QName): Parser[Option[String]] = new Parser[Option[String]] {
 		def makeHandler() = new OptionalAttributeHandler(name)
 		override def toString = s"OptionalAttribute($name)"
 	}
 
-	// CONSTANT
-	def constant[A](result: A): Parser[A] = new Parser[A] {
-		def makeHandler(): Handler[XMLEvent, Try[A]] = {
-			new SafeConsumerHandler(new ConstantHandler(result))
-		}
-		override def toString = s"Constant($result)"
-	}
 }
 
 

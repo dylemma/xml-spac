@@ -9,12 +9,12 @@ import scala.util.{Failure, Success, Try}
 
 class ParserTests extends FunSpec with Matchers {
 
-	protected def testParserResult[R](rawXml: String, parser: Parser[R], expected: Try[R]) = {
+	protected def testParserResult[R](rawXml: String, parser: Parser[R], expected: R) = {
 		val result = parser parse rawXml
 		result should be(expected)
 	}
 
-	protected def testParserResultLike[R](rawXml: String, parser: Parser[R])(testResult: Try[R] => Boolean) = {
+	protected def testParserResultLike[R](rawXml: String, parser: Parser[R])(testResult: R => Boolean) = {
 		val result = parser parse rawXml
 		testResult(result) should be(true)
 	}
@@ -24,7 +24,7 @@ class ParserTests extends FunSpec with Matchers {
 			testParserResult(
 				"<foo>Hello<bar>World</bar><bar>Floopy</bar>Doop</foo>",
 				Parser.forText,
-				Success("HelloWorldFloopyDoop")
+				"HelloWorldFloopyDoop"
 			)
 		}
 
@@ -32,7 +32,7 @@ class ParserTests extends FunSpec with Matchers {
 			testParserResult(
 				"<foo>\n\tHello\n</foo>",
 				Parser.forText,
-				Success("\n\tHello\n")
+				"\n\tHello\n"
 			)
 		}
 	}
@@ -42,26 +42,27 @@ class ParserTests extends FunSpec with Matchers {
 			testParserResult(
 				"""<foo a="123"/>""",
 				Parser.forMandatoryAttribute("a"),
-				Success("123")
+				"123"
 			)
 		}
 
 		it("should return an error if the attribute is missing from the first encountered element") {
-			testParserResultLike[String](
-				"<foo/>",
-				Parser.forMandatoryAttribute("a")
-			)(_.isFailure)
+			an[Exception] should be thrownBy {
+				Parser.forMandatoryAttribute("a") parse "<foo/>"
+			}
 		}
 
 		it("should not return the attribute from an inner element") {
-			testParserResultLike[String](
-				"""<foo><bar a="123"/></foo>""",
-				Parser.forMandatoryAttribute("a")
-			)(_.isFailure)
+			an[Exception] should be thrownBy {
+				Parser.forMandatoryAttribute("a") parse {
+					"""<foo><bar a="123"/></foo>"""
+				}
+			}
+
 			testParserResult(
 				"""<foo a="123"><bar a="456"/></foo>""",
 				Parser.forMandatoryAttribute("a"),
-				Success("123")
+				"123"
 			)
 		}
 	}
@@ -71,7 +72,7 @@ class ParserTests extends FunSpec with Matchers {
 			testParserResult(
 				"""<foo a="123"/>""",
 				Parser.forOptionalAttribute("a"),
-				Success(Some("123"))
+				Some("123")
 			)
 		}
 
@@ -79,7 +80,7 @@ class ParserTests extends FunSpec with Matchers {
 			testParserResult(
 				"<foo/>",
 				Parser.forOptionalAttribute("a"),
-				Success(None)
+				None
 			)
 		}
 
@@ -87,12 +88,12 @@ class ParserTests extends FunSpec with Matchers {
 			testParserResult(
 				"""<foo><bar a="123"/></foo>""",
 				Parser.forOptionalAttribute("a"),
-				Success(None)
+				None
 			)
 			testParserResult(
 				"""<foo a="123"><bar a="456"/></foo>""",
 				Parser.forOptionalAttribute("a"),
-				Success(Some("123"))
+				Some("123")
 			)
 		}
 	}
@@ -112,29 +113,14 @@ class ParserTests extends FunSpec with Matchers {
 			testParserResult(
 				"<foo>123</foo>",
 				Parser.forText.map(_.toInt),
-				Success(123)
+				123
 			)
 		}
 
 		it("should produce error results for invalid inputs") {
-			testParserResultLike[Int]("<foo>ABC</foo>", Parser.forText.map(_.toInt))(_.isFailure)
-		}
-	}
-
-	describe("Parser#mapF (from FunctorSyntax)"){
-		val rawXml = """<foo>
-		| <node id="1"/>
-		| <node id="2"/>
-		| <node/>
-		| <node id="4"/>
-		|</foo>""".stripMargin
-
-		it("should provide a convenient alternate syntax for map(_.map(f))") {
-			val idParser = Parser.forOptionalAttribute("id").mapF(_.toInt)
-			val allIdsParser = Splitter("foo" \ "node").asListOf(idParser)
-			testParserResult(rawXml, allIdsParser, Success(
-				List(Some(1), Some(2), None, Some(4))
-			))
+			an[Exception] should be thrownBy {
+				Parser.forText.map(_.toInt) parse "<foo>ABC</foo>"
+			}
 		}
 	}
 
@@ -143,7 +129,7 @@ class ParserTests extends FunSpec with Matchers {
 			testParserResult(
 				"<foo><bar>Hello</bar><baz>World</baz></foo>",
 				Splitter(* \ "bar").through(Parser.forText).parseToList,
-				Success(List("Hello"))
+				List("Hello")
 			)
 		}
 
@@ -151,8 +137,8 @@ class ParserTests extends FunSpec with Matchers {
 			val rawXml = "<foo><bar>Hello</bar><bar>World</bar></foo>"
 			val splitParser = Splitter(* \ "bar").through(Parser.forText).parseToList
 			val unsplitParser = Parser.forText
-			testParserResult(rawXml, unsplitParser, Success("HelloWorld"))
-			testParserResult(rawXml, splitParser, Success(List("Hello", "World")))
+			testParserResult(rawXml, unsplitParser, "HelloWorld")
+			testParserResult(rawXml, splitParser, List("Hello", "World"))
 		}
 	}
 
@@ -161,15 +147,16 @@ class ParserTests extends FunSpec with Matchers {
 			val rawXml = """<foo a="123">hello world</foo>"""
 			val preCombined = Parser.forMandatoryAttribute("a") and Parser.forText
 
-			testParserResult(rawXml, preCombined.asTuple, Success("123" -> "hello world"))
-			testParserResult(rawXml, preCombined.as(_ + _), Success("123hello world"))
+			testParserResult(rawXml, preCombined.asTuple, "123" -> "hello world")
+			testParserResult(rawXml, preCombined.as(_ + _), "123hello world")
 		}
 
 		it("should result in an Error when any of the combined parsers does"){
-			testParserResultLike(
-				"""<foo a="abc">hello world</foo>""",
-				(Parser.forMandatoryAttribute("a").map(_.toInt) and Parser.forText).asTuple
-			)(_.isFailure)
+			val parser = (Parser.forMandatoryAttribute("a").map(_.toInt) and Parser.forText).asTuple
+			val xml = """<foo a="abc">hello world</foo>"""
+			an[Exception] should be thrownBy {
+				parser parse xml
+			}
 		}
 
 		it("should pass the same context value to its inner parsers if it requires a context"){
@@ -185,28 +172,39 @@ class ParserTests extends FunSpec with Matchers {
 				(parseAText(a, "x") and parseAText(a, "y")).asTuple
 			}
 			testParserResultLike(rawXml, splitter.first(combinedContextualParser)){
-				case Success((x, y)) => x.a === y.a
-				case _ => false
+				case (x, y) => x.a === y.a
 			}
+		}
+	}
+
+	describe("Consumer.and <via ConsumerSyntax>"){
+		it("should combine results of the combined consumers"){
+			val c1 = Consumer.first[Int].map(_ * 2)
+			val c2 = Consumer.first[Int].map(_ * 3)
+			val cc = (c1 and c2).asTuple
+
+			cc.consume(List(2)) should be(4 -> 6)
 		}
 	}
 
 	describe("Parser.constant"){
 		it("should emit the result immediately"){
-			testParserResult("<a></a>", Parser.constant(123), Success(123))
+			testParserResult("<a></a>", Parser.constant(123), 123)
 		}
 
 		it("should pass errors through instead of the result"){
 			val e = new Exception("test error")
-			Parser.constant(123).makeHandler().handleError(e) should equal(Some(Failure(e)))
+			the[Exception] thrownBy {
+				Parser.constant(123).makeHandler().handleError(e) should equal(Some(Failure(e)))
+			} should be(e)
 		}
 
 		it("should emit in response to an EOF"){
-			Parser.constant(123).makeHandler().handleEnd() should equal(Success(123))
+			Parser.constant(123).makeHandler().handleEnd() should equal(123)
 		}
 	}
 
-	describe("Parser.choose"){
+	describe("Splitter.through"){
 		val rawXml = """<foo>
 		|	<a>1</a>
 		|	<a>2</a>
@@ -228,19 +226,25 @@ class ParserTests extends FunSpec with Matchers {
 			}
 
 			testParserResultLike(rawXml, abTransformer.parseToList){
-				case Success(A(1) :: A(2) :: B(3) :: A(4) :: B(5) :: Nil) => true
+				case A(1) :: A(2) :: B(3) :: A(4) :: B(5) :: Nil => true
 				case _ => false
 			}
 		}
 
-		it("should yield error results where the chooser function fails"){
+		/** Upon further thought, it *shouldn't* have this behavior.
+		  * Introducing `Try` should be done explicitly by the client,
+		  * and in this case, it would be done by protecting the function
+		  * being passed to `through` with its own try/catch and a fallback
+		  * to a parser that yields Failures.
+		  */
+		ignore("should yield error results where the chooser function fails"){
 			val onlyATransformer = splitter through {
 				case "a" => Parser.forText.map(s => A(s.toInt))
 				// omit case "b" for errors
 			}
 			val parser = onlyATransformer.wrapSafe.parseToList
 			testParserResultLike(rawXml, parser){
-				case Success(List(Success(A(1)), Success(A(2)), Failure(_), Success(A(4)), Failure(_))) => true
+				case List(Success(A(1)), Success(A(2)), Failure(_), Success(A(4)), Failure(_)) => true
 				case _ => false
 			}
 		}
@@ -251,7 +255,7 @@ class ParserTests extends FunSpec with Matchers {
 			val xml = "<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
 			val idParser = Splitter(* \ "id").first.asText
 			val msgsParser = idParser.followedBy(id => Splitter(* \ "msg").asText.map(msg => s"$id:$msg").parseToList)
-			testParserResult(xml, msgsParser, Success(List("123:Hello", "123:Goodbye")))
+			testParserResult(xml, msgsParser, List("123:Hello", "123:Goodbye"))
 		}
 		it("should provide convenient flatMap syntax that works the same way"){
 			val xml = "<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
@@ -259,7 +263,7 @@ class ParserTests extends FunSpec with Matchers {
 				id <- Splitter(* \ "id").first.asText.followedBy
 				msgs <- Splitter(* \ "msg").asText.map(msg => s"$id:$msg").parseToList
 			} yield msgs
-			testParserResult(xml, msgsParser, Success(List("123:Hello", "123:Goodbye")))
+			testParserResult(xml, msgsParser, List("123:Hello", "123:Goodbye"))
 		}
 		it("should not pass a result until the followed parser has finished"){
 			val xml = "<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
@@ -267,15 +271,15 @@ class ParserTests extends FunSpec with Matchers {
 			// so the "following" parser will never receive any events (besides the stack replay)
 			val idsParser = Splitter(* \ "id").asText.parseToList.map(_.mkString)
 			val msgsParser = idsParser.followedBy(id => Splitter(* \ "msg").asText.map(msg => s"$id:$msg").parseToList)
-			testParserResult(xml, msgsParser, Success(Nil))
+			testParserResult(xml, msgsParser, Nil)
 		}
 		it("should yield an error if the followed parser yields an error"){
 			val xml = "<x><id>ABC</id><msg>Hello</msg><msg>Goodbye</msg></x>"
 			val idParser = Splitter(* \ "id").first.asText.map(_.toInt) // will yield a Failure because of "ABC".toInt
 			val msgsParser = idParser.followedBy(id => Splitter(* \ "msg").asText.map(msg => s"$id:$msg").parseToList)
-			testParserResultLike(xml, msgsParser){
-				case Failure(_) => true
-				case _ => false
+
+			an[Exception] should be thrownBy {
+				msgsParser parse xml
 			}
 		}
 		it("should yield whatever errors the 'following' parser yields"){
@@ -285,7 +289,7 @@ class ParserTests extends FunSpec with Matchers {
 				Splitter(* \ "num").asText.map(s => s"$name:${s.toInt}").wrapSafe.parseToList
 			}
 			testParserResultLike(xml, numsParser){
-				case Success(Success("dylemma:1") :: Failure(_) :: Success("dylemma:3") :: Nil) => true
+				case Success("dylemma:1") :: Failure(_) :: Success("dylemma:3") :: Nil => true
 				case _ => false
 			}
 		}
@@ -322,8 +326,8 @@ class ParserTests extends FunSpec with Matchers {
 			val xml = "<x><id>ABC</id><msg>Hello</msg><msg>Goodbye</msg></x>"
 			val idParser = Splitter(* \ "id").first.asText.map(_.toInt) // will yield a Failure because of "ABC".toInt
 			val msgsStream = idParser.followedByStream(id => Splitter(* \ "msg").asText.map(msg => s"$id:$msg")).wrapSafe
-			runTransformer(xml, msgsStream) should matchPattern{
-				case List(Failure(_)) =>
+			a[NumberFormatException] should be thrownBy {
+				runTransformer(xml, msgsStream)
 			}
 		}
 		it("should yield whatever errors the 'following' parser yields"){

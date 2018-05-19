@@ -1,5 +1,7 @@
 package io.dylemma.spac
 
+import io.dylemma.spac.types.Stackable
+
 import scala.language.higherKinds
 
 /** An intermediate object for creating sequence-based combination methods for a Parser or Consumer.

@@ -2,7 +2,7 @@ package io.dylemma.spac.syntax
 
 import io.dylemma.spac.handlers.SequencedInStackHandler
 import io.dylemma.spac.types.Stackable
-import io.dylemma.spac.{Consumer, Handler, FollowedBy, Transformer}
+import io.dylemma.spac.{HandlerCombination, Consumer, FollowedBy, FromHandlerFactory, Handler, Transformer}
 
 trait ConsumerSyntax {
 
@@ -82,5 +82,11 @@ trait ConsumerSyntax {
 			}
 		}
 
+	}
+
+	implicit class ConsumerCombineOps[In, A](self: Consumer[In, A])(implicit fhf: FromHandlerFactory[In, ({ type C[+o] = Consumer[In, o] })#C]) {
+		protected def combination = new HandlerCombination[In, ({ type C[+o] = Consumer[In, o] })#C]
+		def and[B](other: Consumer[In, B]) = combination.combine(self, other)
+		def ~[B](other: Consumer[In, B]) = combination.combine(self, other)
 	}
 }

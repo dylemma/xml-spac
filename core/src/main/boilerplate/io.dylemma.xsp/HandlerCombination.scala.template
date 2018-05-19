@@ -1,0 +1,68 @@
+package io.dylemma.spac
+
+import javax.xml.stream.events.XMLEvent
+import io.dylemma.spac.handlers.CompoundHandler
+import scala.util.Try
+import scala.language.higherKinds
+
+class HandlerCombination[In, C[+_]](implicit fhf: FromHandlerFactory[In, C]) {
+
+	def combine[R1, R2](h1: HandlerFactory[In, R1], h2: HandlerFactory[In, R2]) = new Combined2(h1, h2)
+
+	[2..21#/** Intermediate class that represents a combination of 1 handler factories.
+	  * Instances of this class can be combined with an additional handler factory using the `and` method (aliased as `~`).
+	  * The combination can be finalized to an actual handler factory using the `as` or `asTuple` methods.
+	  */
+	class Combined1[[#+R1#]]([#h1: HandlerFactory[In, R1]#]) {
+		def and[R2](h2: HandlerFactory[In, R2]) = new Combined2[[#R1#], R2]([#h1#], h2)
+		def ~[R2](h2: HandlerFactory[In, R2]) = new Combined2[[#R1#], R2]([#h1#], h2)
+
+		def asTuple: C[([#R1#])] = asNamed("Tuple1", Tuple1.apply)
+		def as[R](f: ([#R1#]) => R): C[R] = asNamed(f.toString, f)
+		private def asNamed[R](fName: String, f: ([#R1#]) => R): C[R] = {
+			val hf = new HandlerFactory[In, R] {
+				def makeHandler(): Handler[In, R] = {
+					val handlers = Vector([#h1#]).map(_.makeHandler())
+					new CompoundHandler[In, Any, R](handlers, { rawResults =>
+						[#val r1 = rawResults(0).asInstanceOf[R1]#
+						]
+						f([#r1#])
+					})
+				}
+				override def toString = s"Combined($fName: [#$h1#])"
+			}
+			fhf.makeInstance(hf, s"Combined($fName [#h1#])")
+		}
+	}
+	#
+	]
+
+	[22..22#
+	/** Intermediate class that represents a combination of 1 handler factories.
+	  * 1 is the highest number of handler factories that can be combined in this manner, so this class
+	  * does not include the `and` or `~` methods which would normally be used to add another handler factory.
+	  * The combination can be finalized to an actual handler factory using the `as` or `asTuple` methods.
+	  */
+	class Combined1[[#+R1#]]([#h1: HandlerFactory[In, R1]#]) {
+		def asTuple: C[([#R1#])] = asNamed("Tuple1", Tuple1.apply)
+		def as[R](f: ([#R1#]) => R): C[R] = asNamed(f.toString, f)
+		private def asNamed[R](fName: String, f: ([#R1#]) => R): C[R] = {
+			val hf = new HandlerFactory[In, R] {
+				def makeHandler(): Handler[In, R] = {
+					val handlers = Vector([#h1#]).map(_.makeHandler())
+					new CompoundHandler[In, Any, R](handlers, { rawResults =>
+						[#val r1 = rawResults(0).asInstanceOf[R1]#
+						]
+						f([#r1#])
+					})
+				}
+				override def toString = s"Combined($fName: [#$h1#])"
+			}
+			fhf.makeInstance(hf, s"Combined($fName [#h1#])")
+		}
+	}
+	#
+	]
+
+}
+
