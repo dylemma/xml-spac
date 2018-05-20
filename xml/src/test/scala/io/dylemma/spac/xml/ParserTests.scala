@@ -4,7 +4,9 @@ import javax.xml.stream.XMLStreamException
 import javax.xml.stream.events.XMLEvent
 
 import io.dylemma.spac.{Consumer, Splitter, Transformer}
+import io.dylemma.spac.xml._
 import org.scalatest.{FunSpec, Matchers}
+import XMLParser.handlerFactoryConverter
 
 import scala.util.{Failure, Success}
 

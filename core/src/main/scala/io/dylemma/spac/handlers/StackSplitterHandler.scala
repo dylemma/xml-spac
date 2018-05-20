@@ -1,18 +1,17 @@
 package io.dylemma.spac.handlers
 
 import io.dylemma.spac._
-import io.dylemma.spac.core.{ContextMove, Format}
+import io.dylemma.spac.types.Stackable
 
 import scala.util.{Failure, Success, Try}
 
-class StackFormatSplitterHandler[Event, StackElem, Context, P, Out](
-	contextual: Format.Aux[Event, StackElem],
+class StackSplitterHandler[Event, StackElem, Context, P, Out](
 	matcher: ContextMatcher[StackElem, Context],
 	joiner: Context => HandlerFactory[Event, P],
 	val downstream: Handler[P, Out]
-) extends SplitterHandlerBase[Event, Context, P, Out] {
+)(implicit stacker: Stackable.Aux[Event, StackElem]) extends SplitterHandlerBase[Event, Context, P, Out] {
 	protected def debugName = s"GenericSplitter($matcher){ $joiner } >> $downstream"
-	private val ctxTracker = contextual.makeContextTracker
+	private val ctxTracker = new StackContextTracker[Event, StackElem]
 
 	private var currentContext: Option[Try[Context]] = None
 	private var matchStartDepth = 0

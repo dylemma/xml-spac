@@ -29,7 +29,7 @@ import scala.collection.mutable.ArrayBuffer
   */
 class SequencedInStackHandler[In: Stackable, T1, T2](handler1: Handler[In, T1], getHandler2: T1 => Handler[In, T2]) extends Handler[In, T2] {
 	private val stackable = implicitly[Stackable[In]]
-	private val stack = new ArrayBuffer[stackable.StackElem]
+	private val stack = new ArrayBuffer[In]
 	private var handler2Opt: Option[Handler[In, T2]] = None
 
 	override def toString = {
@@ -76,11 +76,9 @@ class SequencedInStackHandler[In: Stackable, T1, T2](handler1: Handler[In, T1], 
 	  * in response to an EndElement.
 	  */
 	private def updateStack(event: In): Unit = {
-		stackable.asPush(event) match {
-			case Some(elem) => stack += elem
-			case None if(stackable.isPop(event)) => stack.remove(stack.length - 1)
-			case _ => ()
-		}
+		if (stackable isPush event) stack += event
+		else if (stackable isPop event) stack.remove(stack.length - 1)
+		else ()
 	}
 
 	/** Pass the StartElement events in the stack into `handler2` until either

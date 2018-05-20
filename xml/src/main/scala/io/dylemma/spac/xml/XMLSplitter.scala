@@ -3,14 +3,15 @@ package io.dylemma.spac.xml
 import javax.xml.namespace.QName
 import javax.xml.stream.events.{StartElement, XMLEvent}
 
-import io.dylemma.spac.xml.handlers.XMLContextSplitterHandler
-import io.dylemma.spac.{ContextMatcher, Handler, HandlerFactory, Splitter, SplitterApply, Transformer}
+import io.dylemma.spac.TransformerSyntax._
+import io.dylemma.spac.xml.XMLParser.handlerFactoryConverter
+import io.dylemma.spac.{BaseStackSplitter, ContextMatcher, HandlerFactory, SplitterApply}
 
 import scala.util.Try
 
-trait XMLSplitter[+Context] extends Splitter[XMLEvent, Context] { splitterSelf =>
+class XMLSplitter[+Context](matcher: ContextMatcher[StartElement, Context]) extends BaseStackSplitter(matcher) {
+	splitterSelf =>
 
-	def as[Out](implicit parser: Context => HandlerFactory[XMLEvent, Out]) = through(parser)
 	def attr(name: QName) = through(XMLParser.forMandatoryAttribute(name))
 	def attr(name: String) = through(XMLParser.forMandatoryAttribute(name))
 	def asText = through(XMLParser.forText)
@@ -33,18 +34,7 @@ trait XMLSplitter[+Context] extends Splitter[XMLEvent, Context] { splitterSelf =
 
 }
 
-object XMLSplitter {
-	implicit val xmlSplitterApply: SplitterApply[StartElement, XMLSplitter] = new SplitterApply[StartElement, XMLSplitter] {
-		def apply[Context](matcher: ContextMatcher[StartElement, Context]): XMLSplitter[Context] = new XMLSplitter[Context] { self =>
-			def through[P](joiner: Context => HandlerFactory[XMLEvent, P]): Transformer[XMLEvent, P] = {
-				new Transformer[XMLEvent, P] {
-					def makeHandler[Out](next: Handler[P, Out]): Handler[XMLEvent, Out] = {
-						new XMLContextSplitterHandler(matcher, joiner, next)
-					}
-					override def toString = s"$self{ $joiner }"
-				}
-			}
-			override def toString = s"Splitter($matcher)"
-		}
-	}
+object XMLSplitter extends SplitterApply[StartElement, XMLSplitter] {
+	companion =>
+	def apply[Context](matcher: ContextMatcher[StartElement, Context]) = new XMLSplitter(matcher)
 }

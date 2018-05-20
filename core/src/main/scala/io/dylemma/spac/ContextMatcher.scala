@@ -1,7 +1,5 @@
 package io.dylemma.spac
 
-import javax.xml.stream.events.StartElement
-
 import io.dylemma.spac.types.TypeReduce
 
 /** An object responsible for inspecting a stack of `StartElement` events and determining if they correspond

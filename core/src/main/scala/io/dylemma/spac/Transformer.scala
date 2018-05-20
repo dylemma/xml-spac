@@ -5,12 +5,18 @@ import io.dylemma.spac.types.Stackable
 
 import scala.util.Try
 
-/** An immutable object that can be used to create a handler which wraps
-	* an existing handler, possibly transforming inputs before passing them
-	* along to the downstream handler.
-	*/
+/** A transformation function for a stream, i.e. `Stream => Stream`.
+  * Transformers operate by wrapping a `downstream` handler with a new
+  * handler that manages the transformation.
+  *
+  * Transformers themselves are immutable; they act as handler factories
+  * (though not specifically the [[HandlerFactory]] trait, as a transformer
+  * requires a `downstream` handler in order to create its own handler.
+  */
 trait Transformer[-In, +B] { self =>
 	def makeHandler[Out](next: Handler[B, Out]): Handler[In, Out]
+
+	// TODO: Document all of these methods
 
 	def andThen[C](nextT: Transformer[B, C]): Transformer[In, C] = >>(nextT)
 	def >>[C](nextT: Transformer[B, C]): Transformer[In, C] = new Transformer[In, C] {
@@ -109,7 +115,7 @@ object Transformer {
 	  * Results from `t1` will be wrapped as `Left`, and results from `t2` will be wrapped as `Right`.
 	  * The downstream handler will receive results of type `Either[T1, T2]`.
 	  *
-	  * @param left The "left" transformer
+	  * @param left  The "left" transformer
 	  * @param right The "right" transformer
 	  * @tparam A The input type
 	  * @tparam L The "left" transformer's "transformed" type
@@ -167,7 +173,9 @@ object Transformer {
 	def sequenced[In: Stackable, T1, T2](consumer: Consumer[In, T1], getTransformer: T1 => Transformer[In, T2]): Transformer[In, T2] = new Transformer[In, T2] {
 		def makeHandler[Out](next: Handler[T2, Out]): Handler[In, Out] = {
 			val handler1 = consumer.makeHandler()
+
 			def getHandler2(h1Result: T1) = getTransformer(h1Result).makeHandler(next)
+
 			new SequencedInStackHandler(handler1, getHandler2)
 		}
 		override def toString = s"Sequenced($consumer, $getTransformer)"

@@ -8,6 +8,7 @@ import io.dylemma.spac.xml.SingleElementContextMatcher
 
 import scala.language.implicitConversions
 
+/** Defines XML-specific conveniences for creating `ContextMatchers`. */
 trait ContextMatcherSyntax {
 
 	/** Context matcher that always matches without consuming any of the tag stack.

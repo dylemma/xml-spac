@@ -84,9 +84,67 @@ trait ConsumerSyntax {
 
 	}
 
+	/** Adds the `and` and `~` methods to Consumers.
+	  * Unlike Parsers, which have a fixed input type, the combination methods had to be separated from the main Consumer
+	  * trait due to type variance conflicts on the `In` type.
+	  * This upgrade should apply to *all* consumers thanks to [[FromHandlerFactory.toConsumer]].
+	  *
+	  * @param self A consumer
+	  * @param fhf A type-level necessity that amounts to a no-op
+	  * @tparam In The consumer input type
+	  * @tparam A The consumer output type
+	  */
 	implicit class ConsumerCombineOps[In, A](self: Consumer[In, A])(implicit fhf: FromHandlerFactory[In, ({ type C[+o] = Consumer[In, o] })#C]) {
+		/** Starting point for Consumer combination methods.
+		  *
+		  * @return A HandlerCombination instance for `Consumer`
+		  */
 		protected def combination = new HandlerCombination[In, ({ type C[+o] = Consumer[In, o] })#C]
+
+		/** Combine this Consumer with another one of the same input type.
+		  * Note that the value returned by this method is an intermediate object which should be finalized
+		  * by calling its `asTuple` or `as{(a,b) => result}` method.
+		  * Further combinations can be added by calling `and` again on the intermediate object.
+		  *
+		  * Example:
+		  * {{{
+		  * val p1: Consumer[In, A] = /* ... */
+		  * val p2: Consumer[In, B] = /* ... */
+		  * val pc: Consumer[In, (A, B)] = (p1 and p2).asTuple
+		  * // or
+		  * val pc: Consumer[In, R] = (p1 and p2).as{ (a, b) => combineResults(a, b) }
+		  * }}}
+		  *
+		  * @param other Another Consumer to combine with
+		  * @tparam B The output type of the other Consumer
+		  * @return An intermediate oject with `as` and `asTuple` methods that finish the combination
+		  * @note This method is implicit added to *all* Consumers, since there is a `FromHandlerFactory`
+		  *       instance available for every `Consumer` type. The fact that this method is added implicitly
+		  *       is due to a type-variance conflict related to the `In` type.
+		  */
 		def and[B](other: Consumer[In, B]) = combination.combine(self, other)
+
+		/** Operator version of `and`, used to combine this Consumer with another one of the same input type.
+		  * Note that the value returned by this method is an intermediate object which should be finalized
+		  * by calling its `asTuple` or `as{(a,b) => result}` method.
+		  * Further combinations can be added by calling `and` again on the intermediate object.
+		  *
+		  * Example:
+		  * {{{
+		  * val p1: Consumer[In, A] = /* ... */
+		  * val p2: Consumer[In, B] = /* ... */
+		  * val pc: Consumer[In, (A, B)] = (p1 ~ p2).asTuple
+		  * // or
+		  * val pc: Consumer[In, R] = (p1 ~ p2).as{ (a, b) => combineResults(a, b) }
+		  * }}}
+		  *
+		  * @param other Another Consumer to combine with
+		  * @tparam B The output type of the other Consumer
+		  * @return An intermediate oject with `as` and `asTuple` methods that finish the combination
+		  * @note This method is implicit added to *all* Consumers, since there is a `FromHandlerFactory`
+		  *       instance available for every `Consumer` type. The fact that this method is added implicitly
+		  *       is due to a type-variance conflict related to the `In` type.
+		  */
 		def ~[B](other: Consumer[In, B]) = combination.combine(self, other)
 	}
 }
