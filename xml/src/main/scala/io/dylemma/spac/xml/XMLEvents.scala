@@ -79,18 +79,4 @@ class XMLEvents private(r: XMLEvents.Resource) {
 			def close(): Unit = closeFunc()
 		}
 	}
-
-	def feedTo[Out](consumer: Consumer[XMLEvent, Out]) = {
-		val (reader, closeFunc) = open
-		var result: Option[Out] = None
-		try {
-			val handler = consumer.makeHandler()
-			while(reader.hasNext && !handler.isFinished){
-				result = handler.handleInput(reader.nextEvent())
-			}
-			result getOrElse handler.handleEnd()
-		} finally {
-			closeFunc()
-		}
-	}
 }

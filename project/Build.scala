@@ -33,9 +33,20 @@ object XmlStreamBuild extends Build {
 		.settings(name := "spac-xml")
 		.settings(commonSettings: _*)
 		.settings(testSettings: _*)
-		.enablePlugins(BoilerplatePlugin)
 		.settings(apiDocSettings: _*)
 		.settings(publishingSettings: _*)
+		.dependsOn(core)
+
+	lazy val json = (project in file("json"))
+		.settings(name := "spac-json")
+		.settings(commonSettings: _*)
+		.settings(testSettings: _*)
+		.settings(apiDocSettings: _*)
+		.settings(publishingSettings: _*)
+		.settings(
+			libraryDependencies += "com.fasterxml.jackson.core" % "jackson-core" % "latest.integration" % "provided",
+			libraryDependencies += "com.fasterxml.jackson.core" % "jackson-core" % "latest.integration" % "test"
+		)
 		.dependsOn(core)
 
 	lazy val examples = (project in file("examples"))
