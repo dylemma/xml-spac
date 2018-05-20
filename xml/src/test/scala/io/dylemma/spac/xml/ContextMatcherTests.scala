@@ -1,4 +1,4 @@
-package io.dylemma.spac
+package io.dylemma.spac.xml
 
 import java.util
 import javax.xml.namespace.QName

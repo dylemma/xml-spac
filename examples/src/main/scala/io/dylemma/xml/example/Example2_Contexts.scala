@@ -3,6 +3,7 @@ package io.dylemma.xml.example
 import javax.xml.stream.events.StartElement
 
 import io.dylemma.spac._
+import io.dylemma.spac.xml._
 
 object Example2_Contexts extends App {
 
@@ -99,7 +100,7 @@ object Example2_Contexts extends App {
 	Now you can use the `postContextMatcher` to create a splitter that
 	has a `PostContext` as its context.
 	 */
-	val postSplitter: XmlSplitter[PostContext] = Splitter(postContextMatcher)
+	val postSplitter: XMLSplitter[PostContext] = Splitter(postContextMatcher)
 
 	/*
 	Create a `Comment` class then create a parser for it.

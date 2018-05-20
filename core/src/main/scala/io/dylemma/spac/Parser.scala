@@ -1,10 +1,7 @@
 package io.dylemma.spac
 
-import javax.xml.namespace.QName
-import javax.xml.stream.events.XMLEvent
-
 import io.dylemma.spac.handlers._
-import io.dylemma.spac.types.{Stackable}
+import io.dylemma.spac.types.Stackable
 
 import scala.language.higherKinds
 
@@ -29,12 +26,12 @@ abstract class ParserLike[In, +Out, Self[+o] <: HandlerFactory[In, o]](
 	  * from the source into that handler until it yields a result.
 	  *
 	  * @param src An object that can be treated as a stream of $Event
-	  * @param consumeXML Typeclass instance allowing instances of `Src` to be treated as a stream of $Event
+	  * @param cl Typeclass instance allowing instances of `Src` to be treated as a stream of $Event
 	  * @tparam Src The source object type
 	  * @return The parse result
 	  */
-	def parse[Src](src: Src)(implicit consumeXML: ConsumableLike[Src, In]): Out = {
-		consumeXML(src, makeHandler())
+	def parse[Src](src: Src)(implicit cl: ConsumableLike[Src, In]): Out = {
+		cl(src, makeHandler())
 	}
 
 	/** Convert this $PL to a Consumer.
@@ -189,18 +186,6 @@ abstract class ParserLike[In, +Out, Self[+o] <: HandlerFactory[In, o]](
 
 }
 
-/** A HandlerFactory specialized for XMLEvents, which produces results wrapped in a `Try`.
-  * Parsers can be combined and run to process complex XML structures.
-  *
-  * @tparam Out Result type
-  * @define hf    parser
-  * @define HF    `Parser`
-  * @define pl    parser
-  * @define PL    Parser
-  * @define Event XMLEvent
-  */
-abstract class Parser[+Out] extends ParserLike[XMLEvent, Out, Parser]
-
 trait ParserCompanion[In, Self[+_]] { self =>
 	implicit def handlerFactoryConverter: FromHandlerFactory[In, Self]
 
@@ -212,37 +197,6 @@ trait ParserCompanion[In, Self[+_]] { self =>
 		def makeHandler() = new ConstantHandler(value)
 		override def toString = s"$self.constant($value)"
 	})
-
-}
-
-object Parser extends ParserCompanion[XMLEvent, Parser] {
-
-	implicit val handlerFactoryConverter: FromHandlerFactory[XMLEvent, Parser] = new FromHandlerFactory[XMLEvent, Parser] {
-		override def makeInstance[Out](hf: HandlerFactory[XMLEvent, Out], debugName: String): Parser[Out] = new Parser[Out] {
-			def makeHandler() = hf.makeHandler()
-			override def toString = debugName
-		}
-	}
-
-	// TEXT
-	val forText: Parser[String] = new Parser[String] {
-		def makeHandler() = new TextCollectorHandler
-		override def toString = "XMLText"
-	}
-
-	// ATTRIBUTE
-	def forMandatoryAttribute(name: String): Parser[String] = forMandatoryAttribute(new QName(name))
-	def forMandatoryAttribute(name: QName): Parser[String] = new Parser[String] {
-		def makeHandler() = new MandatoryAttributeHandler(name)
-		override def toString = s"Attribute($name)"
-	}
-
-	// OPTIONAL ATTRIBUTE
-	def forOptionalAttribute(name: String): Parser[Option[String]] = forOptionalAttribute(new QName(name))
-	def forOptionalAttribute(name: QName): Parser[Option[String]] = new Parser[Option[String]] {
-		def makeHandler() = new OptionalAttributeHandler(name)
-		override def toString = s"OptionalAttribute($name)"
-	}
 
 }
 

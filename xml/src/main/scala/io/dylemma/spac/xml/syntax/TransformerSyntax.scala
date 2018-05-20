@@ -1,10 +1,9 @@
-package io.dylemma.spac.syntax
+package io.dylemma.spac.xml.syntax
 
 import javax.xml.stream.events.XMLEvent
 
-import io.dylemma.spac.{Consumer, Parser, Transformer}
-
-import scala.util.Try
+import io.dylemma.spac.xml.XMLParser
+import io.dylemma.spac.{Consumer, Transformer}
 
 trait TransformerSyntax {
 
@@ -18,15 +17,15 @@ trait TransformerSyntax {
 			* @return A `Parser` whose result is the result of the `consumer`
 			*         after receiving events from this transformer.
 			*/
-		def parseWith[B](consumer: Consumer[A, B]): Parser[B] = {
+		def parseWith[B](consumer: Consumer[A, B]): XMLParser[B] = {
 			val hf = t >> consumer
-			Parser.from(hf)
+			XMLParser.from(hf)
 		}
 
-		def parseToList: Parser[List[A]] = parseWith(Consumer.toList)
-		def parseFirst: Parser[A] = parseWith(Consumer.first)
-		def parseFirstOption: Parser[Option[A]] = parseWith(Consumer.firstOption)
-		def parseAsFold[R](init: R)(f: (R, A) => R): Parser[R] = parseWith(Consumer.fold(init, f))
+		def parseToList: XMLParser[List[A]] = parseWith(Consumer.toList)
+		def parseFirst: XMLParser[A] = parseWith(Consumer.first)
+		def parseFirstOption: XMLParser[Option[A]] = parseWith(Consumer.firstOption)
+		def parseAsFold[R](init: R)(f: (R, A) => R): XMLParser[R] = parseWith(Consumer.fold(init, f))
 	}
 
 }

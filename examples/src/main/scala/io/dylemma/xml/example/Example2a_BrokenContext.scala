@@ -1,6 +1,7 @@
 package io.dylemma.xml.example
 
 import io.dylemma.spac._
+import io.dylemma.spac.xml._
 
 object Example2a_BrokenContext extends App {
 

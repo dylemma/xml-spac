@@ -3,6 +3,7 @@ package io.dylemma.xml.example
 import javax.xml.stream.events.XMLEvent
 
 import io.dylemma.spac._
+import io.dylemma.spac.xml._
 
 import scala.util.{Success, Try}
 
@@ -42,7 +43,7 @@ object Example1_Basics extends App {
 	Note that some `Splitters` can extract a "context" value. This one simply matches without
 	extracting anything, so its type parameter is just `Unit`.
 	 */
-	val bookSplitter: XmlSplitter[Unit] = Splitter("library" \ "book")
+	val bookSplitter: XMLSplitter[Unit] = Splitter("library" \ "book")
 
 	/*
 	By attaching a parser to a splitter, you run the parser on each individual substream.

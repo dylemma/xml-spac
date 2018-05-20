@@ -3,6 +3,7 @@ package io.dylemma.xml.example
 import javax.xml.stream.events.XMLEvent
 
 import io.dylemma.spac._
+import io.dylemma.spac.xml._
 
 object Example5_FollowedBy extends App {
 	val xml ="""<doc>

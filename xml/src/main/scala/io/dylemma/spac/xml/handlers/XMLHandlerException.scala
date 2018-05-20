@@ -1,4 +1,4 @@
-package io.dylemma.spac.handlers
+package io.dylemma.spac.xml.handlers
 
 import javax.xml.stream.events.XMLEvent
 

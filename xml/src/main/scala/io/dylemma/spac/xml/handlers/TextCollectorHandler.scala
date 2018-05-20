@@ -1,10 +1,9 @@
-package io.dylemma.spac.handlers
+package io.dylemma.spac.xml.handlers
 
 import javax.xml.stream.events.XMLEvent
 
 import io.dylemma.spac.Handler
-
-import scala.util.Try
+import io.dylemma.spac.handlers.{FinishOnError, ManualFinish}
 
 class TextCollectorHandler
 	extends Handler[XMLEvent, String]

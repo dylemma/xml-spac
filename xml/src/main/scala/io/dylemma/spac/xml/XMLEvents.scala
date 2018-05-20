@@ -1,13 +1,21 @@
-package io.dylemma.spac
+package io.dylemma.spac.xml
 
 import java.io.Closeable
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.xml.stream.events.XMLEvent
 import javax.xml.stream.{XMLEventReader, XMLInputFactory}
 
+import io.dylemma.spac.{ConsumableLike, Consumer, Handler}
+
 import scala.util.control.NonFatal
 
 object XMLEvents {
+	implicit val consumableLike: ConsumableLike[XMLEvents, XMLEvent] = new ConsumableLike[XMLEvents, XMLEvent] {
+		def apply[R](source: XMLEvents, handler: Handler[XMLEvent, R]): R = {
+			runIterator(source.iterator, handler)
+		}
+	}
+
 	lazy val defaultFactory: XMLInputFactory = {
 		val factory = XMLInputFactory.newInstance
 		factory.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, false)

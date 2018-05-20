@@ -1,8 +1,6 @@
 package io.dylemma.spac
 
-import javax.xml.stream.events.XMLEvent
 import io.dylemma.spac.handlers.CompoundHandler
-import scala.util.Try
 import scala.language.higherKinds
 
 class HandlerCombination[In, C[+_]](implicit fhf: FromHandlerFactory[In, C]) {

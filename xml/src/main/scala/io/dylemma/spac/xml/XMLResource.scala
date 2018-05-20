@@ -1,7 +1,10 @@
-package io.dylemma.spac
+package io.dylemma.spac.xml
 
 import java.io.{File, FileInputStream, InputStream, StringReader}
+import javax.xml.stream.events.XMLEvent
 import javax.xml.stream.{XMLEventReader, XMLInputFactory}
+
+import io.dylemma.spac.{ConsumableLike, Handler}
 
 import scala.util.control.NonFatal
 
@@ -14,6 +17,12 @@ trait XMLResource[T] {
 }
 
 object XMLResource {
+
+	implicit def consumableLike[T: XMLResource]: ConsumableLike[T, XMLEvent] = new ConsumableLike[T, XMLEvent] {
+		def apply[R](source: T, handler: Handler[XMLEvent, R]): R = {
+			runIterator(XMLEvents(source).iterator, handler)
+		}
+	}
 
 	implicit object FileXMLResource extends XMLResource[File] {
 		type Opened = FileInputStream

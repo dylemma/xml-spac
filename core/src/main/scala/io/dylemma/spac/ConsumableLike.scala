@@ -1,7 +1,5 @@
 package io.dylemma.spac
 
-import javax.xml.stream.events.XMLEvent
-
 import scala.util.control.NonFatal
 
 trait ConsumableLike[-S, +E] {
@@ -33,21 +31,6 @@ trait ConsumableLike[-S, +E] {
 }
 
 object ConsumableLike {
-	// XMLEvents
-	implicit object XMLEventsConsumableLike$ extends ConsumableLike[XMLEvents, XMLEvent] {
-		def apply[R](source: XMLEvents, handler: Handler[XMLEvent, R]): R = {
-			runIterator(source.iterator, handler)
-		}
-	}
-
-	// anything in the XMLResource typeclass
-	implicit def getXMLResourceConsumable[T: XMLResource]: ConsumableLike[T, XMLEvent] = {
-		new ConsumableLike[T, XMLEvent] {
-			def apply[R](source: T, handler: Handler[XMLEvent, R]): R = {
-				runIterator(XMLEvents(source).iterator, handler)
-			}
-		}
-	}
 
 	// anything Iterable
 	implicit def getIterableConsumable[T]: ConsumableLike[Iterable[T], T] = {

@@ -1,9 +1,10 @@
-package io.dylemma.spac.syntax
+package io.dylemma.spac.xml.syntax
 
 import javax.xml.namespace.QName
 import javax.xml.stream.events.StartElement
 
-import io.dylemma.spac._
+import io.dylemma.spac.ContextMatcher
+import io.dylemma.spac.xml.SingleElementContextMatcher
 
 import scala.language.implicitConversions
 

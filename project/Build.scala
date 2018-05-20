@@ -22,12 +22,21 @@ object XmlStreamBuild extends Build {
 	)
 
 	lazy val core = (project in file("core"))
-		.settings(name := "xml-spac")
+		.settings(name := "spac-core")
 		.settings(commonSettings: _*)
 		.settings(testSettings: _*)
 		.enablePlugins(BoilerplatePlugin)
 		.settings(apiDocSettings: _*)
 		.settings(publishingSettings: _*)
+
+	lazy val xml = (project in file("xml"))
+		.settings(name := "spac-xml")
+		.settings(commonSettings: _*)
+		.settings(testSettings: _*)
+		.enablePlugins(BoilerplatePlugin)
+		.settings(apiDocSettings: _*)
+		.settings(publishingSettings: _*)
+		.dependsOn(core)
 
 	lazy val examples = (project in file("examples"))
 		.settings(commonSettings: _*)
@@ -35,7 +44,7 @@ object XmlStreamBuild extends Build {
 			publish := {},
 			libraryDependencies += "joda-time" % "joda-time" % "2.9.4"
 		)
-		.dependsOn(core)
+		.dependsOn(core, xml)
 
 	lazy val root = (project in file("."))
 		.settings(publish := {})

@@ -1,7 +1,5 @@
 package io.dylemma.spac.handlers
 
-import javax.xml.stream.events.{StartElement, XMLEvent}
-
 import io.dylemma.spac._
 import io.dylemma.spac.core.{ContextMove, Format}
 
@@ -84,13 +82,4 @@ class StackFormatSplitterHandler[Event, StackElem, Context, P, Out](
 	}
 }
 
-class XMLContextSplitterHandler[Context, P, Out](
-	matcher: ContextMatcher[StartElement, Context],
-	joiner: Context => HandlerFactory[XMLEvent, P],
-	downstream: Handler[P, Out]
-) extends StackFormatSplitterHandler(
-	Format.forXml,
-	matcher,
-	joiner,
-	downstream
-)
+

@@ -1,11 +1,12 @@
-package io.dylemma.spac
+package io.dylemma.spac.xml
 
 import javax.xml.stream.XMLStreamException
 import javax.xml.stream.events.XMLEvent
 
+import io.dylemma.spac.{Consumer, Splitter, Transformer}
 import org.scalatest.{FunSpec, Matchers}
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 class ParserTests extends FunSpec with Matchers {
 
@@ -162,7 +163,7 @@ class ParserTests extends FunSpec with Matchers {
 		it("should pass the same context value to its inner parsers if it requires a context"){
 			class A
 			case class AText(a: A, text: String)
-			val splitter: XmlSplitter[A] = Splitter(attr("a").map(_ => new A))
+			val splitter: XMLSplitter[A] = Splitter(attr("a").map(_ => new A))
 			val rawXml = """<foo a="123"><x>Hello</x><y>Goodbye</y></foo>"""
 			// the two inner parsers should receive the same 'A' instance passed to this parser from a splitter
 			def parseAText(context: A, elem: String) = {
