@@ -3,9 +3,9 @@ package io.dylemma.spac.xml.syntax
 import javax.xml.stream.events.{StartElement, XMLEvent}
 
 import io.dylemma.spac.handlers.ContextTracker
-import io.dylemma.spac.{ConsumableLike, SplitterApply}
+import io.dylemma.spac.{ConsumableLike, FromHandlerFactory, SplitterApply}
 import io.dylemma.spac.types.Stackable
-import io.dylemma.spac.xml.{XMLEvents, XMLResource, XMLSplitter, XMLContextTracker}
+import io.dylemma.spac.xml.{XMLContextTracker, XMLEvents, XMLParser, XMLResource, XMLSplitter}
 
 /** Defines XML-specific instances for the core spac typeclasses. */
 trait Implicits {
@@ -36,4 +36,6 @@ trait Implicits {
 	/** Implicit evidence that you can call `Splitter.apply` on a `ContextMatcher[StartElement, T]` to get an `XMLSplitter[T]`.
 	  */
 	implicit val xmlSplitterApply: SplitterApply[StartElement, XMLSplitter] = XMLSplitter
+
+	implicit val xmlParserFromHandlerFactory: FromHandlerFactory[XMLEvent, XMLParser] = XMLParser.handlerFactoryConverter
 }

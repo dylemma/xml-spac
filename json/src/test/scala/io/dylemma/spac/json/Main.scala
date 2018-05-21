@@ -5,32 +5,21 @@ import io.dylemma.spac.{BaseStackSplitter, Consumer, ContextMatcher, Splitter, d
 
 object Main {
 	def main(args: Array[String]): Unit = {
-		debug.enabled.set(true)
+		// debug.enabled.set(true)
 		val rawJson =
 			"""{
-			  |  "hello": [1, 2, 3],
+			  |  "hello": [
+			  |    {"a": 1 },
+			  |    [1, 2, 3],
+			  |    true
+			  |  ],
 			  |  "world": null
 			  |}""".stripMargin
 
-		val ctxTracker = new JsonContextTracker
-
-		class FieldContextMatcher(name: String) extends ContextMatcher[JsonStackElem, Unit] {
-			def applyChained[B](stack: IndexedSeq[JsonStackElem], offset: Int, avail: Int, next: ContextMatcher[JsonStackElem, B]): Option[(Unit, B)] = {
-				if (avail >= 2 && stack(offset) == JsonStackElem.Object && stack(offset + 1) == JsonStackElem.Field(name)) {
-					println(s"CONTEXT MATCH for $name")
-					next(stack, offset + 2, avail - 2).map(() -> _)
-				} else {
-					println("no match @ " + stack.slice(offset, offset + avail).mkString("Context[ ", " - ", " ]"))
-					None
-				}
-			}
-		}
-
-		val splitter = new BaseStackSplitter(new FieldContextMatcher("hello"))
-		val contextCollector = splitter.through(Consumer.toList).consumeForEach { events =>
+		val consumer = Splitter("hello" \ anyIndex).as(Consumer.toList).consumeForEach { events =>
 			println(events.mkString("Events[ ", " - ", " ]"))
 		}
-		contextCollector consume rawJson
+		consumer consume rawJson
 
 	}
 

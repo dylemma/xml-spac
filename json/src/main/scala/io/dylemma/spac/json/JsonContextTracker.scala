@@ -37,7 +37,7 @@ class JsonContextTracker extends ContextTracker[JsonEvent, JsonStackElem] {
 					ContextMove.Multi(ContextMove.Pop, () => {
 						// push the new index
 						stack += JsonStackElem.Index(i + 1)
-						ContextMove.Multi(ContextMove.Pop, finalMove)
+						ContextMove.Multi(ContextMove.Push, finalMove)
 					})
 				}
 

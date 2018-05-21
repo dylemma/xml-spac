@@ -4,13 +4,11 @@ import javax.xml.namespace.QName
 import javax.xml.stream.events.{StartElement, XMLEvent}
 
 import io.dylemma.spac.TransformerSyntax._
-import io.dylemma.spac.xml.XMLParser.handlerFactoryConverter
 import io.dylemma.spac.{BaseStackSplitter, ContextMatcher, HandlerFactory, SplitterApply}
 
 import scala.util.Try
 
 class XMLSplitter[+Context](matcher: ContextMatcher[StartElement, Context]) extends BaseStackSplitter(matcher) {
-	splitterSelf =>
 
 	def attr(name: QName) = through(XMLParser.forMandatoryAttribute(name))
 	def attr(name: String) = through(XMLParser.forMandatoryAttribute(name))
@@ -35,6 +33,5 @@ class XMLSplitter[+Context](matcher: ContextMatcher[StartElement, Context]) exte
 }
 
 object XMLSplitter extends SplitterApply[StartElement, XMLSplitter] {
-	companion =>
 	def apply[Context](matcher: ContextMatcher[StartElement, Context]) = new XMLSplitter(matcher)
 }

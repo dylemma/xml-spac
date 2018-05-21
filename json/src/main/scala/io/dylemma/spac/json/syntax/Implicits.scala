@@ -1,8 +1,8 @@
 package io.dylemma.spac.json.syntax
 
-import io.dylemma.spac.ConsumableLike
+import io.dylemma.spac.{ConsumableLike, FromHandlerFactory, SplitterApply}
 import io.dylemma.spac.handlers.ContextTracker
-import io.dylemma.spac.json.{JsonContextTracker, JsonEvent, JsonEvents, JsonResource, JsonStackElem}
+import io.dylemma.spac.json.{JsonContextTracker, JsonEvent, JsonEvents, JsonParser, JsonResource, JsonSplitter, JsonStackElem}
 import io.dylemma.spac.types.Stackable
 
 trait Implicits {
@@ -22,4 +22,8 @@ trait Implicits {
 	implicit def consumableLikeJsonResource[T: JsonResource]: ConsumableLike[T, JsonEvent] = JsonResource.consumableLike[T]
 
 	implicit def makeContextTracker: ContextTracker[JsonEvent, JsonStackElem] = new JsonContextTracker
+
+	implicit val jsonSplitterApply: SplitterApply[JsonStackElem, JsonSplitter] = JsonSplitter
+
+	implicit val jsonParserFromHandlerFactory: FromHandlerFactory[JsonEvent, JsonParser] = JsonParser.handlerFactoryConverter
 }

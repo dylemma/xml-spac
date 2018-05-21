@@ -35,6 +35,7 @@ class StackSplitterHandler[Event, StackElem, Context, P, Out](
 						debug(s"Entered context: $newMatch at depth $matchStartDepth")
 					case Failure(err) =>
 						currentParserHandler = None
+						debug(s"Failed to enter new context due to error")
 						result = feedErrorToDownstream(err)
 				}
 			}
