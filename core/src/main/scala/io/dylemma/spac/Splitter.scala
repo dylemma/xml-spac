@@ -1,6 +1,6 @@
 package io.dylemma.spac
 
-import io.dylemma.spac.handlers.{SplitOnMatchHandler, StackSplitterHandler}
+import io.dylemma.spac.handlers.{ContextTracker, SplitOnMatchHandler, StackSplitterHandler}
 import io.dylemma.spac.types.Stackable
 
 import scala.language.higherKinds
@@ -65,7 +65,7 @@ trait Splitter[In, +Context] {
 class BaseStackSplitter[In, StackElem, +Context](
 	matcher: ContextMatcher[StackElem, Context]
 )(
-	implicit stacker: Stackable.Aux[In, StackElem]
+	implicit ctxTracker: ContextTracker[In, StackElem]
 ) extends Splitter[In, Context] { self =>
 	override def toString = s"Splitter($matcher)"
 	def through[P](joiner: Context => HandlerFactory[In, P]): Transformer[In, P] = new Transformer[In, P] {

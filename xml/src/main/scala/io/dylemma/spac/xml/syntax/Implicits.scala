@@ -2,9 +2,10 @@ package io.dylemma.spac.xml.syntax
 
 import javax.xml.stream.events.{StartElement, XMLEvent}
 
+import io.dylemma.spac.handlers.ContextTracker
 import io.dylemma.spac.{ConsumableLike, SplitterApply}
 import io.dylemma.spac.types.Stackable
-import io.dylemma.spac.xml.{XMLEvents, XMLResource, XMLSplitter}
+import io.dylemma.spac.xml.{XMLEvents, XMLResource, XMLSplitter, XMLContextTracker}
 
 /** Defines XML-specific instances for the core spac typeclasses. */
 trait Implicits {
@@ -18,6 +19,8 @@ trait Implicits {
 		def isPop(elem: XMLEvent) = elem.isEndElement
 		def asPush(elem: XMLEvent) = if(elem.isStartElement) Some(elem.asStartElement) else None
 	}
+
+	implicit def makeContextTracker: ContextTracker[XMLEvent, StartElement] = new XMLContextTracker
 
 	/** Implicit evidence that an `XMLEvents` instance can be opened as a stream of `XMLEvent`.
 	  */
