@@ -5,7 +5,7 @@ import javax.xml.stream.events.XMLEvent
 import io.dylemma.spac._
 import io.dylemma.spac.xml._
 
-import scala.util.{Success, Try}
+import scala.util.Try
 
 object Example1_Basics extends App {
 
@@ -19,7 +19,7 @@ object Example1_Basics extends App {
 		|</library>""".stripMargin
 
 	/*
-	A `Parser[Out]` is able to parse a stream of XMLEvents to produce a `Try[Out]`.
+	A `Parser[Out]` is able to parse a stream of XMLEvents to produce an `Out`.
 
 	The `Parser.forText` parser will collect all of the `Characters` events it encounters, and concatenate them.
 	 */
@@ -84,7 +84,7 @@ object Example1_Basics extends App {
 	 */
 	val allBooksResult1 = bookListConsumer consume libraryXml
 	val allBooksResult2 = bookListParser parse libraryXml
-	assert(allBooksResult2 == Success(allBooksResult1))
+	assert(allBooksResult2 == allBooksResult1)
 	println(allBooksResult1)
 	println("\n")
 
