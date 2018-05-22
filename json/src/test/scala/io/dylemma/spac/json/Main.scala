@@ -1,25 +1,54 @@
 package io.dylemma.spac.json
 
-import io.dylemma.spac.{Consumer, Splitter, debug}
+import io.dylemma.spac.{Consumer, HandlerFactory, Splitter, debug, json}
 
 object Main {
+
+	val helloWorldJson =
+		"""{
+		  |  "hello": [
+		  |    {"a": 1 },
+		  |    "wtf is this",
+		  |    [1, 2, 3],
+		  |    true
+		  |  ],
+		  |  "world": null
+		  |}""".stripMargin
+
+	// ADT representing the kinds of things in the `hello` array
+	sealed trait HelloItem
+	object HelloItem {
+		case class A(value: Int) extends HelloItem
+		case class Arr(values: List[Int]) extends HelloItem
+		case class Bool(value: Boolean) extends HelloItem
+		case class Str(value: String) extends HelloItem
+		case class AEvents(events: List[JsonEvent]) extends HelloItem
+
+		implicit val helloParser = Parser.oneOf(
+			Splitter("a").first[Int].map(A),
+			Splitter(anyIndex).asListOf[Int].map(Arr),
+			Parser[String].map(Str),
+			Parser[Boolean].map(Bool)
+		)
+	}
+
+	// case class representing a "hello world" object
+	case class HelloWorld(
+		hello: List[HelloItem],
+		world: Option[String]
+	)
+	object HelloWorld {
+		implicit val helloWorldParser: Parser[HelloWorld] = (
+			Splitter("hello" \ anyIndex).asListOf[HelloItem] and
+			Splitter("world").first(Parser.nullable[String])
+		).as(HelloWorld.apply)
+	}
+
+
 	def main(args: Array[String]): Unit = {
 		debug.enabled.set(false)
-		val rawJson =
-			"""{
-			  |  "hello": [
-			  |    {"a": 1 },
-			  |    [1, 2, 3],
-			  |    true
-			  |  ],
-			  |  "world": null
-			  |}""".stripMargin
 
-		val consumer = Splitter("hello" \ anyIndex).as(Consumer.toList).consumeForEach { events =>
-			println(events.mkString("Events[ ", " - ", " ]"))
-		}
-		consumer consume rawJson
-
+		println(Parser[HelloWorld] parse helloWorldJson)
 	}
 
 	// Below here is just some brainstorming for how JSON parsers/splitters should

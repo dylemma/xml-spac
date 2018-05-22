@@ -114,6 +114,23 @@ abstract class ParserLike[In, +Out, Self[+o] <: HandlerFactory[In, o]](
 		s"$self.map($f)"
 	)
 
+	/** Combine this parser with the `fallback` such that if either one fails but the other succeeds,
+	  * the result will be taken from the one that succeeds.
+	  *
+	  * Note: if you want to have a chain of fallbacks, it will be more efficient to do
+	  * `Parser.oneOf(p1, p2, p3, ...)` than doing `p1 orElse p2 orElse p3 orElse ...`.
+	  *
+	  * @param fallback
+	  * @tparam B
+	  * @return
+	  */
+	def orElse[B >: Out](fallback: Self[B]): Self[B] = handlerFactoryConverter.makeInstance(
+		new HandlerFactory[In, B] {
+			def makeHandler() = new FallbackSetHandler[In, B](self.makeHandler(), fallback.makeHandler())
+		},
+		s"$self.orElse($fallback)"
+	)
+
 	/** An intermediate object with an `apply` and `flatMap` that both create a sequenced $PL
 	  * which combines this $PL with a function to create the next one.
 	  *
@@ -186,7 +203,7 @@ abstract class ParserLike[In, +Out, Self[+o] <: HandlerFactory[In, o]](
 
 }
 
-trait ParserCompanion[In, Self[+_]] { self =>
+trait ParserCompanion[In, Self[+o] <: HandlerFactory[In, o]] { self =>
 	implicit def handlerFactoryConverter: FromHandlerFactory[In, Self]
 
 	def from[Out](hf: HandlerFactory[In, Out]): Self[Out] = {
@@ -198,6 +215,9 @@ trait ParserCompanion[In, Self[+_]] { self =>
 		override def toString = s"$self.constant($value)"
 	})
 
+	def oneOf[Out](parsers: Self[Out]*): Self[Out] = from(new HandlerFactory[In, Out]{
+		def makeHandler() = new FallbackSetHandler(parsers.map(_.makeHandler()): _*)
+	})
 }
 
 

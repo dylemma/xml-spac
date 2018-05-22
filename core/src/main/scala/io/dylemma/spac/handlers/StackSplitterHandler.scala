@@ -12,6 +12,7 @@ class StackSplitterHandler[Event, StackElem, Context, P, Out](
 	val downstream: Handler[P, Out]
 )(implicit stackable: Stackable.Aux[Event, StackElem]) extends SplitterHandlerBase[Event, Context, P, Out] {
 	protected def debugName = s"GenericSplitter($matcher){ $joiner } >> $downstream"
+	override def toString = debugName
 
 	private val stack = new ArrayBuffer[StackElem]
 	private var currentContext: Option[Try[Context]] = None

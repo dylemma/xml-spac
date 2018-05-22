@@ -5,14 +5,19 @@ import io.dylemma.spac._
 class JsonSplitter[+Context](matcher: ContextMatcher[JsonStackElem, Context]) extends BaseStackSplitter[JsonEvent, JsonStackElem, Context](matcher) {
 	// TODO: add JSON-specific parsing conveniences here
 
-	def asListOf[Out](implicit parser: Context => HandlerFactory[JsonEvent, Out]) = as[Out].parseToList
+	object asListOf {
+		def choose[Out](implicit parser: Context => HandlerFactory[JsonEvent, Out]) = as[Out].parseToList
+		def apply[Out: Parser] = as[Out].parseToList
+	}
 
 	object first {
-		def apply[Out](implicit parser: Context => HandlerFactory[JsonEvent, Out]) = as(parser).parseFirst
+		def choose[Out](implicit parser: Context => HandlerFactory[JsonEvent, Out]) = as(parser).parseFirst
+		def apply[Out: Parser] = as[Out].parseFirst
 	}
 
 	object firstOption {
-		def apply[Out](implicit parser: Context => HandlerFactory[JsonEvent, Out]) = as(parser).parseFirstOption
+		def choose[Out](implicit parser: Context => HandlerFactory[JsonEvent, Out]) = as(parser).parseFirstOption
+		def apply[Out: Parser] = as[Out].parseFirstOption
 	}
 }
 
