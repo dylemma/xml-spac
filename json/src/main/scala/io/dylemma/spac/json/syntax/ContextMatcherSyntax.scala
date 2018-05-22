@@ -1,7 +1,7 @@
 package io.dylemma.spac.json.syntax
 
 import io.dylemma.spac.ContextMatcher
-import io.dylemma.spac.json.{JsonStackElem, SingleTokenContextMatcher}
+import io.dylemma.spac.json.{JsonEvent, JsonStackElem, SingleTokenContextMatcher}
 
 import scala.language.implicitConversions
 
@@ -10,58 +10,58 @@ trait ContextMatcherSyntax {
 	// Match an entire object
 
 	val inObject = SingleTokenContextMatcher[Unit]({
-		case JsonStackElem.Object => Some(())
+		case JsonEvent.ObjectStart => Some(())
 		case _ => None
 	}, "inObject")
 
 	// Match an entire array
 
 	val inArray = SingleTokenContextMatcher[Unit]({
-		case JsonStackElem.Array => Some(())
+		case JsonEvent.ArrayStart => Some(())
 		case other => None
 	}, "inArray")
 
 	// Match by field
 
 	def bareField(name: String) = SingleTokenContextMatcher[Unit]({
-		case JsonStackElem.Field(`name`) => Some(())
+		case JsonEvent.FieldStart(`name`) => Some(())
 		case _ => None
 	}, s"bareField($name)")
 
 	def bareField[A](contextFromName: String => Option[A]) = SingleTokenContextMatcher[A]({
-		case JsonStackElem.Field(name) => contextFromName(name)
+		case JsonEvent.FieldStart(name) => contextFromName(name)
 		case _ => None
 	}, s"bareField($contextFromName)")
 
 	def bareFieldWhere(p: String => Boolean) = SingleTokenContextMatcher[String]({
-		case JsonStackElem.Field(name) if p(name) => Some(name)
+		case JsonEvent.FieldStart(name) if p(name) => Some(name)
 		case _ => None
 	}, s"bareFieldWhere($p)")
 
 	val anyBareField = SingleTokenContextMatcher[String]({
-		case JsonStackElem.Field(name) => Some(name)
+		case JsonEvent.FieldStart(name) => Some(name)
 		case _ => None
 	}, "anyBareField")
 
 	// Match by array index
 
 	def bareIndex(i: Int) = SingleTokenContextMatcher[Unit]({
-		case JsonStackElem.Index(`i`) => Some(())
+		case JsonEvent.IndexStart(`i`) => Some(())
 		case _ => None
 	}, s"bareIndex($i)")
 
 	def bareIndex[A](contextFromIndex: Int => Option[A]) = SingleTokenContextMatcher[A]({
-		case JsonStackElem.Index(i) => contextFromIndex(i)
+		case JsonEvent.IndexStart(i) => contextFromIndex(i)
 		case _ => None
 	}, s"bareIndex($contextFromIndex)")
 
 	def bareIndexWhere(p: Int => Boolean) = SingleTokenContextMatcher[Int]({
-		case JsonStackElem.Index(i) if p(i) => Some(i)
+		case JsonEvent.IndexStart(i) if p(i) => Some(i)
 		case _ => None
 	}, s"bareIndexWhere($p)")
 
 	val anyBareIndex = SingleTokenContextMatcher[Int]({
-		case JsonStackElem.Index(i) => Some(i)
+		case JsonEvent.IndexStart(i) => Some(i)
 		case _ => None
 	}, s"anyBareIndex")
 

@@ -57,7 +57,7 @@ trait Splitter[In, +Context] {
   * and exit states that cause the `matcher` returns a value.
   *
   * @param matcher A function that decides whether the context stack represents a `Context` value
-  * @param stacker A strategy for updating the context stack based on inputs
+  * @param stackable A strategy for updating the context stack based on inputs
   * @tparam In The input type
   * @tparam StackElem The context stack type
   * @tparam Context The interpreted value returned by the `matcher` given a context stack
@@ -65,7 +65,7 @@ trait Splitter[In, +Context] {
 class BaseStackSplitter[In, StackElem, +Context](
 	matcher: ContextMatcher[StackElem, Context]
 )(
-	implicit ctxTracker: ContextTracker[In, StackElem]
+	implicit stackable: Stackable.Aux[In, StackElem]
 ) extends Splitter[In, Context] { self =>
 	override def toString = s"Splitter($matcher)"
 	def through[P](joiner: Context => HandlerFactory[In, P]): Transformer[In, P] = new Transformer[In, P] {

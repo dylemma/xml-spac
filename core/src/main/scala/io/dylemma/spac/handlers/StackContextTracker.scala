@@ -30,7 +30,7 @@ object ContextMove {
 
 trait ContextTracker[E, S] {
 	def currentDepth: Int
-	def copyStack: List[S]
+	def stackIterator: Iterator[S]
 	def checkContext[A](matcher: ContextMatcher[S, A]): Option[A]
 	def evolve(event: E): ContextMove
 }

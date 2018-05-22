@@ -1,11 +1,10 @@
 package io.dylemma.spac.json
 
-import io.dylemma.spac.handlers.ContextMove
-import io.dylemma.spac.{BaseStackSplitter, Consumer, ContextMatcher, Splitter, debug}
+import io.dylemma.spac.{Consumer, Splitter, debug}
 
 object Main {
 	def main(args: Array[String]): Unit = {
-		// debug.enabled.set(true)
+		debug.enabled.set(false)
 		val rawJson =
 			"""{
 			  |  "hello": [

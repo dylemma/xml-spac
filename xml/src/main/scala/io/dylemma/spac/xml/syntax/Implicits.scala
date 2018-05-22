@@ -2,10 +2,9 @@ package io.dylemma.spac.xml.syntax
 
 import javax.xml.stream.events.{StartElement, XMLEvent}
 
-import io.dylemma.spac.handlers.ContextTracker
-import io.dylemma.spac.{ConsumableLike, FromHandlerFactory, SplitterApply}
 import io.dylemma.spac.types.Stackable
-import io.dylemma.spac.xml.{XMLContextTracker, XMLEvents, XMLParser, XMLResource, XMLSplitter}
+import io.dylemma.spac.xml.{XMLEvents, XMLParser, XMLResource, XMLSplitter}
+import io.dylemma.spac.{ConsumableLike, FromHandlerFactory, SplitterApply}
 
 /** Defines XML-specific instances for the core spac typeclasses. */
 trait Implicits {
@@ -18,9 +17,12 @@ trait Implicits {
 		def isPush(elem: XMLEvent) = elem.isStartElement
 		def isPop(elem: XMLEvent) = elem.isEndElement
 		def asPush(elem: XMLEvent) = if(elem.isStartElement) Some(elem.asStartElement) else None
+		def order(elem: XMLEvent) = {
+			if(elem.isStartElement) 1 // after context change, to include the StartElement in the new context
+			else if(elem.isEndElement) -1 // before context change, to include the EndElement in the context it is ending
+			else 0
+		}
 	}
-
-	implicit def makeContextTracker: ContextTracker[XMLEvent, StartElement] = new XMLContextTracker
 
 	/** Implicit evidence that an `XMLEvents` instance can be opened as a stream of `XMLEvent`.
 	  */
@@ -37,5 +39,5 @@ trait Implicits {
 	  */
 	implicit val xmlSplitterApply: SplitterApply[StartElement, XMLSplitter] = XMLSplitter
 
-	implicit val xmlParserFromHandlerFactory: FromHandlerFactory[XMLEvent, XMLParser] = XMLParser.handlerFactoryConverter
+	implicit def xmlParserFromHandlerFactory: FromHandlerFactory[XMLEvent, XMLParser] = XMLParser.handlerFactoryConverter
 }

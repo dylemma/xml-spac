@@ -3,10 +3,9 @@ package io.dylemma.spac.xml
 import javax.xml.stream.XMLStreamException
 import javax.xml.stream.events.XMLEvent
 
-import io.dylemma.spac.{Consumer, Splitter, Transformer}
+import io.dylemma.spac._
 import io.dylemma.spac.xml._
 import org.scalatest.{FunSpec, Matchers}
-import XMLParser.handlerFactoryConverter
 
 import scala.util.{Failure, Success}
 
@@ -138,7 +137,7 @@ class ParserTests extends FunSpec with Matchers {
 
 		it("should split the events into substreams"){
 			val rawXml = "<foo><bar>Hello</bar><bar>World</bar></foo>"
-			val splitParser = Splitter(* \ "bar").through(Parser.forText).parseToList
+			val splitParser = new TransformerParsingOps(Splitter(* \ "bar").through(Parser.forText)).parseToList
 			val unsplitParser = Parser.forText
 			testParserResult(rawXml, unsplitParser, "HelloWorld")
 			testParserResult(rawXml, splitParser, List("Hello", "World"))

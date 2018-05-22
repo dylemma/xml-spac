@@ -56,42 +56,47 @@ class JsonEvents private(r: JsonEvents.Resource) {
 	def iterator: Iterator[JsonEvent] with Closeable = {
 		val parser = provider.createParser(factory, source)
 		new Iterator[JsonEvent] with Closeable {
-			private var currentEvent: Option[JsonEvent] = None
-			private var bufferIsNext = false // if this is true, then `currentEvent` should be returned by next()
+			private var contextStack: List[JsonStackElem] = Nil
+			private var buffer: List[JsonEvent] = Nil
+			private var isEOF = false
 
 			def hasNext = {
-				if(!bufferIsNext) advance()
-				currentEvent.isDefined
-			}
-
-			def next() = {
-				if(!bufferIsNext) advance()
-				currentEvent match {
-					case Some(e) =>
-						// Since we are consuming the buffered event, reset the flag
-						// so the state will `advance()` next time
-						bufferIsNext = false // since we are consuming the value
-						e
-					case None =>
-						throw new NoSuchElementException("JSON parser reached EOF")
-				}
+				if(buffer.isEmpty && !isEOF) advance()
+				buffer.nonEmpty
 			}
 
 			def close() = {
 				parser.close()
 			}
 
+			def next() = {
+				if(buffer.isEmpty && !isEOF) advance()
+				buffer match {
+					case event :: remaining =>
+						buffer = remaining
+						contextStack = event match {
+							case push: JsonStackElem => push :: contextStack
+							case _: JsonStackPop => contextStack.tail
+							case _ => contextStack
+						}
+						event
+					case Nil => throw new NoSuchElementException("next() at EOF")
+				}
+			}
+
 			private def advance(): Unit = {
 				val token = parser.nextToken
 				if(token == null){
 					// update the state to signify EOF
-					currentEvent = None
-					bufferIsNext = true
+					buffer = Nil
+					isEOF = true
 				} else {
-					// update the state to contain the next value returned by getNext
-					currentEvent = Some(token match {
+					isEOF = false
+
+					// create an event based on the parser's current "token"
+					val event = token match {
 						case JsonToken.START_OBJECT => JsonEvent.ObjectStart
-						case JsonToken.FIELD_NAME => JsonEvent.ObjectField(parser.getCurrentName)
+						case JsonToken.FIELD_NAME => JsonEvent.FieldStart(parser.getCurrentName)
 						case JsonToken.END_OBJECT => JsonEvent.ObjectEnd
 						case JsonToken.START_ARRAY => JsonEvent.ArrayStart
 						case JsonToken.END_ARRAY => JsonEvent.ArrayEnd
@@ -101,13 +106,39 @@ class JsonEvents private(r: JsonEvents.Resource) {
 						case JsonToken.VALUE_NUMBER_FLOAT => JsonEvent.JDouble(parser.getDoubleValue)
 						case JsonToken.VALUE_STRING => JsonEvent.JString(parser.getText)
 						case JsonToken.VALUE_NULL => JsonEvent.JNull
-						case t =>
-							println(s"unhandled JsonToken: $t")
-							JsonEvent.Unknown
-					})
-					bufferIsNext = true
+						case t => JsonEvent.Unknown
+					}
+
+					// infer any extra context start/end events, injecting them into the returned buffer
+					buffer = contextStack.headOption match {
+						// If an array just started, any event but ArrayEnd should push an Index(0) context.
+						case Some(JsonEvent.ArrayStart) if event != JsonEvent.ArrayEnd =>
+							JsonEvent.IndexStart(0) :: event :: Nil
+
+						// If we're in the middle of an array, any event but ArrayEnd should advance the index.
+						case Some(JsonEvent.IndexStart(i)) if event != JsonEvent.ArrayEnd =>
+							JsonEvent.IndexEnd :: JsonEvent.IndexStart(i + 1) :: event :: Nil
+
+						// If we're inside an array index when the array ends, inject an IndexEnd first.
+						case Some(JsonEvent.IndexStart(_)) if event == JsonEvent.ArrayEnd =>
+							JsonEvent.IndexEnd :: event :: Nil
+
+						// If we encounter a new field while already in a field, inject a FieldEnd first
+						case Some(JsonEvent.FieldStart(_)) if event.isInstanceOf[JsonEvent.FieldStart] =>
+							JsonEvent.FieldEnd :: event :: Nil
+
+						// If the object ends while we're in a field, inject a FieldEnd first
+						case Some(JsonEvent.FieldStart(_)) if event == JsonEvent.ObjectEnd =>
+							JsonEvent.FieldEnd :: event :: Nil
+
+						// All other events can be passed through normally
+						case _ =>
+							event :: Nil
+					}
+
 				}
 			}
+
 		}
 	}
 }
