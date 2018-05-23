@@ -1,6 +1,6 @@
 package io.dylemma.spac
 
-import io.dylemma.spac.handlers.{ContextTracker, SplitOnMatchHandler, StackSplitterHandler}
+import io.dylemma.spac.handlers.{ContextTracker, SplitOnMatchHandler, SplitterTransformHandler, StackSplitterHandler}
 import io.dylemma.spac.types.Stackable
 
 import scala.language.higherKinds
@@ -77,6 +77,17 @@ class BaseStackSplitter[In, StackElem, +Context](
 
 	def as[P](implicit parser: Context => HandlerFactory[In, P]) = through(parser)
 
+	def throughT[P](joiner: Context => Transformer[In, P]): Transformer[In, P] = new Transformer[In, P] {
+		override def toString = s"$self.throughT($joiner)"
+		def makeHandler[Out](downstream: Handler[P, Out]) = {
+			new SplitterTransformHandler(matcher, joiner, downstream)
+		}
+	}
+
+	// TODO: these will probably be used in favor of through/throughT/as
+	// TODO: also, I'd be happier if they were defined in the main Splitter trait
+	def flatMap[P](joiner: Context => Transformer[In, P]): Transformer[In, P] = throughT(joiner)
+	def map[P](joiner: Context => HandlerFactory[In, P]): Transformer[In, P] = through(joiner)
 }
 
 /** Typeclass that abstracts Splitter construction for specific "context stack" types.

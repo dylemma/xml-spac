@@ -13,8 +13,15 @@ import scala.util.Try
   * (though not specifically the [[HandlerFactory]] trait, as a transformer
   * requires a `downstream` handler in order to create its own handler.
   */
-trait Transformer[-In, +B] { self =>
+trait Transformer[-In, +B] extends (Any => Transformer[In, B]) { self =>
 	def makeHandler[Out](next: Handler[B, Out]): Handler[In, Out]
+
+	/** Transformers count as functions that return themselves, so they can
+	  * be used easily with Splitter's `throughT` method.
+	  * @param v1 ignored
+	  * @return this transformer
+	  */
+	def apply(v1: Any) = this
 
 	// TODO: Document all of these methods
 
