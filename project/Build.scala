@@ -7,7 +7,7 @@ import spray.boilerplate.BoilerplatePlugin
 object XmlStreamBuild extends Build {
 
 	lazy val commonSettings = Seq(
-		version := "0.5",
+		version := "0.6-SNAPSHOT",
 		scalaVersion := "2.11.8",
 		crossScalaVersions := Seq("2.10.6", "2.11.11", "2.12.2"),
 		scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
@@ -30,7 +30,7 @@ object XmlStreamBuild extends Build {
 		.settings(publishingSettings: _*)
 
 	lazy val xml = (project in file("xml"))
-		.settings(name := "spac-xml")
+		.settings(name := "xml-spac")
 		.settings(commonSettings: _*)
 		.settings(testSettings: _*)
 		.settings(apiDocSettings: _*)
@@ -38,7 +38,7 @@ object XmlStreamBuild extends Build {
 		.dependsOn(core)
 
 	lazy val json = (project in file("json"))
-		.settings(name := "spac-json")
+		.settings(name := "json-spac")
 		.settings(commonSettings: _*)
 		.settings(testSettings: _*)
 		.settings(apiDocSettings: _*)
@@ -58,8 +58,11 @@ object XmlStreamBuild extends Build {
 		.dependsOn(core, xml)
 
 	lazy val root = (project in file("."))
-		.settings(publish := {})
-		.aggregate(core, examples)
+		.aggregate(core, xml, json)
+		.settings(
+			publish := {},
+			publishArtifact := false
+		)
 
 	lazy val snapshotBranch = {
 		try {
