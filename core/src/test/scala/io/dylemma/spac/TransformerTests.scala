@@ -191,6 +191,21 @@ class TransformerTests extends FunSpec with Matchers {
 		}
 	}
 
+	describe("Splitter.consecutiveMatches"){
+		val consecutiveAlphas = Splitter.consecutiveMatches[Char, Char] { case c if c.isLetter => c }
+
+		it("should create a substream for each sequence of consecutive matches"){
+			val strList = runTransformer("123ABC456DEF789".toList){ consecutiveAlphas through Consumer.toList[Char].map(_.mkString) }
+			strList should be(List("ABC", "DEF"))
+		}
+
+		it("should use the first match in each substream as the context"){
+			val collectContexts = consecutiveAlphas.through{ Consumer.constant }
+			var firstChars = runTransformer("123ABC456DEF789".toList){ collectContexts }
+			firstChars should be(List('A', 'D'))
+		}
+	}
+
 	describe("Transformer.Parallel"){
 		val nums = List(1,2,3,4,5,6)
 		val multiplesOfThree = Transformer.collect[Int, String]{ case i if i%3 == 0 => s"$i/3" }

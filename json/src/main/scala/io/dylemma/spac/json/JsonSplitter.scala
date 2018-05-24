@@ -2,7 +2,7 @@ package io.dylemma.spac.json
 
 import io.dylemma.spac._
 
-class JsonSplitter[+Context](matcher: ContextMatcher[JsonStackElem, Context]) extends BaseStackSplitter[JsonEvent, JsonStackElem, Context](matcher) {
+class JsonSplitter[+Context](matcher: ContextMatcher[JsonStackElem, Context]) extends ContextStackSplitter[JsonEvent, JsonStackElem, Context](matcher) {
 	// TODO: add JSON-specific parsing conveniences here
 
 	object asListOf {

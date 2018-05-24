@@ -51,7 +51,7 @@ object Example1_Basics extends App {
 	The result of combining a Splitter and a Parser is called a "Transformer" because it
 	"transforms" an stream of inputs into a stream of something else.
 	*/
-	val bookTransformer: Transformer[XMLEvent, String] = bookSplitter.through(bookParser)
+	val bookTransformer: Transformer[XMLEvent, String] = bookSplitter.map(bookParser)
 
 	/*
 	To actually get a result from a stream, you'll either need a `Parser` or a `Consumer`.

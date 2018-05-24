@@ -51,7 +51,7 @@ object Example3_EntryList extends App {
 	If we simply wanted the list of keys and values, we'd make a `Splitter` to extract the element name
 	in the right context, send it through the `keyOrValueParser`, and use `parseToList` to collect the results.
 	 */
-	val entryListParserV1 = Splitter("entrylist" \ extractElemName).through(keyOrValueParser).parseToList
+	val entryListParserV1 = Splitter("entrylist" \ extractElemName).map(keyOrValueParser).parseToList
 	println("V1 result:")
 	println(entryListParserV1 parse rawXml)
 	println()
@@ -69,7 +69,7 @@ object Example3_EntryList extends App {
 	Then we'll use the ToList consumer to collect the keys and values from each substream,
 	then map the results from that consumer to `Entry` instances.
 	 */
-	val kvToEntryTransformer: Transformer[KeyOrValue, Entry] = Splitter.splitOnMatch[KeyOrValue]{ _.isLeft } through {
+	val kvToEntryTransformer: Transformer[KeyOrValue, Entry] = Splitter.splitOnMatch[KeyOrValue]{ _.isLeft } map {
 		Consumer.toList[KeyOrValue].map { keyAndValues =>
 			// we can safely assume that there will be at least one element in the `keyAndValues`
 			// list, and that it is a `Left`, due to the `splitOnMatch` condition
@@ -84,7 +84,7 @@ object Example3_EntryList extends App {
 	Note the difference between V1 and V2 is the addition of `.andThen(kvToEntryTransformer)`
 	 */
 	val entryListParserV2: Parser[List[Entry]] = {
-		Splitter("entrylist" \ extractElemName).through(keyOrValueParser).andThen(kvToEntryTransformer).parseToList
+		Splitter("entrylist" \ extractElemName).map(keyOrValueParser).andThen(kvToEntryTransformer).parseToList
 	}
 
 	println("V2 results:")

@@ -106,7 +106,7 @@ object Example2_Contexts extends App {
 	Create a `Comment` class then create a parser for it.
 	The comment parser can't create a `Comment` without a `PostContext`,
 	since that comes from an xml element further up the tree. We'll get
-	that context from the `Splitter` (via the `through` method), so for
+	that context from the `Splitter` (via the `map` method), so for
 	now we only create a `PostContext => Parser[Comment]` to represent
 	that dependency.
 	 */
@@ -125,12 +125,12 @@ object Example2_Contexts extends App {
 	}
 
 	/*
-	With splitter's `through` method, the `commentParser` method will be
+	With splitter's `map` method, the `commentParser` method will be
 	called for each substream, with that substream's context as the argument.
 
-	- `postSplitter through commentParser` creates a transformer
+	- `postSplitter map commentParser` creates a transformer
 	- `[...] consumeForeach println` creates a consumer
 	- `[...] consume rawXml` runs that consumer on the raw xml
 	 */
-	postSplitter through commentParser consumeForEach println consume rawXml
+	postSplitter map commentParser consumeForEach println consume rawXml
 }

@@ -4,30 +4,30 @@ import javax.xml.namespace.QName
 import javax.xml.stream.events.{StartElement, XMLEvent}
 
 import io.dylemma.spac.TransformerSyntax._
-import io.dylemma.spac.{BaseStackSplitter, ContextMatcher, HandlerFactory, SplitterApply}
+import io.dylemma.spac.{ContextStackSplitter, ContextMatcher, HandlerFactory, SplitterApply}
 
 import scala.util.Try
 
-class XMLSplitter[+Context](matcher: ContextMatcher[StartElement, Context]) extends BaseStackSplitter(matcher) {
+class XMLSplitter[+Context](matcher: ContextMatcher[StartElement, Context]) extends ContextStackSplitter(matcher) {
 
-	def attr(name: QName) = through(XMLParser.forMandatoryAttribute(name))
-	def attr(name: String) = through(XMLParser.forMandatoryAttribute(name))
-	def asText = through(XMLParser.forText)
+	def attr(name: QName) = map(XMLParser.forMandatoryAttribute(name))
+	def attr(name: String) = map(XMLParser.forMandatoryAttribute(name))
+	def asText = map(XMLParser.forText)
 
 	def asListOf[Out](implicit parser: Context => HandlerFactory[XMLEvent, Out]) = as[Out].parseToList
 
 	object first {
-		def apply[Out](implicit parser: Context => HandlerFactory[XMLEvent, Out]) = through(parser).parseFirst
-		def attr(name: QName) = through(XMLParser.forMandatoryAttribute(name)).parseFirst
-		def attr(name: String) = through(XMLParser.forMandatoryAttribute(name)).parseFirst
-		def asText = through(XMLParser.forText).parseFirst
+		def apply[Out](implicit parser: Context => HandlerFactory[XMLEvent, Out]) = map(parser).parseFirst
+		def attr(name: QName) = map(XMLParser.forMandatoryAttribute(name)).parseFirst
+		def attr(name: String) = map(XMLParser.forMandatoryAttribute(name)).parseFirst
+		def asText = map(XMLParser.forText).parseFirst
 	}
 
 	object firstOption {
-		def apply[Out](implicit parser: Context => HandlerFactory[XMLEvent, Try[Out]]) = through(parser).parseFirstOption
-		def attr(name: QName) = through(XMLParser.forMandatoryAttribute(name)).parseFirstOption
-		def attr(name: String) = through(XMLParser.forMandatoryAttribute(name)).parseFirstOption
-		def asText = through(XMLParser.forText).parseFirstOption
+		def apply[Out](implicit parser: Context => HandlerFactory[XMLEvent, Try[Out]]) = map(parser).parseFirstOption
+		def attr(name: QName) = map(XMLParser.forMandatoryAttribute(name)).parseFirstOption
+		def attr(name: String) = map(XMLParser.forMandatoryAttribute(name)).parseFirstOption
+		def asText = map(XMLParser.forText).parseFirstOption
 	}
 
 }
