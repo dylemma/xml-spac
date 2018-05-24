@@ -3,17 +3,18 @@ package io.dylemma.spac.xml
 import javax.xml.namespace.QName
 import javax.xml.stream.events.{StartElement, XMLEvent}
 
-import io.dylemma.spac.{ContextStackSplitter, ContextMatcher, HandlerFactory, SplitterApply}
+import io.dylemma.spac._
+import XMLParser.handlerFactoryConverter
 
 import scala.util.Try
 
 class XMLSplitter[+Context](matcher: ContextMatcher[StartElement, Context]) extends ContextStackSplitter(matcher) { self =>
 
-	def attr(name: QName) = map(XMLParser.forMandatoryAttribute(name))
-	def attr(name: String) = map(XMLParser.forMandatoryAttribute(name))
-	def asText = map(XMLParser.forText)
+	def attr(name: QName): Transformer[XMLEvent, String] = map(XMLParser.forMandatoryAttribute(name))
+	def attr(name: String): Transformer[XMLEvent, String] = map(XMLParser.forMandatoryAttribute(name))
+	def asText: Transformer[XMLEvent, String] = map(XMLParser.forText)
 
-	def asListOf[Out](implicit parser: Context => HandlerFactory[XMLEvent, Out]) = as[Out].parseToList
+	def asListOf[Out](implicit parser: Context => HandlerFactory[XMLEvent, Out]): XMLParser[List[Out]] = as[Out].parseToList
 
 	object first {
 		def apply[Out](implicit parser: Context => HandlerFactory[XMLEvent, Out]) = map(parser).parseFirst

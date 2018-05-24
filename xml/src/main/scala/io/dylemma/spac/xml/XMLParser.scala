@@ -10,7 +10,7 @@ abstract class XMLParser[+A] extends ParserLike[XMLEvent, A, XMLParser]
 
 object XMLParser extends ParserCompanion[XMLEvent, XMLParser] {
 
-	implicit val handlerFactoryConverter: FromHandlerFactory[XMLEvent, XMLParser] = new FromHandlerFactory[XMLEvent, XMLParser] {
+	val handlerFactoryConverter: FromHandlerFactory[XMLEvent, XMLParser] = new FromHandlerFactory[XMLEvent, XMLParser] {
 		override def makeInstance[Out](hf: HandlerFactory[XMLEvent, Out], debugName: String): XMLParser[Out] = new XMLParser[Out] {
 			def makeHandler() = hf.makeHandler()
 			override def toString = debugName

@@ -68,7 +68,7 @@ object Example_FromReadme extends App {
 		Splitter(* \ "comments" \ "comment").asListOf[Comment]
 	).as(Post)
 
-	val postTransformer: Transformer[XMLEvent, Post] = Splitter("blog" \ "post") through PostParser
+	val postTransformer: Transformer[XMLEvent, Post] = Splitter("blog" \ "post") map PostParser
 	val postTransformerAlt = Splitter("blog" \ "post").as[Post] // available because PostParser is marked implicit
 
 	postTransformer.consumeForEach(println) consume rawXml

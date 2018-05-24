@@ -4,6 +4,7 @@ import io.dylemma.spac.handlers._
 import io.dylemma.spac.types.Stackable
 
 import scala.util.Try
+import scala.language.higherKinds
 
 /** A transformation function for a stream, i.e. `Stream => Stream`.
   * Transformers operate by wrapping a `downstream` handler with a new
@@ -63,6 +64,23 @@ trait Transformer[-In, +B] extends (Any => Transformer[In, B]) { self =>
 	def consumeFirstOption: Consumer[In, Option[B]] = andThen(Consumer.firstOption)
 	def consumeAsFold[R](init: R)(f: (R, B) => R): Consumer[In, R] = andThen(Consumer.fold(init, f))
 	def consumeForEach(f: B => Any): Consumer[In, Unit] = andThen(Consumer.foreach(f))
+
+	def parseWith[Out, Parser[+_]](consumer: Consumer[B, Out], setDebugName: Option[String] = None)(implicit fhf: FromHandlerFactory[In, Parser]): Parser[Out] = {
+		val debugName = setDebugName getOrElse s"$self.parseWith($consumer)"
+		fhf.makeInstance(self >> consumer, debugName)
+	}
+	def parseToList[Parser[+_]](implicit fhf: FromHandlerFactory[In, Parser]): Parser[List[B]] = {
+		parseWith(Consumer.toList, Some(s"$this.parseToList"))
+	}
+	def parseFirst[Parser[+_]](implicit fhf: FromHandlerFactory[In, Parser]): Parser[B] = {
+		parseWith(Consumer.first, Some(s"$this.parseFirst"))
+	}
+	def parseFirstOption[Parser[+_]](implicit fhf: FromHandlerFactory[In, Parser]): Parser[Option[B]] = {
+		parseWith(Consumer.firstOption, Some(s"$this.parseFirstOption"))
+	}
+	def parseAsFold[Out, Parser[+_]](init: Out)(f: (Out, B) => Out)(implicit fhf: FromHandlerFactory[In, Parser]): Parser[Out] = {
+		parseWith(Consumer.fold(init, f), Some(s"$this.fold($init, $f)"))
+	}
 }
 
 object Transformer {

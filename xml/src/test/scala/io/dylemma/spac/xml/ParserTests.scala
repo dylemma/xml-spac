@@ -130,14 +130,14 @@ class ParserTests extends FunSpec with Matchers {
 		it("should filter out unmached events"){
 			testParserResult(
 				"<foo><bar>Hello</bar><baz>World</baz></foo>",
-				Splitter(* \ "bar").through(Parser.forText).parseToList,
+				Splitter(* \ "bar").map(Parser.forText).parseToList,
 				List("Hello")
 			)
 		}
 
 		it("should split the events into substreams"){
 			val rawXml = "<foo><bar>Hello</bar><bar>World</bar></foo>"
-			val splitParser = new TransformerParsingOps(Splitter(* \ "bar").through(Parser.forText)).parseToList
+			val splitParser = Splitter(* \ "bar").map(Parser.forText).parseToList
 			val unsplitParser = Parser.forText
 			testParserResult(rawXml, unsplitParser, "HelloWorld")
 			testParserResult(rawXml, splitParser, List("Hello", "World"))
@@ -206,7 +206,7 @@ class ParserTests extends FunSpec with Matchers {
 		}
 	}
 
-	describe("Splitter.through"){
+	describe("Splitter.map"){
 		val rawXml = """<foo>
 		|	<a>1</a>
 		|	<a>2</a>
@@ -222,7 +222,7 @@ class ParserTests extends FunSpec with Matchers {
 
 
 		it("should choose the right sub-parser based on the context"){
-			val abTransformer = splitter through {
+			val abTransformer = splitter map {
 				case "a" => Parser.forText.map(s => A(s.toInt))
 				case "b" => Parser.forText.map(s => B(s.toInt))
 			}
@@ -236,11 +236,11 @@ class ParserTests extends FunSpec with Matchers {
 		/** Upon further thought, it *shouldn't* have this behavior.
 		  * Introducing `Try` should be done explicitly by the client,
 		  * and in this case, it would be done by protecting the function
-		  * being passed to `through` with its own try/catch and a fallback
+		  * being passed to `map` with its own try/catch and a fallback
 		  * to a parser that yields Failures.
 		  */
 		ignore("should yield error results where the chooser function fails"){
-			val onlyATransformer = splitter through {
+			val onlyATransformer = splitter map {
 				case "a" => Parser.forText.map(s => A(s.toInt))
 				// omit case "b" for errors
 			}

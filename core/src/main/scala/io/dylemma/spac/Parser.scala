@@ -211,7 +211,7 @@ abstract class ParserLike[In, +Out, Self[+o] <: HandlerFactory[In, o]](
 }
 
 trait ParserCompanion[In, Self[+o] <: HandlerFactory[In, o]] { self =>
-	implicit def handlerFactoryConverter: FromHandlerFactory[In, Self]
+	def handlerFactoryConverter: FromHandlerFactory[In, Self]
 
 	def from[Out](hf: HandlerFactory[In, Out]): Self[Out] = {
 		handlerFactoryConverter.makeInstance(hf, hf.toString)
