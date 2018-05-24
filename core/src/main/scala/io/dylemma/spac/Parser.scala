@@ -201,6 +201,13 @@ abstract class ParserLike[In, +Out, Self[+o] <: HandlerFactory[In, o]](
 		}
 	}
 
+	def interruptedBy(interrupter: Self[Any]): Self[Out] = handlerFactoryConverter.makeInstance(
+		new HandlerFactory[In, Out] {
+			def makeHandler() = new InterrupterHandler(self.makeHandler(), interrupter.makeHandler())
+		},
+		s"$self.interruptedBy($interrupter)"
+	)
+
 }
 
 trait ParserCompanion[In, Self[+o] <: HandlerFactory[In, o]] { self =>
