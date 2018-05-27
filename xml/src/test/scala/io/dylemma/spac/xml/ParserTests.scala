@@ -21,6 +21,9 @@ class ParserTests extends FunSpec with Matchers {
 		testResult(result) should be(true)
 	}
 
+	// convenience for testing behavior of transformers
+	protected def runTransformer[Out](xml: String, t: Transformer[XMLEvent, Out]): List[Out] = t.consumeToList.consume(xml)
+
 	describe("Parser.forText") {
 		it("should concatenate text events") {
 			testParserResult(
@@ -299,8 +302,7 @@ class ParserTests extends FunSpec with Matchers {
 	}
 
 	describe("Parser.followedByStream"){
-		// convenience for testing behavior of transformers
-		def runTransformer[Out](xml: String, t: Transformer[XMLEvent, Out]): List[Out] = t.consumeToList.consume(xml)
+
 
 		it("should pass the result of the followed parser to create the resulting transformer"){
 			val xml = "<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
@@ -340,6 +342,28 @@ class ParserTests extends FunSpec with Matchers {
 			}
 			runTransformer(xml, numsStream) should matchPattern {
 				case Success("dylemma:1") :: Failure(_) :: Success("dylemma:3") :: Nil =>
+			}
+		}
+	}
+
+	describe("Parser.beforeContext"){
+		it("should allow an optional parser to fail-fast before its .followedBy"){
+			val xml =
+				"""<root>
+				  |  <data>1</data>
+				  |  <data>2</data>
+				  |</root>""".stripMargin
+			val dataContext = * \ "data"
+			def dataTransformer(prelude: Option[String]) = Splitter(dataContext).asText.map(prelude -> _)
+			val optPreludeParser = Splitter(* \ "prelude").firstOption.attr("id") // will return None on the xml above
+			val failFastPreludeParser = optPreludeParser.beforeContext(dataContext)
+
+			// waiting until </root> to decide if the prelude parser returns None means the followedByStream sees nothing
+			runTransformer(xml, optPreludeParser.followedByStream(dataTransformer)) should be(Nil)
+
+			// sending an EOF to the prelude parser on the first <data> allows the followedByStream to receive the <data>s
+			runTransformer(xml, failFastPreludeParser.followedByStream(dataTransformer)) should be {
+				List(None -> "1", None -> "2")
 			}
 		}
 	}
