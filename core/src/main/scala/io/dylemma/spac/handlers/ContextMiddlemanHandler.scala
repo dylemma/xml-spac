@@ -22,7 +22,8 @@ class ContextMiddlemanHandler[In, Context, P, Out](
 	middleman: ContextMiddleman[Context, In, P],
 	downstream: Handler[P, Out]
 ) extends ContextSensitiveHandler[In, Context, Out] {
-	protected def debugName = s"$middleman >> downstream"
+	protected def debugName = s"$middleman >> $downstream"
+	override def toString = debugName
 
 	/* while we're in a context, this will be a Some containing a handler for events
 	 * in that context. If it finishes, we should None-ify this reference until a
@@ -32,8 +33,8 @@ class ContextMiddlemanHandler[In, Context, P, Out](
 
 	def isFinished = downstream.isFinished
 
-	def handleInput(input: In) = feedMiddleman(Right(input))
-	def handleError(error: Throwable) = feedMiddleman(Left(error))
+	def handleInput(input: In) = feedMiddleman(input)
+	def handleError(error: Throwable) = feedMiddleman(error)
 	def handleEnd() = feedMiddlemanEOF() getOrElse downstream.handleEnd()
 
 	def handleContextStart(context: Try[Context]) = context match {
@@ -52,43 +53,45 @@ class ContextMiddlemanHandler[In, Context, P, Out](
 			.map(debug as "Got inner parser result (while closing context)")
 	}
 
-	/** Send an event/error through the middleman, possibly causing the downstream to finish.
+	/** Send an error through the middleman, possibly causing the downstream to finish.
 	  * If the middleman finishes (due to the transformer it represents becoming finished), we'll clear
 	  * the wrapper, but otherwise continue uninterrupted.
-	  * @param errorOrEvent
+	  * @param error
 	  * @return `Some` to signify the downstream completed, `None` to continue
 	  */
-	protected def feedMiddleman(errorOrEvent: Either[Throwable, In]): Option[Out] = {
-		for {
-			handler <- middlemanHandler
-			if !handler.isFinished
-			downstreamResult <- {
-				// Send the event through the wrapper. A `Some` from this implies the downstream finished
-				val wrappedResult = errorOrEvent match {
-					case Left(err) =>
-						try handler.handleError(err) catch { case NonFatal(err) =>
-							throw new Exception(s"Error bubbled up through downstream-wrapper to [$handler] while running $debugName", err)
-						}
-					case Right(event) =>
-						try handler.handleInput (event) catch { case NonFatal(err) =>
-							throw new Exception(s"Error sending [$event] through downstream-wrapper to [$handler] while running $debugName", err)
-						}
-				}
-				// Since the guard may finish without getting a result from the downstream, check & nullify it here
-				if(handler.isFinished){
-					middlemanHandler = None
-				}
-				// Extract the wrapped result
-				wrappedResult match {
-					case Some(downstreamResult) => downstreamResult
-					case None => None
-				}
+	protected def feedMiddleman(error: Throwable): Option[Out] = middlemanHandler match {
+		case Some(handler) if !handler.isFinished =>
+			val downstreamResult = try handler.handleError(error) catch { case NonFatal(err) =>
+				throw new Exception(s"Error bubbled up through downstream-wrapper to [$handler] while running $debugName", err)
 			}
-		} yield {
-			// If we're emitting a result, then the wrapper is definitely done, so clear it before returning
-			middlemanHandler = None
-			downstreamResult
-		}
+			if(handler.isFinished){
+				middlemanHandler = None
+			}
+			downstreamResult.flatten
+
+		// if there's no active middleman, feed the error directly downstream
+		case _ => downstream.handleError(error)
+
+	}
+
+	/** Send an input through the middleman, possibly causing the downstream to finish.
+	  * If the middleman finishes (due to the transformer it represents becoming finished), we'll clear
+	  * the wrapper, but otherwise continue uninterrupted.
+	  * @param input
+	  * @return `Some` to signify the downstream completed, `None` to continue
+	  */
+	protected def feedMiddleman(input: In): Option[Out] = middlemanHandler match {
+		case Some(handler) if !handler.isFinished =>
+			val downstreamResult = try handler.handleInput(input) catch { case NonFatal(err) =>
+				throw new Exception(s"Error sending [$input] through downstream-wrapper to [$handler] while running $debugName", err)
+			}
+			if(handler.isFinished){
+				middlemanHandler = None
+			}
+			downstreamResult.flatten
+
+		// if there's no active middleman, ignore the input
+		case _ => None
 	}
 
 	protected def feedMiddlemanEOF(): Option[Out] = {

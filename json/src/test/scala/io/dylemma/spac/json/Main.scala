@@ -26,7 +26,7 @@ object Main {
 
 		implicit val helloParser = Parser.oneOf(
 			Splitter("a").first[Int].map(A),
-			Splitter(anyIndex).asListOf[Int].map(Arr),
+			Parser.listOf[Int].map(Arr),
 			Parser[String].map(Str),
 			Parser[Boolean].map(Bool)
 		)

@@ -17,9 +17,9 @@ import scala.language.higherKinds
   * @define pl parser
   * @define PL Parser
   */
-abstract class ParserLike[In, +Out, Self[+o] <: HandlerFactory[In, o]](
+abstract class ParserLike[In, StackElem, +Out, Self[+o] <: HandlerFactory[In, o]](
 	protected implicit val handlerFactoryConverter: FromHandlerFactory[In, Self],
-	protected implicit val stackable: Stackable[In]
+	protected implicit val stackable: Stackable.Aux[In, StackElem]
 ) extends HandlerFactory[In, Out] { self =>
 
 	/** Parse the given source object by spawning a handler and feeding events
@@ -201,13 +201,81 @@ abstract class ParserLike[In, +Out, Self[+o] <: HandlerFactory[In, o]](
 		}
 	}
 
-	def interruptedBy(interrupter: Self[Any]): Self[Out] = handlerFactoryConverter.makeInstance(
+	/** Create a copy of this parser that will treat a result from the `interrupter` as an early EOF.
+	  * This is especially useful for creating `followedBy` chains involving optional elements.
+	  *
+	  * Normally, a parser for an optional item in some context will not finish until that context ends,
+	  * or until the item is encountered. So if the item is not present, `followedBy` logic won't work
+	  * since the following parser/transformer will not see any events.
+	  *
+	  * To make sure the leading parser can "fail fast", you can "interrupt" it, typically by creating
+	  * a parser that immediately returns a result upon entering a particular context, i.e. the context
+	  * in which the "following" parser will start. `Parser#beforeContext` provides a convenience for
+	  * doing so.
+	  *
+	  * @param interrupter
+	  * @return
+	  */
+	def interruptedBy(interrupter: HandlerFactory[In, Any]): Self[Out] = handlerFactoryConverter.makeInstance(
 		new HandlerFactory[In, Out] {
 			def makeHandler() = new InterrupterHandler(self.makeHandler(), interrupter.makeHandler())
 		},
 		s"$self.interruptedBy($interrupter)"
 	)
 
+	/** Create a copy of this parser that will observe an early EOF upon entering a context matched by the
+	  * given `matcher`. This is especially useful for creating `followedBy` chains involving optional elements.
+	  *
+	  * Normally, a parser for an optional item in some context will not finish until that context ends,
+	  * or until the item is encountered. So if the item is not present, `followedBy` logic won't work
+	  * since the following parser/transformer will not see any events.
+	  *
+	  * To make sure the leading parser can "fail fast", you can force it to end early if it encounters
+	  * a specific context, i.e. the context used by the parser/transformer being passed to `.follwedBy`.
+	  *
+	  * Example:
+	  * {{{
+	  * val preludeContext = * \ "prelude"
+	  * val dataContext = * \ "data"
+	  *
+	  * for {
+	  *   prelude <- Splitter(preludeContext).firstOption[Prelude].beforeContext(dataContext).followedByStream
+	  *   data <- Splitter(dataContext).as[Data]
+	  * } yield data
+	  * }}}
+	  *
+	  * @param matcher
+	  * @return
+	  */
+	def beforeContext(matcher: ContextMatcher[StackElem, Any]): Self[Out] = {
+		val interrupter = new ContextStackSplitter[In, StackElem, Any](matcher).map(Consumer.constant(true)).consumeFirst
+		self.interruptedBy(interrupter)
+	}
+
+	/** Impose expectations on the sequence of inputs to be received by handlers created by this parser.
+	  * As this parser's handler receives an input, the input will be tested against the head of the expectations list.
+	  * If the test returns `false`, the expectation is failed and the handler will throw an exception.
+	  * If the test returns `true`, the expectation is satisfied, and the handler will advance to the next expectation.
+	  * If there are no more expectations left in the list (i.e. N inputs have satisfied the corresponding N expectations),
+	  * then all expectations have been met and inputs will be treated as normal by the handler.
+	  * If the handler receives an EOF before all expectations are met, it will throw an exception.
+	  *
+	  * @param expectations A sequence of `label -> test` expectations imposed on inputs to this parser
+	  * @return A copy of this parser with expectations imposed on its inputs
+	  */
+	def expectInputs(expectations: List[(String, In => Boolean)]): Self[Out] = handlerFactoryConverter.makeInstance(
+		new HandlerFactory[In, Out] {
+			def makeHandler() = new ExpectationSequenceHandler(expectations, self.makeHandler())
+		},
+		s"$self.expectInputs($expectations)"
+	)
+
+	/** Creates a copy of this parser, but with a different `toString`
+	  *
+	  * @param name The new "name" (i.e. `toString`) for this parser
+	  * @return A copy of this parser whose `toString` returns the given `name`
+	  */
+	def withName(name: String): Self[Out] = handlerFactoryConverter.makeInstance(self, name)
 }
 
 trait ParserCompanion[In, Self[+o] <: HandlerFactory[In, o]] { self =>
