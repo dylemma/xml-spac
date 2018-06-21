@@ -1,5 +1,6 @@
 package io.dylemma.spac
 
+import java.io.Closeable
 import scala.util.control.NonFatal
 
 /** Adapter typeclass for push-style processingof a stream-like resource.
@@ -9,6 +10,9 @@ import scala.util.control.NonFatal
   * @tparam Item
   */
 trait ConsumableLike[-Resource, +Item] {
+
+	def getIterator(resource: Resource): Iterator[Item] with AutoCloseable
+
 	/** Given a resource and a handler, treat the resource as a stream,
 	  * pushing items from the stream into the `handler` until either
 	  * the handler returns a result or an EOF is reached.
@@ -47,9 +51,20 @@ trait ConsumableLike[-Resource, +Item] {
 
 object ConsumableLike {
 
+	private def upgradeIteratorToCloseable[T](itr: Iterator[T]): Iterator[T] with AutoCloseable = {
+		if(itr.isInstanceOf[AutoCloseable]) itr.asInstanceOf[Iterator[T] with AutoCloseable]
+		else new Iterator[T] with AutoCloseable {
+			def hasNext = itr.hasNext
+			def next() = itr.next()
+			def close() = ()
+		}
+	}
+
 	// anything Iterable
 	implicit def getIterableConsumable[T]: ConsumableLike[Iterable[T], T] = {
 		new ConsumableLike[Iterable[T], T] {
+
+			def getIterator(resource: Iterable[T]): Iterator[T] with AutoCloseable = upgradeIteratorToCloseable(resource.iterator)
 			def apply[R](source: Iterable[T], handler: Handler[T, R]): R = {
 				runIterator(source.iterator, handler)
 			}
@@ -59,6 +74,7 @@ object ConsumableLike {
 	// any Iterator
 	implicit def getIteratorConsumable[T]: ConsumableLike[Iterator[T], T] = {
 		new ConsumableLike[Iterator[T], T] {
+			def getIterator(resource: Iterator[T]): Iterator[T] with AutoCloseable = upgradeIteratorToCloseable(resource)
 			def apply[R](source: Iterator[T], handler: Handler[T, R]): R = {
 				runIterator(source, handler)
 			}

@@ -259,4 +259,13 @@ class TransformerTests extends FunSpec with Matchers {
 			parallel.consume(nums) should be(List(1, 1, 2, 3, 4, 5, 6))
 		}
 	}
+
+	describe("Transformer.transform"){
+		it("should convert a 'source' to an iterator") {
+			val src = List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+			val take = Transformer.take[Int](3)
+			val itr = take.transform(src)
+			itr.toList should be(List(1, 2, 3))
+		}
+	}
 }

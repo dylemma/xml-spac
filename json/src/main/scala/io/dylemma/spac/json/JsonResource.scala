@@ -11,6 +11,8 @@ trait JsonResource[R] {
 
 object JsonResource {
 	implicit def consumableLike[T: JsonResource]: ConsumableLike[T, JsonEvent] = new ConsumableLike[T, JsonEvent] {
+
+		def getIterator(resource: T): Iterator[JsonEvent] with AutoCloseable = JsonEvents(resource).iterator
 		def apply[A](resource: T, handler: Handler[JsonEvent, A]) = {
 			runIterator(JsonEvents(resource).iterator, handler)
 		}

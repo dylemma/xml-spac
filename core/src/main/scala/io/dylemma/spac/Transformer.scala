@@ -1,9 +1,11 @@
 package io.dylemma.spac
 
+import java.io.Closeable
+import java.util
+
 import io.dylemma.spac.handlers._
 import io.dylemma.spac.types.Stackable
-
-import scala.util.Try
+import scala.util.{ Failure, Success, Try }
 import scala.language.higherKinds
 
 /** A transformation function for a stream, i.e. `Stream => Stream`.
@@ -16,6 +18,65 @@ import scala.language.higherKinds
   */
 trait Transformer[-In, +B] extends (Any => Transformer[In, B]) { self =>
 	def makeHandler[Out](next: Handler[B, Out]): Handler[In, Out]
+
+	/** Transform a `src` resource with this transformer, yielding an iterator which will lazily
+	  * consume the resource stream.
+	  *
+	  * @param src A resource which can be treated as a stream of `In` events
+	  * @param cl Evidence that the `src` can be treated as a stream of `In` events
+	  * @tparam R The resource type
+	  * @return An iterator resulting from passing the `src` stream through this transformer.
+	  */
+	def transform[R](src: R)(implicit cl: ConsumableLike[R, In]): Iterator[B] = {
+		val inItr = cl.getIterator(src)
+		var finished = false
+		val buffer = new util.ArrayDeque[Try[B]](2)
+		// we'll take vents from `inItr`, feed them through this transformer via `makeHandler`,
+		// into a buffer which the returned iterator will consume
+		val handler = makeHandler[Unit](new Handler[B, Unit] {
+			override def isFinished: Boolean = finished
+			override def handleInput(input: B): Option[Unit] = {
+				buffer.push(Success(input))
+				None
+			}
+			override def handleError(error: Throwable): Option[Unit] = {
+				buffer.push(Failure(error))
+				None
+			}
+			override def handleEnd(): Unit = {
+				finished = true
+			}
+		})
+		new Iterator[B] with Closeable {
+			override def close(): Unit = inItr.close()
+			override def hasNext: Boolean = {
+				advanceUntilOutput()
+				!buffer.isEmpty
+			}
+			override def next(): B = {
+				advanceUntilOutput()
+				if(buffer.isEmpty){
+					throw new NoSuchElementException("next() after EOF")
+				} else {
+					// take the head of the buffer
+					buffer.removeFirst().get
+				}
+			}
+
+			private def advanceUntilOutput() = {
+				// take elements from the iterator and feed them into the handler,
+				// until either the handler finishes (typically due to an EOF),
+				// or the handler pushes an event into the `buffer`.
+				while(!handler.isFinished && buffer.isEmpty){
+					if(inItr.hasNext){
+						handler.handleInput(inItr.next)
+					} else {
+						handler.handleEnd()
+					}
+				}
+			}
+		}
+	}
 
 	/** Transformers count as functions that return themselves, so they can
 	  * be used easily with Splitter's `throughT` method.

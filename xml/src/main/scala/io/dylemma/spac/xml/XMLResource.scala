@@ -19,6 +19,9 @@ trait XMLResource[T] {
 object XMLResource {
 
 	implicit def consumableLike[T: XMLResource]: ConsumableLike[T, XMLEvent] = new ConsumableLike[T, XMLEvent] {
+		def getIterator(resource: T): Iterator[XMLEvent] with AutoCloseable = {
+			XMLEvents(resource).iterator
+		}
 		def apply[R](source: T, handler: Handler[XMLEvent, R]): R = {
 			runIterator(XMLEvents(source).iterator, handler)
 		}

@@ -11,6 +11,8 @@ import scala.util.control.NonFatal
 
 object XMLEvents {
 	implicit val consumableLike: ConsumableLike[XMLEvents, XMLEvent] = new ConsumableLike[XMLEvents, XMLEvent] {
+
+		def getIterator(resource: XMLEvents): Iterator[XMLEvent] with AutoCloseable = resource.iterator
 		def apply[R](source: XMLEvents, handler: Handler[XMLEvent, R]): R = {
 			runIterator(source.iterator, handler)
 		}

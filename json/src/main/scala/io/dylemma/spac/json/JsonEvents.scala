@@ -7,6 +7,7 @@ import io.dylemma.spac.{ConsumableLike, Consumer, Handler}
 
 object JsonEvents {
 	implicit val consumableLike: ConsumableLike[JsonEvents, JsonEvent] = new ConsumableLike[JsonEvents, JsonEvent] {
+		def getIterator(resource: JsonEvents): Iterator[JsonEvent] with AutoCloseable = resource.iterator
 		def apply[A](resource: JsonEvents, handler: Handler[JsonEvent, A]) = {
 			runIterator(resource.iterator, handler)
 		}
