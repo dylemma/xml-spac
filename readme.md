@@ -19,10 +19,10 @@ but here's a taste of how you'd write a parser for a relatively-complex blog pos
 ```scala
 val PostParser = (
 	Parser.forMandatoryAttribute("date").map(commentDateFormat.parseLocalDate) and
-	Splitter(* \ "author").first[Author] and
-	Splitter(* \ "stats").first[Stats] and
-	Splitter(* \ "body").first.asText and
-	Splitter(* \ "comments" \ "comment").asListOf[Comment]
+	XMLSplitter(* \ "author").first[Author] and
+	XMLSplitter(* \ "stats").first[Stats] and
+	XMLSplitter(* \ "body").first.asText and
+	XMLSplitter(* \ "comments" \ "comment").asListOf[Comment]
 ).as(Post)
 ```
 
@@ -48,6 +48,8 @@ A **`Transformer[A, B]`** turns a stream of `A` events into a stream of `B` even
 A **`Splitter[In, Context]`** combines with a `Context => Parser[Out]` to create a `Transformer[In, Out]`.
 A Splitter "splits" a stream into "substreams", assigning a context value to each substream.
 A parser can be run on each of the substreams, and the resulting values become the contents of the transformed stream.
+You'll typically use `XMLSplitter` when working with XML, or `JsonSplitter` when working with JSON.
+By using `XMLSplitter` or `JsonSplitter`, you don't have to worry about the `In` type.
 
 Note that each of the four classes mentioned here are completely immutable,
 which means they can be shared and combined without worrying about state or thread safety.
@@ -65,11 +67,11 @@ assert(result == Success("bar"))
 ```
 
 Suppose you have some XML with a bunch of `<elem foo="..."/>` and you want the "foo" attribute from each of them.
-This is a job for a Splitter. You write an XML Splitter sort of like an XPATH, to describe how to get to each element that you want to parse.
+This is a job for a Splitter. You write an `XMLSplitter` sort of like an XPATH, to describe how to get to each element that you want to parse.
 
 ```scala
 val xml = """<root><elem foo="bar"/><elem foo="baz"/></root>"""
-val splitter = Splitter(* \ "elem")
+val splitter = XMLSplitter(* \ "elem")
 val transformer = splitter through parser
 
 val rootConsumer = transformer.consumeToList
@@ -79,6 +81,7 @@ val rootParser = transformer.parseToList
 assert(rootParser.parse(xml) == Success(List("bar", "baz")))
 ```
 
+(TODO: update these links when 0.6 is released)
 Check out the docs for [ContextMatcherSyntax](http://static.javadoc.io/io.dylemma/xml-spac_2.11/0.5/index.html#io.dylemma.spac.syntax.ContextMatcherSyntax),
 which defines helpers for creating the arguments to a `Splitter`,
 and [Parser](http://static.javadoc.io/io.dylemma/xml-spac_2.11/0.5/index.html#io.dylemma.spac.Parser$),

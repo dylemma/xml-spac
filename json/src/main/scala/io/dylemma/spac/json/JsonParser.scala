@@ -33,7 +33,7 @@ object JsonParser extends ParserCompanion[JsonEvent, JsonParser] {
 	def apply[T](implicit parser: JsonParser[T]): JsonParser[T] = parser
 	def nullable[T](implicit parser: JsonParser[T]): JsonParser[Option[T]] = oneOf(parser.map(Some(_)), forNull)
 
-	def listOf[T](implicit parser: JsonParser[T]): JsonParser[List[T]] = Splitter(anyIndex).asListOf(parser)
+	def listOf[T](implicit parser: JsonParser[T]): JsonParser[List[T]] = JsonSplitter(anyIndex).asListOf(parser)
 		.expectInputs(List("a '[' token" -> { _ == JsonEvent.ArrayStart }))
    	.withName(s"Parser.listOf($parser)")
 }

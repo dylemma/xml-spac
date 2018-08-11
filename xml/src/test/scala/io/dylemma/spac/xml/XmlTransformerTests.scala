@@ -8,7 +8,7 @@ class XmlTransformerTests extends FunSpec with Matchers {
 	describe("Transformer.transform"){
 		it("should work with arbitrary XML transforms from splitters"){
 			val raw = "<a><b>hello</b><b>goodbye</b><b>so long...</b></a>"
-			val transformer = Splitter("a" \ "b").asText
+			val transformer = XMLSplitter("a" \ "b").asText
 			val itr = transformer.transform(raw)
 
 			itr.hasNext should be(true)

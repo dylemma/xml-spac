@@ -25,7 +25,7 @@ object Main {
 		case class AEvents(events: List[JsonEvent]) extends HelloItem
 
 		implicit val helloParser = JsonParser.oneOf(
-			Splitter("a").first[Int].map(A),
+			JsonSplitter("a").first[Int].map(A),
 			JsonParser.listOf[Int].map(Arr),
 			JsonParser[String].map(Str),
 			JsonParser[Boolean].map(Bool)
@@ -39,8 +39,8 @@ object Main {
 	)
 	object HelloWorld {
 		implicit val helloWorldParser: JsonParser[HelloWorld] = (
-			Splitter("hello" \ anyIndex).asListOf[HelloItem] and
-			Splitter("world").first(JsonParser.nullable[String])
+			JsonSplitter("hello" \ anyIndex).asListOf[HelloItem] and
+			JsonSplitter("world").first(JsonParser.nullable[String])
 		).as(HelloWorld.apply)
 	}
 
@@ -76,22 +76,22 @@ object Main {
 	val j3 = "null"
 
 	/*
-	Splitter(inArray).asListOf(Parser.forInt)
+	JsonSplitter(inArray).asListOf(Parser.forInt)
 	// inArray = atIndex(_ => true)
 	 */
 	val j4 = "[1, 2, 3]"
 
 	/*
 	(
-		Splitter(atIndex(0)).first[Int] ~
-		Splitter(atIndex(1)).first[String]
+		JsonSplitter(atIndex(0)).first[Int] ~
+		JsonSplitter(atIndex(1)).first[String]
 	).asTuple
 	 */
 	val j5 =
 		"""[1, "hello"]"""
 
 	/*
-	Splitter(inObject)
+	JsonSplitter(inObject)
 	-
 	Parser.fieldOpt("a", Parser.forInt)
 	 */
@@ -101,7 +101,7 @@ object Main {
 	/*
 	Parser.field("a", Parser.forInt)
 	-
-	Splitter("a").first[Int]
+	JsonSplitter("a").first[Int]
 	 */
 	val j7 =
 		"""{ "a": 1 }"""
@@ -119,7 +119,7 @@ object Main {
 		"""true"""
 
 	/*
-	Splitter("a" \ "b" \ atIndex(1)).first[String]
+	JsonSplitter("a" \ "b" \ atIndex(1)).first[String]
 	 */
 	val j10 =
 		"""{

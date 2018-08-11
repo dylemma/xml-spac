@@ -129,18 +129,18 @@ class ParserTests extends FunSpec with Matchers {
 		}
 	}
 
-	describe("Splitter") {
+	describe("XMLSplitter") {
 		it("should filter out unmached events"){
 			testParserResult(
 				"<foo><bar>Hello</bar><baz>World</baz></foo>",
-				Splitter(* \ "bar").map(XMLParser.forText).parseToList,
+				XMLSplitter(* \ "bar").map(XMLParser.forText).parseToList,
 				List("Hello")
 			)
 		}
 
 		it("should split the events into substreams"){
 			val rawXml = "<foo><bar>Hello</bar><bar>World</bar></foo>"
-			val splitParser = Splitter(* \ "bar").map(XMLParser.forText).parseToList
+			val splitParser = XMLSplitter(* \ "bar").map(XMLParser.forText).parseToList
 			val unsplitParser = XMLParser.forText
 			testParserResult(rawXml, unsplitParser, "HelloWorld")
 			testParserResult(rawXml, splitParser, List("Hello", "World"))
@@ -167,11 +167,11 @@ class ParserTests extends FunSpec with Matchers {
 		it("should pass the same context value to its inner parsers if it requires a context"){
 			class A
 			case class AText(a: A, text: String)
-			val splitter: XMLSplitter[A] = Splitter(attr("a").map(_ => new A))
+			val splitter: XMLSplitter[A] = XMLSplitter(attr("a").map(_ => new A))
 			val rawXml = """<foo a="123"><x>Hello</x><y>Goodbye</y></foo>"""
 			// the two inner parsers should receive the same 'A' instance passed to this parser from a splitter
 			def parseAText(context: A, elem: String) = {
-				(XMLParser.constant(context) and Splitter(* \ elem).first.asText).as(AText)
+				(XMLParser.constant(context) and XMLSplitter(* \ elem).first.asText).as(AText)
 			}
 			val combinedContextualParser: XMLParser[(AText, AText)] = splitter.first{ a =>
 				(parseAText(a, "x") and parseAText(a, "y")).asTuple
@@ -209,7 +209,7 @@ class ParserTests extends FunSpec with Matchers {
 		}
 	}
 
-	describe("Splitter.map"){
+	describe("XMLSplitter.map"){
 		val rawXml = """<foo>
 		|	<a>1</a>
 		|	<a>2</a>
@@ -217,7 +217,7 @@ class ParserTests extends FunSpec with Matchers {
 		|	<a>4</a>
 		|	<b>5</b>
 		|</foo>""".stripMargin
-		val splitter = Splitter("foo" \ extractElemName)
+		val splitter = XMLSplitter("foo" \ extractElemName)
 
 		sealed trait AB
 		case class A(i: Int) extends AB
@@ -258,15 +258,15 @@ class ParserTests extends FunSpec with Matchers {
 	describe("Parser.followedBy"){
 		it("should pass the result of the followed parser to create the resulting parser"){
 			val xml = "<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
-			val idParser = Splitter(* \ "id").first.asText
-			val msgsParser = idParser.followedBy(id => Splitter(* \ "msg").asText.map(msg => s"$id:$msg").parseToList)
+			val idParser = XMLSplitter(* \ "id").first.asText
+			val msgsParser = idParser.followedBy(id => XMLSplitter(* \ "msg").asText.map(msg => s"$id:$msg").parseToList)
 			testParserResult(xml, msgsParser, List("123:Hello", "123:Goodbye"))
 		}
 		it("should provide convenient flatMap syntax that works the same way"){
 			val xml = "<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
 			val msgsParser = for {
-				id <- Splitter(* \ "id").first.asText.followedBy
-				msgs <- Splitter(* \ "msg").asText.map(msg => s"$id:$msg").parseToList
+				id <- XMLSplitter(* \ "id").first.asText.followedBy
+				msgs <- XMLSplitter(* \ "msg").asText.map(msg => s"$id:$msg").parseToList
 			} yield msgs
 			testParserResult(xml, msgsParser, List("123:Hello", "123:Goodbye"))
 		}
@@ -274,14 +274,14 @@ class ParserTests extends FunSpec with Matchers {
 			val xml = "<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
 			// this parser does not give a result until the containing element ends,
 			// so the "following" parser will never receive any events (besides the stack replay)
-			val idsParser = Splitter(* \ "id").asText.parseToList.map(_.mkString)
-			val msgsParser = idsParser.followedBy(id => Splitter(* \ "msg").asText.map(msg => s"$id:$msg").parseToList)
+			val idsParser = XMLSplitter(* \ "id").asText.parseToList.map(_.mkString)
+			val msgsParser = idsParser.followedBy(id => XMLSplitter(* \ "msg").asText.map(msg => s"$id:$msg").parseToList)
 			testParserResult(xml, msgsParser, Nil)
 		}
 		it("should yield an error if the followed parser yields an error"){
 			val xml = "<x><id>ABC</id><msg>Hello</msg><msg>Goodbye</msg></x>"
-			val idParser = Splitter(* \ "id").first.asText.map(_.toInt) // will yield a Failure because of "ABC".toInt
-			val msgsParser = idParser.followedBy(id => Splitter(* \ "msg").asText.map(msg => s"$id:$msg").parseToList)
+			val idParser = XMLSplitter(* \ "id").first.asText.map(_.toInt) // will yield a Failure because of "ABC".toInt
+			val msgsParser = idParser.followedBy(id => XMLSplitter(* \ "msg").asText.map(msg => s"$id:$msg").parseToList)
 
 			an[Exception] should be thrownBy {
 				msgsParser parse xml
@@ -289,9 +289,9 @@ class ParserTests extends FunSpec with Matchers {
 		}
 		it("should yield whatever errors the 'following' parser yields"){
 			val xml = "<x><name>dylemma</name><num>1</num><num>B</num><num>3</num></x>"
-			val nameParser = Splitter(* \ "name").first.asText
+			val nameParser = XMLSplitter(* \ "name").first.asText
 			val numsParser = nameParser.followedBy { name =>
-				Splitter(* \ "num").asText.map(s => s"$name:${s.toInt}").wrapSafe.parseToList
+				XMLSplitter(* \ "num").asText.map(s => s"$name:${s.toInt}").wrapSafe.parseToList
 			}
 			testParserResultLike(xml, numsParser){
 				case Success("dylemma:1") :: Failure(_) :: Success("dylemma:3") :: Nil => true
@@ -306,15 +306,15 @@ class ParserTests extends FunSpec with Matchers {
 
 		it("should pass the result of the followed parser to create the resulting transformer"){
 			val xml = "<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
-			val idParser = Splitter(* \ "id").first.asText
-			val msgsStream = idParser.followedByStream{ id => Splitter(* \ "msg").asText.map(msg => s"$id:$msg") }
+			val idParser = XMLSplitter(* \ "id").first.asText
+			val msgsStream = idParser.followedByStream{ id => XMLSplitter(* \ "msg").asText.map(msg => s"$id:$msg") }
 			runTransformer(xml, msgsStream) should be(List("123:Hello", "123:Goodbye"))
 		}
 		it("should provide convenient flatMap syntax that works the same way"){
 			val xml = "<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
 			val msgsStream = for {
-				id <- Splitter(* \ "id").first.asText.followedByStream
-				msg <- Splitter(* \ "msg").asText
+				id <- XMLSplitter(* \ "id").first.asText.followedByStream
+				msg <- XMLSplitter(* \ "msg").asText
 			} yield s"$id:$msg"
 			runTransformer(xml, msgsStream) should be(List("123:Hello", "123:Goodbye"))
 		}
@@ -322,23 +322,23 @@ class ParserTests extends FunSpec with Matchers {
 			val xml = "<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
 			// this parser does not give a result until the containing element ends,
 			// so the "following" parser will never receive any events (besides the stack replay)
-			val idsParser = Splitter(* \ "id").asText.parseToList.map(_.mkString)
-			val msgsParser = idsParser.followedByStream(id => Splitter(* \ "msg").asText.map(msg => s"$id:$msg"))
+			val idsParser = XMLSplitter(* \ "id").asText.parseToList.map(_.mkString)
+			val msgsParser = idsParser.followedByStream(id => XMLSplitter(* \ "msg").asText.map(msg => s"$id:$msg"))
 			runTransformer(xml, msgsParser) should be(Nil)
 		}
 		it("should yield a *single* error if the followed parser yields an error"){
 			val xml = "<x><id>ABC</id><msg>Hello</msg><msg>Goodbye</msg></x>"
-			val idParser = Splitter(* \ "id").first.asText.map(_.toInt) // will yield a Failure because of "ABC".toInt
-			val msgsStream = idParser.followedByStream(id => Splitter(* \ "msg").asText.map(msg => s"$id:$msg")).wrapSafe
+			val idParser = XMLSplitter(* \ "id").first.asText.map(_.toInt) // will yield a Failure because of "ABC".toInt
+			val msgsStream = idParser.followedByStream(id => XMLSplitter(* \ "msg").asText.map(msg => s"$id:$msg")).wrapSafe
 			a[NumberFormatException] should be thrownBy {
 				runTransformer(xml, msgsStream)
 			}
 		}
 		it("should yield whatever errors the 'following' parser yields"){
 			val xml = "<x><name>dylemma</name><num>1</num><num>B</num><num>3</num></x>"
-			val nameParser = Splitter(* \ "name").first.asText
+			val nameParser = XMLSplitter(* \ "name").first.asText
 			val numsStream = nameParser.followedByStream { name =>
-				Splitter(* \ "num").asText.map(s => s"$name:${s.toInt}").wrapSafe
+				XMLSplitter(* \ "num").asText.map(s => s"$name:${s.toInt}").wrapSafe
 			}
 			runTransformer(xml, numsStream) should matchPattern {
 				case Success("dylemma:1") :: Failure(_) :: Success("dylemma:3") :: Nil =>
@@ -354,8 +354,8 @@ class ParserTests extends FunSpec with Matchers {
 				  |  <data>2</data>
 				  |</root>""".stripMargin
 			val dataContext = * \ "data"
-			def dataTransformer(prelude: Option[String]) = Splitter(dataContext).asText.map(prelude -> _)
-			val optPreludeParser = Splitter(* \ "prelude").firstOption.attr("id") // will return None on the xml above
+			def dataTransformer(prelude: Option[String]) = XMLSplitter(dataContext).asText.map(prelude -> _)
+			val optPreludeParser = XMLSplitter(* \ "prelude").firstOption.attr("id") // will return None on the xml above
 			val failFastPreludeParser = optPreludeParser.beforeContext(dataContext)
 
 			// waiting until </root> to decide if the prelude parser returns None means the followedByStream sees nothing

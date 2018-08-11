@@ -1,6 +1,5 @@
 package io.dylemma.spac.json
 
-import io.dylemma.spac.Splitter
 import org.scalatest.{FunSpec, Matchers}
 
 class ParserTests extends FunSpec with Matchers {
@@ -76,13 +75,13 @@ class ParserTests extends FunSpec with Matchers {
 
 	describe("JsonSplitter(<object field>)"){
 		it("should apply the attached parser to the inputs in the field's scope"){
-			val fieldParser = Splitter("field").first[Int]
+			val fieldParser = JsonSplitter("field").first[Int]
 			val json = "{ \"field\": 3 }"
 			fieldParser.parse(json) should be(3)
 		}
 
 		it("should not match nested contexts that would have matched at the same level"){
-			val fieldParser = Splitter("field").asListOf[Int]
+			val fieldParser = JsonSplitter("field").asListOf[Int]
 			val json =
 				"""{
 				  |  "field": 3,
@@ -94,7 +93,7 @@ class ParserTests extends FunSpec with Matchers {
 		}
 
 		it("should identify matching contexts even if that context was matched before"){
-			val fieldParser = Splitter("field").asListOf[Int]
+			val fieldParser = JsonSplitter("field").asListOf[Int]
 			val json =
 				"""{
 				  |  "field": 3,
@@ -106,7 +105,7 @@ class ParserTests extends FunSpec with Matchers {
 
 	describe("JsonSplitter(anyField)") {
 		it("should extract values regardless of the field name") {
-			val fieldParser = Splitter(anyField).asListOf[Int]
+			val fieldParser = JsonSplitter(anyField).asListOf[Int]
 			val json =
 				"""{
 				  |  "a": 1,
@@ -116,7 +115,7 @@ class ParserTests extends FunSpec with Matchers {
 		}
 
 		it("should extract field names") {
-			val fieldParser = Splitter(anyField).asListOf.choose(JsonParser.constant)
+			val fieldParser = JsonSplitter(anyField).asListOf.choose(JsonParser.constant)
 			val json = """{ "a": 1, "b": 2 }"""
 			fieldParser.parse(json) should be(List("a", "b"))
 		}
@@ -124,13 +123,13 @@ class ParserTests extends FunSpec with Matchers {
 
 	describe("JsonSplitter(<array index>)") {
 		it("should extract values only from matching indexes") {
-			val parser = Splitter(indexWhere(_ % 2 == 0)).asListOf[Int]
+			val parser = JsonSplitter(indexWhere(_ % 2 == 0)).asListOf[Int]
 			val json = "[10, 20, 30, 40, 50]" // indexes 0,2,4 match
 			parser.parse(json) should be(List(10, 30, 50))
 		}
 
 		it("should extract array indexes") {
-			val parser = Splitter(indexWhere(_ % 2 == 0)).asListOf.choose(JsonParser.constant)
+			val parser = JsonSplitter(indexWhere(_ % 2 == 0)).asListOf.choose(JsonParser.constant)
 			val json = "[10, 20, 30, 40, 50]" // indexes 0,2,4 match
 			parser.parse(json) should be(List(0, 2, 4))
 		}
@@ -145,8 +144,8 @@ class ParserTests extends FunSpec with Matchers {
 				  |  "name": "Jason"
 				  |}""".stripMargin
 			val parser = (
-				Splitter("info").first(JsonParser.listOf[Int]) and
-				Splitter("name").first(JsonParser[String])
+				JsonSplitter("info").first(JsonParser.listOf[Int]) and
+				JsonSplitter("name").first(JsonParser[String])
 			).as(Result)
 			parser.parse(json) should be(Result(List(1,2,3), "Jason"))
 		}

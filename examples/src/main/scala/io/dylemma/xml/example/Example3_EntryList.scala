@@ -47,7 +47,7 @@ object Example3_EntryList extends App {
 		case "key" => XMLParser.forText.map(Left(_))
 		case "value" => XMLParser.forText.map(s => Right(s.toInt))
 	}
-	val keyOrValueTransformer: Transformer[XMLEvent, KeyOrValue] = Splitter("entrylist" \ extractElemName).map(keyOrValueParser)
+	val keyOrValueTransformer: Transformer[XMLEvent, KeyOrValue] = XMLSplitter("entrylist" \ extractElemName).map(keyOrValueParser)
 
 
 	/*

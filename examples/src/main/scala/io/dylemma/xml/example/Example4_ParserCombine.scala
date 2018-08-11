@@ -40,8 +40,8 @@ object Example4_ParserCombine {
 
 	/*
 	Note that we're marking the `UserParser` and `StatsParser` below as implicit.
-	This is simply for convenience so that we can use `Splitter(...).first[User]`
-	and `Splitter(...).first[Stats]` later on.
+	This is simply for convenience so that we can use `XMLSplitter(...).first[User]`
+	and `XMLSplitter(...).first[Stats]` later on.
 	 */
 
 	// Parse <user id="..." name="..." /> into a User(id, name)
@@ -61,14 +61,14 @@ object Example4_ParserCombine {
 	// Parser for Comment
 	implicit val CommentParser: XMLParser[Comment] = (
 		XMLParser.forMandatoryAttribute("date").map(commentDateFormat.parse) and
-		Splitter(* \ "user").first[User] and
-		Splitter(* \ "stats").first[Stats] and
-		Splitter(* \ "body").first.asText
+		XMLSplitter(* \ "user").first[User] and
+		XMLSplitter(* \ "stats").first[Stats] and
+		XMLSplitter(* \ "body").first.asText
 	).as(Comment)
 
 	def main(args: Array[String]) {
 
-		val mainParser = Splitter("comments" \ "comment").as[Comment].consumeForEach(println)
+		val mainParser = XMLSplitter("comments" \ "comment").as[Comment].consumeForEach(println)
 
 		mainParser consume rawXml
 	}

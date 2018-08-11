@@ -23,10 +23,10 @@ object Example7_Interrupter extends App {
 		""".stripMargin
 
 	// capture an optional <context> element's id
-	val captureOptionalContext: XMLParser[Option[String]] = Splitter("stuff" \ "context").firstOption.attr("id")
+	val captureOptionalContext: XMLParser[Option[String]] = XMLSplitter("stuff" \ "context").firstOption.attr("id")
 
 	// Stream of <data> given an optional greeting
-	def dataStream(greeting: Option[String]) = Splitter("stuff" \ "data").asText.map { subject =>
+	def dataStream(greeting: Option[String]) = XMLSplitter("stuff" \ "data").asText.map { subject =>
 		greeting.fold(s"(no greeting for) $subject"){ g => s"$g, $subject" }
 	}
 
@@ -39,7 +39,7 @@ object Example7_Interrupter extends App {
 	handleGreetings consume rawXml2
 
 	// make the context capturing parser hit an early EOF when we reach a <data>
-	val interrupter = Splitter("stuff" \ "data").first(XMLParser.constant("interrupt!" /* this value doesn't matter */))
+	val interrupter = XMLSplitter("stuff" \ "data").first(XMLParser.constant("interrupt!" /* this value doesn't matter */))
 	val betterCaptureOptionalContext = captureOptionalContext.interruptedBy(interrupter)
 	val betterHandleGreetings = betterCaptureOptionalContext.followedByStream(dataStream).consumeForEach(println)
 

@@ -1,10 +1,9 @@
 package io.dylemma.spac.xml.syntax
 
-import javax.xml.stream.events.{StartElement, XMLEvent}
-
 import io.dylemma.spac.types.Stackable
-import io.dylemma.spac.xml.{XMLEvents, XMLParser, XMLResource, XMLSplitter}
-import io.dylemma.spac.{ConsumableLike, FromHandlerFactory, SplitterApply}
+import io.dylemma.spac.xml.{XMLEvents, XMLParser, XMLResource}
+import io.dylemma.spac.{ConsumableLike, FromHandlerFactory}
+import javax.xml.stream.events.{StartElement, XMLEvent}
 
 /** Defines XML-specific instances for the core spac typeclasses. */
 trait Implicits {
@@ -34,10 +33,6 @@ trait Implicits {
 	  * @return Implicit evidence that `T` can be opened as a stream of `XMLEvent`
 	  */
 	implicit def consumableLikeXMLResource[T: XMLResource]: ConsumableLike[T, XMLEvent] = XMLResource.consumableLike[T]
-
-	/** Implicit evidence that you can call `Splitter.apply` on a `ContextMatcher[StartElement, T]` to get an `XMLSplitter[T]`.
-	  */
-	implicit val xmlSplitterApply: SplitterApply[StartElement, XMLSplitter] = XMLSplitter
 
 	implicit def xmlParserFromHandlerFactory: FromHandlerFactory[XMLEvent, XMLParser] = XMLParser.handlerFactoryConverter
 }

@@ -42,13 +42,13 @@ object Example6_NestedContexts extends App {
 	// We'll define some standalone parsers/transformers ahead of time...
 
 	/** Parses the "id" attribute from the first `<info>` in a `<stuff>` */
-	val stuffInfoParser = Splitter("stuff" \ "info").first.attr("id")
+	val stuffInfoParser = XMLSplitter("stuff" \ "info").first.attr("id")
 
 	/** Get the "id" attribute from the first <context> element in a <thing> */
-	val thingContextParser = Splitter("thing" \ "context").first.attr("id")
+	val thingContextParser = XMLSplitter("thing" \ "context").first.attr("id")
 
 	/** Get a stream of each `<data>`'s Int values from inside a <thing> */
-	val thingDataTransform = Splitter("thing" \ "data").asText.map(_.toInt)
+	val thingDataTransform = XMLSplitter("thing" \ "data").asText.map(_.toInt)
 
 	/** Creates a stream of Data objects from within a `<stuff>` */
 	val verboseSelectDataFromStuff: Transformer[XMLEvent, Data] = {
@@ -57,7 +57,7 @@ object Example6_NestedContexts extends App {
 			println(s"Captured info.id as $infoId")
 
 			// Select into the <thing> elements, using `flatMap` to attach an inner transformer to each one.
-			Splitter("stuff" \ "thing").flatMap { ignoredContext =>
+			XMLSplitter("stuff" \ "thing").flatMap { ignoredContext =>
 				/* This block will run once per <thing>.
 				 *
 				 * Note: We could pass a Transformer instead of a function, since Transformer counts
@@ -83,7 +83,7 @@ object Example6_NestedContexts extends App {
 	// Same as above, but using flatMap/map, no printlns, and no comments
 	val selectDataFromStuff: Transformer[XMLEvent, Data] = for {
 		infoId <- stuffInfoParser.followedByStream
-		_ <- Splitter("stuff" \ "thing")
+		_ <- XMLSplitter("stuff" \ "thing")
 		contextId <- thingContextParser.followedByStream
 		value <- thingDataTransform
 	} yield Data(infoId, contextId, value)

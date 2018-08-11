@@ -37,12 +37,12 @@ object Example5_FollowedBy extends App {
 	).as(User)
 
 	// parser for a <users> element to a `UserMap`
-	implicit val userMapParser: XMLParser[UserMap] = Splitter(* \ "user").as[User].parseToList.map { userList =>
+	implicit val userMapParser: XMLParser[UserMap] = XMLSplitter(* \ "user").as[User].parseToList.map { userList =>
 		UserMap(userList.map(u => u.id -> u).toMap)
 	}
 
 	// parser to get the first <users> element from the document
-	val usersParser = Splitter(* \ "users").first[UserMap]
+	val usersParser = XMLSplitter(* \ "users").first[UserMap]
 
 	// parser for <message> elements, given a function to get a User by its id
 	def getMessageParser(userMap: UserMap): XMLParser[Message] = (
@@ -55,7 +55,7 @@ object Example5_FollowedBy extends App {
 	<message> elements encountered after the <users> have been parsed.
 	 */
 	val messagesTransformer: Transformer[XMLEvent, Message] = usersParser.followedByStream { userMap =>
-		Splitter(* \ "message").as(getMessageParser(userMap))
+		XMLSplitter(* \ "message").as(getMessageParser(userMap))
 	}
 
 	// a Transformer that passes events through after printing them
@@ -73,7 +73,7 @@ object Example5_FollowedBy extends App {
 	 */
 	val messagesTransformer2: Transformer[XMLEvent, Message] = for {
 		userMap <- usersParser.followedByStream
-		message <- Splitter(* \ "message").as(getMessageParser(userMap))
+		message <- XMLSplitter(* \ "message").as(getMessageParser(userMap))
 	} yield message
 	println("messagesTransformer2:")
 	messagesTransformer2.consumeForEach(println).consume(xml)
@@ -91,7 +91,7 @@ object Example5_FollowedBy extends App {
 
 	val messagesTransformer3: Transformer[XMLEvent, Message] = for {
 		userMap <- usersParser.followedByStream
-		RawMessage(userId, content) <- Splitter(* \ "message").as[RawMessage]
+		RawMessage(userId, content) <- XMLSplitter(* \ "message").as[RawMessage]
 	} yield Message(userMap(userId), content)
 
 	println("messagesTransformer3:")

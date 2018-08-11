@@ -97,46 +97,7 @@ class ContextStackSplitter[In, StackElem, +Context](
 	override def toString = s"Splitter($matcher)"
 }
 
-/** Typeclass that abstracts Splitter construction for specific "context stack" types.
-  *
-  * @tparam StackElem The "context stack" type
-  * @tparam Instance The Splitter subclass, e.g. `XMLSplitter` or `JSONSplitter`
-  */
-trait SplitterApply[StackElem, Instance[+_]] {
-	/** Construct a new Splitter given a ContextMatcher.
-	  *
-	  * @param matcher A function that decides whether the "context stack" represents a `Context` value
-	  * @tparam Context The interpreted value returned by the `matcher` given a context stack
-	  * @return A new Splitter based on the `matcher`
-	  */
-	def apply[Context](matcher: ContextMatcher[StackElem, Context]): Instance[Context]
-}
-
 object Splitter {
-
-	/** Create a Splitter for some stack-like format, using the `matcher` to identify where substreams start and end.
-	  * As inputs come through the returned splitter, a "context stack" state will be updated and passed to the given
-	  * `matcher`. The substream boundaries are the inputs that cause the context stack to enter and exit states for
-	  * which the `matcher` identifies a `Context` value.
-	  *
-	  * For example:
-	  *
-	  * {{{
-	  * // for XML:
-	  * val matcher: ContextMatcher[StartElem, MyContext] = /* ... */
-	  * val splitter = Splitter(matcher) // returns an XMLSplitter[MyContext]
-	  * }}}
-	  *
-	  * @param matcher A function that decides whether the context stack represents a `Context` value
-	  * @param stacker A strategy for updating the context stack based on inputs
-	  * @tparam StackElem The type of items in the context stack
-	  * @tparam Context The type of value returned by `matcher` to be used as a substream context.
-	  * @tparam Instance The specific Splitter subclass, e.g. XMLSplitter or JSONSplitter
-	  * @return A new Splitter that uses the given `matcher` to identify where substreams start and end
-	  */
-	def apply[StackElem, Context, Instance[+_]](matcher: ContextMatcher[StackElem, Context])(implicit stacker: SplitterApply[StackElem, Instance]): Instance[Context] = {
-		stacker(matcher)
-	}
 
 	/** Create a Splitter that treats consecutive matched values as substreams.
 	  * For example, given a matcher like `{ case c if c.isLetter => c }`, a stream like
