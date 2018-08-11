@@ -45,14 +45,14 @@ And the following imports:
 import io.dylemma.spac._
 ```
 
-### Parser[Author]
+### XMLParser[Author]
 
 We'll start by defining a parser for the `Author` class:
 
 ```scala
-implicit val AuthorParser: Parser[Author] = (
-	Parser.forMandatoryAttribute("id") and
-	Parser.forMandatoryAttribute("name")
+implicit val AuthorParser: XMLParser[Author] = (
+	XMLParser.forMandatoryAttribute("id") and
+	XMLParser.forMandatoryAttribute("name")
 ).as(Author)
 ```
 
@@ -65,14 +65,14 @@ This works because `Author` is a case class, and therefore the `Author` companio
 `(String, String) => Author`, which fits the signature of `.as`.
 We mark the `AuthorParser` as implicit so that it can be used with some of the parser convenience methods later on.
 
-### Parser[Stats]
+### XMLParser[Stats]
 
 Building on the concepts from the `Author` parser, we can define the `Stats` parser.
 
 ```scala
-implicit val StatsParser: Parser[Stats] = (
-	Parser.forMandatoryAttribute("likes").map(_.toInt) and
-	Parser.forMandatoryAttribute("tweets").map(_.toInt)
+implicit val StatsParser: XMLParser[Stats] = (
+	XMLParser.forMandatoryAttribute("likes").map(_.toInt) and
+	XMLParser.forMandatoryAttribute("tweets").map(_.toInt)
 ).as(Stats)
 ```
 
@@ -81,14 +81,14 @@ if the function throws an exception, that exception will be caught and represent
 that the `join` method is completely typesafe. Without the `map` calls, `as(Stats)` would fail since you would be
 trying to pass Strings into a function that expected Ints.
 
-### Parser[Comment]
+### XMLParser[Comment]
 
 Using some new concepts, we can define the `Comment` parser.
 
 ```scala
 val commentDateFormat = DateTimeFormat.forPattern("yyyy-MM-dd")
-implicit val CommentParser: Parser[Comment] = (
-	Parser.forMandatoryAttribute("date").map(commentDateFormat.parseLocalDate) and
+implicit val CommentParser: XMLParser[Comment] = (
+	XMLParser.forMandatoryAttribute("date").map(commentDateFormat.parseLocalDate) and
 	Splitter(* \ "author").first[Author] and
 	Splitter(* \ "body").first.asText
 ).as(Comment)
@@ -96,20 +96,20 @@ implicit val CommentParser: Parser[Comment] = (
 
 The `Splitter(* \ "author")` is a new Splitter that only passes along events coming from the `<author>` element directly within
 the top-level element, which in this case could be anything. Then we call `first[Author]`, which implicitly looks for a
-`Parser[Any, Author]` and should find our `AuthorParser` that we defined earlier. `first[T]` is actually shorthand for
+`XMLParser[Author]` and should find our `AuthorParser` that we defined earlier. `first[T]` is actually shorthand for
 `through(parser).parseFirst`, meaning that we will run the AuthorParser only on the first `<author>` substream, returning a
 single `Author` instance rather than a list or option.
 
 The `Splitter(* \ "body" ).first.asText` is a parser that collects the text in first `<body>` element directly within the top-level
 element. Any `Characters` events encountered within that substream will be concatenated to generate the result.
 
-### Parser[Post]
+### XMLParser[Post]
 
 Combining the parsers and concepts from above, we can define the `Post` parser.
 
 ```scala
-implicit val PostParser: Parser[Post] = (
-	Parser.forMandatoryAttribute("date").map(commentDateFormat.parseLocalDate) and
+implicit val PostParser: XMLParser[Post] = (
+	XMLParser.forMandatoryAttribute("date").map(commentDateFormat.parseLocalDate) and
 	Splitter(* \ "author").first[Author] and
 	Splitter(* \ "stats").first[Stats] and
 	Splitter(* \ "body").first.asText and
@@ -126,10 +126,10 @@ Note the common functionality between `PostParser` and `CommentParser` for getti
 functionality can be pulled out to some common location and reused anywhere, e.g.
 
 ```scala
-val dateAttributeParser = Parser.forMandatoryAttribute("date").map(commentDateFormat.parseLocalDate)
+val dateAttributeParser = XMLParser.forMandatoryAttribute("date").map(commentDateFormat.parseLocalDate)
 val authorElementParser = Splitter(* \ "author").first[Author]
 
-implicit val CommentParser: Parser[Comment] = (
+implicit val CommentParser: XMLParser[Comment] = (
   dateAttributeParser and
   authorElementParser and
   Splitter(* \ "body").first.asText
@@ -160,9 +160,3 @@ postTransformer.consumeForEach(println) consume xml // println each Post as the 
 println(postTransformer.consumeToList consume xml) // collect all of the Posts to a list
 println(postTransformer.parseToList parse xml) // collect all of the Posts, but wrap parsing failures as values
 ```
-
-You can use `parser.parse(xml)` or `consumer.consume(xml)`. `Parser` and `Consumer` are very similar, but the main
-difference is that the output of a `Parser` will always be a `Try`.
-Exceptions thrown by parsers' inner handlers will be caught and wrapped as `Failure`s. For example if the
-`StatsParser` encountered a `"asdf"` as the value for the "likes" attribute, the `_.toInt` would throw an exception,
-which would be caught, causing the result for that element to be an `Failure(NumberFormatException)`.

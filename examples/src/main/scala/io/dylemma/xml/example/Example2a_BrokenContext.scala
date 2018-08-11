@@ -21,10 +21,10 @@ object Example2a_BrokenContext extends App {
 
 	case class Comment(postId: Int, user: String, text: String)
 
-	def CommentParser(idFromContext: Int): Parser[Comment] = (
-		Parser.constant(idFromContext) and
-		Parser.forMandatoryAttribute("user") and
-		Parser.forText
+	def CommentParser(idFromContext: Int): XMLParser[Comment] = (
+		XMLParser.constant(idFromContext) and
+			XMLParser.forMandatoryAttribute("user") and
+			XMLParser.forText
 	).as(Comment)
 
 	val contextMatcher = "blog" \ ("post" & attr("id").map(_.toInt)) \ "comment"

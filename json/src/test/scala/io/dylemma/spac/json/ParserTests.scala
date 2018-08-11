@@ -28,46 +28,46 @@ class ParserTests extends FunSpec with Matchers {
 	}
 
 	describe("JsonParser[Int]"){
-		it should behave like basicParser('long, Parser[Int], "1", 1)
+		it should behave like basicParser('long, JsonParser[Int], "1", 1)
 	}
 	describe("JsonParser[Long]"){
-		it should behave like basicParser('long, Parser[Long], "1", 1L)
+		it should behave like basicParser('long, JsonParser[Long], "1", 1L)
 	}
 	describe("JsonParser[Float]"){
-		it should behave like basicParser('double, Parser[Float], "1.2", 1.2f)
+		it should behave like basicParser('double, JsonParser[Float], "1.2", 1.2f)
 	}
 	describe("JsonParser[Double]"){
-		it should behave like basicParser('double, Parser[Double], "1.2", 1.2)
+		it should behave like basicParser('double, JsonParser[Double], "1.2", 1.2)
 	}
 	describe("JsonParser[String]") {
-		it should behave like basicParser('string, Parser[String], "\"hello\"", "hello")
+		it should behave like basicParser('string, JsonParser[String], "\"hello\"", "hello")
 	}
 	describe("JsonParser[Boolean]"){
-		it should behave like basicParser('bool, Parser[Boolean], "true", true)
+		it should behave like basicParser('bool, JsonParser[Boolean], "true", true)
 	}
 	describe("JsonParser.forNull"){
-		it should behave like basicParser('null, Parser.forNull, "null", None)
+		it should behave like basicParser('null, JsonParser.forNull, "null", None)
 	}
 
 	describe("JsonParser.listOf"){
-		it should behave like basicParser('array, Parser.listOf[Int], "[1,2,3]", List(1,2,3))
+		it should behave like basicParser('array, JsonParser.listOf[Int], "[1,2,3]", List(1,2,3))
 
 		it("should succeed when given an array as input"){
-			Parser.listOf[Int].parse("[1,2,3]") should be(List(1,2,3))
-			Parser.listOf[Boolean].parse("[true, false]") should be(List(true, false))
-			Parser.listOf[String].parse("[\"hi\", \"bye\"]") should be(List("hi", "bye"))
+			JsonParser.listOf[Int].parse("[1,2,3]") should be(List(1,2,3))
+			JsonParser.listOf[Boolean].parse("[true, false]") should be(List(true, false))
+			JsonParser.listOf[String].parse("[\"hi\", \"bye\"]") should be(List("hi", "bye"))
 		}
 	}
 
 	describe("JsonParser.oneOf"){
 		it("should succeed if the input causes one of the parsers to succeed"){
-			val oneOf = Parser.oneOf(Parser[Int], Parser[String], Parser[Boolean])
+			val oneOf = JsonParser.oneOf(JsonParser[Int], JsonParser[String], JsonParser[Boolean])
 			oneOf.parse("1") should be(1)
 			oneOf.parse("\"hello\"") should be("hello")
 			oneOf.parse("false") should equal(false) // compile fail with `be`... scalatest bug?
 		}
 		it("should fail if the input causes all of the parsers to fail"){
-			val oneOf = Parser.oneOf(Parser[Int], Parser[String], Parser[Boolean])
+			val oneOf = JsonParser.oneOf(JsonParser[Int], JsonParser[String], JsonParser[Boolean])
 			intercept[IllegalArgumentException] {
 				oneOf.parse("[1,2,3]")
 			}
@@ -116,7 +116,7 @@ class ParserTests extends FunSpec with Matchers {
 		}
 
 		it("should extract field names") {
-			val fieldParser = Splitter(anyField).asListOf.choose(Parser.constant)
+			val fieldParser = Splitter(anyField).asListOf.choose(JsonParser.constant)
 			val json = """{ "a": 1, "b": 2 }"""
 			fieldParser.parse(json) should be(List("a", "b"))
 		}
@@ -130,7 +130,7 @@ class ParserTests extends FunSpec with Matchers {
 		}
 
 		it("should extract array indexes") {
-			val parser = Splitter(indexWhere(_ % 2 == 0)).asListOf.choose(Parser.constant)
+			val parser = Splitter(indexWhere(_ % 2 == 0)).asListOf.choose(JsonParser.constant)
 			val json = "[10, 20, 30, 40, 50]" // indexes 0,2,4 match
 			parser.parse(json) should be(List(0, 2, 4))
 		}
@@ -145,8 +145,8 @@ class ParserTests extends FunSpec with Matchers {
 				  |  "name": "Jason"
 				  |}""".stripMargin
 			val parser = (
-				Splitter("info").first(Parser.listOf[Int]) and
-				Splitter("name").first(Parser[String])
+				Splitter("info").first(JsonParser.listOf[Int]) and
+				Splitter("name").first(JsonParser[String])
 			).as(Result)
 			parser.parse(json) should be(Result(List(1,2,3), "Jason"))
 		}

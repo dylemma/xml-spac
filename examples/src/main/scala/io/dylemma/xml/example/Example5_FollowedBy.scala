@@ -31,13 +31,13 @@ object Example5_FollowedBy extends App {
 	case class Message(user: User, content: String)
 
 	// parser for a <user> element to a `User`
-	implicit val userParser: Parser[User] = (
-		Parser.forMandatoryAttribute("id") and
-		Parser.forText
+	implicit val userParser: XMLParser[User] = (
+		XMLParser.forMandatoryAttribute("id") and
+		XMLParser.forText
 	).as(User)
 
 	// parser for a <users> element to a `UserMap`
-	implicit val userMapParser: Parser[UserMap] = Splitter(* \ "user").as[User].parseToList.map { userList =>
+	implicit val userMapParser: XMLParser[UserMap] = Splitter(* \ "user").as[User].parseToList.map { userList =>
 		UserMap(userList.map(u => u.id -> u).toMap)
 	}
 
@@ -45,9 +45,9 @@ object Example5_FollowedBy extends App {
 	val usersParser = Splitter(* \ "users").first[UserMap]
 
 	// parser for <message> elements, given a function to get a User by its id
-	def getMessageParser(userMap: UserMap): Parser[Message] = (
-		Parser.forMandatoryAttribute("user_id").map(userMap) and
-		Parser.forText
+	def getMessageParser(userMap: UserMap): XMLParser[Message] = (
+		XMLParser.forMandatoryAttribute("user_id").map(userMap) and
+		XMLParser.forText
 	).as(Message)
 
 	/*
@@ -85,8 +85,8 @@ object Example5_FollowedBy extends App {
 	 */
 	case class RawMessage(userId: String, content: String)
 	implicit val rawMessageParser = (
-		Parser.forMandatoryAttribute("user_id") and
-		Parser.forText
+		XMLParser.forMandatoryAttribute("user_id") and
+		XMLParser.forText
 	).as(RawMessage)
 
 	val messagesTransformer3: Transformer[XMLEvent, Message] = for {

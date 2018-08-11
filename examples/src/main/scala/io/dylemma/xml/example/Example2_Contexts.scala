@@ -107,21 +107,21 @@ object Example2_Contexts extends App {
 	The comment parser can't create a `Comment` without a `PostContext`,
 	since that comes from an xml element further up the tree. We'll get
 	that context from the `Splitter` (via the `map` method), so for
-	now we only create a `PostContext => Parser[Comment]` to represent
+	now we only create a `PostContext => XMLParser[Comment]` to represent
 	that dependency.
 	 */
 	case class Comment(body: String, context: PostContext)
-	def commentParser(context: PostContext): Parser[Comment] = (
-		Parser.forText and
-		Parser.constant(context)
+	def commentParser(context: PostContext): XMLParser[Comment] = (
+		XMLParser.forText and
+			XMLParser.constant(context)
 	).as(Comment)
 
 	/*
 	Note: for this particular use case it might be more convenient to
 	insert the `context` with a `map` on the text parser.
 	 */
-	def alternateCommentParser(context: PostContext): Parser[Comment] = {
-		Parser.forText.map(Comment(_, context))
+	def alternateCommentParser(context: PostContext): XMLParser[Comment] = {
+		XMLParser.forText.map(Comment(_, context))
 	}
 
 	/*

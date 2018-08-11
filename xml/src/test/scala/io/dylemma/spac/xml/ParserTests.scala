@@ -11,12 +11,12 @@ import scala.util.{Failure, Success}
 
 class ParserTests extends FunSpec with Matchers {
 
-	protected def testParserResult[R](rawXml: String, parser: Parser[R], expected: R) = {
+	protected def testParserResult[R](rawXml: String, parser: XMLParser[R], expected: R) = {
 		val result = parser parse rawXml
 		result should be(expected)
 	}
 
-	protected def testParserResultLike[R](rawXml: String, parser: Parser[R])(testResult: R => Boolean) = {
+	protected def testParserResultLike[R](rawXml: String, parser: XMLParser[R])(testResult: R => Boolean) = {
 		val result = parser parse rawXml
 		testResult(result) should be(true)
 	}
@@ -28,7 +28,7 @@ class ParserTests extends FunSpec with Matchers {
 		it("should concatenate text events") {
 			testParserResult(
 				"<foo>Hello<bar>World</bar><bar>Floopy</bar>Doop</foo>",
-				Parser.forText,
+				XMLParser.forText,
 				"HelloWorldFloopyDoop"
 			)
 		}
@@ -36,7 +36,7 @@ class ParserTests extends FunSpec with Matchers {
 		it("should preserve whitespace") {
 			testParserResult(
 				"<foo>\n\tHello\n</foo>",
-				Parser.forText,
+				XMLParser.forText,
 				"\n\tHello\n"
 			)
 		}
@@ -46,27 +46,27 @@ class ParserTests extends FunSpec with Matchers {
 		it("should return the attribute from the first encountered element") {
 			testParserResult(
 				"""<foo a="123"/>""",
-				Parser.forMandatoryAttribute("a"),
+				XMLParser.forMandatoryAttribute("a"),
 				"123"
 			)
 		}
 
 		it("should return an error if the attribute is missing from the first encountered element") {
 			an[Exception] should be thrownBy {
-				Parser.forMandatoryAttribute("a") parse "<foo/>"
+				XMLParser.forMandatoryAttribute("a") parse "<foo/>"
 			}
 		}
 
 		it("should not return the attribute from an inner element") {
 			an[Exception] should be thrownBy {
-				Parser.forMandatoryAttribute("a") parse {
+				XMLParser.forMandatoryAttribute("a") parse {
 					"""<foo><bar a="123"/></foo>"""
 				}
 			}
 
 			testParserResult(
 				"""<foo a="123"><bar a="456"/></foo>""",
-				Parser.forMandatoryAttribute("a"),
+				XMLParser.forMandatoryAttribute("a"),
 				"123"
 			)
 		}
@@ -76,7 +76,7 @@ class ParserTests extends FunSpec with Matchers {
 		it("should return the attribute from the first encountered element, in a Some") {
 			testParserResult(
 				"""<foo a="123"/>""",
-				Parser.forOptionalAttribute("a"),
+				XMLParser.forOptionalAttribute("a"),
 				Some("123")
 			)
 		}
@@ -84,7 +84,7 @@ class ParserTests extends FunSpec with Matchers {
 		it("should return None if the attribute is missing from the first encountered element") {
 			testParserResult(
 				"<foo/>",
-				Parser.forOptionalAttribute("a"),
+				XMLParser.forOptionalAttribute("a"),
 				None
 			)
 		}
@@ -92,12 +92,12 @@ class ParserTests extends FunSpec with Matchers {
 		it("should not return the attribute from an inner element") {
 			testParserResult(
 				"""<foo><bar a="123"/></foo>""",
-				Parser.forOptionalAttribute("a"),
+				XMLParser.forOptionalAttribute("a"),
 				None
 			)
 			testParserResult(
 				"""<foo a="123"><bar a="456"/></foo>""",
-				Parser.forOptionalAttribute("a"),
+				XMLParser.forOptionalAttribute("a"),
 				Some("123")
 			)
 		}
@@ -106,7 +106,7 @@ class ParserTests extends FunSpec with Matchers {
 	describe("Invalid XML") {
 		it("should cause an exception to be thrown while running a parser") {
 			val invalidXml = """<doop oh hello this is just gibberish"""
-			val anyOldParser = Parser.forText
+			val anyOldParser = XMLParser.forText
 			intercept[XMLStreamException] {
 				anyOldParser parse invalidXml
 			}
@@ -117,14 +117,14 @@ class ParserTests extends FunSpec with Matchers {
 		it("should produce successful mapped results for valid inputs") {
 			testParserResult(
 				"<foo>123</foo>",
-				Parser.forText.map(_.toInt),
+				XMLParser.forText.map(_.toInt),
 				123
 			)
 		}
 
 		it("should produce error results for invalid inputs") {
 			an[Exception] should be thrownBy {
-				Parser.forText.map(_.toInt) parse "<foo>ABC</foo>"
+				XMLParser.forText.map(_.toInt) parse "<foo>ABC</foo>"
 			}
 		}
 	}
@@ -133,15 +133,15 @@ class ParserTests extends FunSpec with Matchers {
 		it("should filter out unmached events"){
 			testParserResult(
 				"<foo><bar>Hello</bar><baz>World</baz></foo>",
-				Splitter(* \ "bar").map(Parser.forText).parseToList,
+				Splitter(* \ "bar").map(XMLParser.forText).parseToList,
 				List("Hello")
 			)
 		}
 
 		it("should split the events into substreams"){
 			val rawXml = "<foo><bar>Hello</bar><bar>World</bar></foo>"
-			val splitParser = Splitter(* \ "bar").map(Parser.forText).parseToList
-			val unsplitParser = Parser.forText
+			val splitParser = Splitter(* \ "bar").map(XMLParser.forText).parseToList
+			val unsplitParser = XMLParser.forText
 			testParserResult(rawXml, unsplitParser, "HelloWorld")
 			testParserResult(rawXml, splitParser, List("Hello", "World"))
 		}
@@ -150,14 +150,14 @@ class ParserTests extends FunSpec with Matchers {
 	describe("Parser.and") {
 		it("should combine successful results of the combined parsers"){
 			val rawXml = """<foo a="123">hello world</foo>"""
-			val preCombined = Parser.forMandatoryAttribute("a") and Parser.forText
+			val preCombined = XMLParser.forMandatoryAttribute("a") and XMLParser.forText
 
 			testParserResult(rawXml, preCombined.asTuple, "123" -> "hello world")
 			testParserResult(rawXml, preCombined.as(_ + _), "123hello world")
 		}
 
 		it("should result in an Error when any of the combined parsers does"){
-			val parser = (Parser.forMandatoryAttribute("a").map(_.toInt) and Parser.forText).asTuple
+			val parser = (XMLParser.forMandatoryAttribute("a").map(_.toInt) and XMLParser.forText).asTuple
 			val xml = """<foo a="abc">hello world</foo>"""
 			an[Exception] should be thrownBy {
 				parser parse xml
@@ -171,9 +171,9 @@ class ParserTests extends FunSpec with Matchers {
 			val rawXml = """<foo a="123"><x>Hello</x><y>Goodbye</y></foo>"""
 			// the two inner parsers should receive the same 'A' instance passed to this parser from a splitter
 			def parseAText(context: A, elem: String) = {
-				(Parser.constant(context) and Splitter(* \ elem).first.asText).as(AText)
+				(XMLParser.constant(context) and Splitter(* \ elem).first.asText).as(AText)
 			}
-			val combinedContextualParser: Parser[(AText, AText)] = splitter.first{ a =>
+			val combinedContextualParser: XMLParser[(AText, AText)] = splitter.first{ a =>
 				(parseAText(a, "x") and parseAText(a, "y")).asTuple
 			}
 			testParserResultLike(rawXml, splitter.first(combinedContextualParser)){
@@ -194,18 +194,18 @@ class ParserTests extends FunSpec with Matchers {
 
 	describe("Parser.constant"){
 		it("should emit the result immediately"){
-			testParserResult("<a></a>", Parser.constant(123), 123)
+			testParserResult("<a></a>", XMLParser.constant(123), 123)
 		}
 
 		it("should pass errors through instead of the result"){
 			val e = new Exception("test error")
 			the[Exception] thrownBy {
-				Parser.constant(123).makeHandler().handleError(e) should equal(Some(Failure(e)))
+				XMLParser.constant(123).makeHandler().handleError(e) should equal(Some(Failure(e)))
 			} should be(e)
 		}
 
 		it("should emit in response to an EOF"){
-			Parser.constant(123).makeHandler().handleEnd() should equal(123)
+			XMLParser.constant(123).makeHandler().handleEnd() should equal(123)
 		}
 	}
 
@@ -226,8 +226,8 @@ class ParserTests extends FunSpec with Matchers {
 
 		it("should choose the right sub-parser based on the context"){
 			val abTransformer = splitter map {
-				case "a" => Parser.forText.map(s => A(s.toInt))
-				case "b" => Parser.forText.map(s => B(s.toInt))
+				case "a" => XMLParser.forText.map(s => A(s.toInt))
+				case "b" => XMLParser.forText.map(s => B(s.toInt))
 			}
 
 			testParserResultLike(rawXml, abTransformer.parseToList){
@@ -244,7 +244,7 @@ class ParserTests extends FunSpec with Matchers {
 		  */
 		ignore("should yield error results where the chooser function fails"){
 			val onlyATransformer = splitter map {
-				case "a" => Parser.forText.map(s => A(s.toInt))
+				case "a" => XMLParser.forText.map(s => A(s.toInt))
 				// omit case "b" for errors
 			}
 			val parser = onlyATransformer.wrapSafe.parseToList

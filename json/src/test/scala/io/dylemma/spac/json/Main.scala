@@ -24,11 +24,11 @@ object Main {
 		case class Str(value: String) extends HelloItem
 		case class AEvents(events: List[JsonEvent]) extends HelloItem
 
-		implicit val helloParser = Parser.oneOf(
+		implicit val helloParser = JsonParser.oneOf(
 			Splitter("a").first[Int].map(A),
-			Parser.listOf[Int].map(Arr),
-			Parser[String].map(Str),
-			Parser[Boolean].map(Bool)
+			JsonParser.listOf[Int].map(Arr),
+			JsonParser[String].map(Str),
+			JsonParser[Boolean].map(Bool)
 		)
 	}
 
@@ -38,9 +38,9 @@ object Main {
 		world: Option[String]
 	)
 	object HelloWorld {
-		implicit val helloWorldParser: Parser[HelloWorld] = (
+		implicit val helloWorldParser: JsonParser[HelloWorld] = (
 			Splitter("hello" \ anyIndex).asListOf[HelloItem] and
-			Splitter("world").first(Parser.nullable[String])
+			Splitter("world").first(JsonParser.nullable[String])
 		).as(HelloWorld.apply)
 	}
 
@@ -48,7 +48,7 @@ object Main {
 	def main(args: Array[String]): Unit = {
 		debug.enabled.set(false)
 
-		println(Parser[HelloWorld] parse helloWorldJson)
+		println(JsonParser[HelloWorld] parse helloWorldJson)
 	}
 
 	// Below here is just some brainstorming for how JSON parsers/splitters should

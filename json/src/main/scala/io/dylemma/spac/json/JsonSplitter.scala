@@ -7,17 +7,17 @@ class JsonSplitter[+Context](matcher: ContextMatcher[JsonStackElem, Context]) ex
 
 	object asListOf {
 		def choose[Out](implicit parser: Context => HandlerFactory[JsonEvent, Out]) = as[Out].parseToList
-		def apply[Out: Parser] = as[Out].parseToList
+		def apply[Out: JsonParser] = as[Out].parseToList
 	}
 
 	object first {
 		def choose[Out](implicit parser: Context => HandlerFactory[JsonEvent, Out]) = as(parser).parseFirst
-		def apply[Out: Parser] = as[Out].parseFirst
+		def apply[Out: JsonParser] = as[Out].parseFirst
 	}
 
 	object firstOption {
 		def choose[Out](implicit parser: Context => HandlerFactory[JsonEvent, Out]) = as(parser).parseFirstOption
-		def apply[Out: Parser] = as[Out].parseFirstOption
+		def apply[Out: JsonParser] = as[Out].parseFirstOption
 	}
 }
 

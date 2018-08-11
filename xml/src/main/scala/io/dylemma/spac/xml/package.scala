@@ -19,7 +19,6 @@ import io.dylemma.spac.xml.syntax._
   * or import them individually via
   * {{{
   * import io.dylemma.spac.xml.Implicits._
-  * import io.dylemma.spac.xml.Aliases._
   * import io.dylemma.spac.xml.ContextMatcherSyntax._
   * }}}
   *
@@ -32,8 +31,8 @@ import io.dylemma.spac.xml.syntax._
   */
 package object xml
 	extends ContextMatcherSyntax
-		with Implicits
-		with Aliases {
+	with Implicits
+{
 
 	/** Defines XML-specific conveniences for creating `ContextMatchers`.
 	  *
@@ -49,15 +48,8 @@ package object xml
 	  * The contents of `Implicits` are inherited by this package object, so you
 	  * can choose to import them along with all of the other "syntax" helpers
 	  * by importing `io.dylemma.spac.xml._`, or import the `Implicits` specifically
-	  * via `io.dylemma.spac.xml.Aliases._`.
+	  * via `io.dylemma.spac.xml.Implicits._`.
 	  */
 	object Implicits extends Implicits
 
-	/** Defines XML-specific aliases for classes from the core `spac` package.
-	  * The contents of `Aliases` are inherited by this package object, so you
-	  * can choose to import them along with all of the other "syntax" helpers
-	  * by importing `io.dylemma.spac.xml._`, or import the `Aliases` specifically
-	  * via `io.dylemma.spac.xml.Aliases._`.
-	  */
-	object Aliases extends Aliases
 }
