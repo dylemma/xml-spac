@@ -27,7 +27,7 @@ trait Transformer[-In, +B] extends (Any => Transformer[In, B]) { self =>
 	  * @tparam R The resource type
 	  * @return An iterator resulting from passing the `src` stream through this transformer.
 	  */
-	def transform[R](src: R)(implicit cl: ConsumableLike[R, In]): Iterator[B] = {
+	def transform[R](src: R)(implicit cl: ConsumableLike[R, In]): Iterator[B] with Closeable = {
 		val inItr = cl.getIterator(src)
 		var finished = false
 		val buffer = new util.ArrayDeque[Try[B]](2)
