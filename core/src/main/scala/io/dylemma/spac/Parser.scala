@@ -17,7 +17,7 @@ import scala.language.higherKinds
   * @define pl parser
   * @define PL Parser
   */
-abstract class ParserLike[In, StackElem, +Out, Self[+o] <: HandlerFactory[In, o]](
+abstract class Parser[In, StackElem, +Out, Self[+o] <: HandlerFactory[In, o]](
 	protected implicit val handlerFactoryConverter: FromHandlerFactory[In, Self],
 	protected implicit val stackable: Stackable.Aux[In, StackElem]
 ) extends HandlerFactory[In, Out] { self =>

@@ -4,9 +4,9 @@ import javax.xml.namespace.QName
 import javax.xml.stream.events.{StartElement, XMLEvent}
 
 import io.dylemma.spac.xml.handlers.{MandatoryAttributeHandler, OptionalAttributeHandler, TextCollectorHandler}
-import io.dylemma.spac.{FromHandlerFactory, HandlerFactory, ParserCompanion, ParserLike}
+import io.dylemma.spac.{FromHandlerFactory, HandlerFactory, ParserCompanion, Parser}
 
-abstract class XMLParser[+A] extends ParserLike[XMLEvent, StartElement, A, XMLParser]
+abstract class XMLParser[+A] extends Parser[XMLEvent, StartElement, A, XMLParser]
 
 object XMLParser extends ParserCompanion[XMLEvent, XMLParser] {
 

@@ -2,9 +2,9 @@ package io.dylemma.spac.json
 
 import io.dylemma.spac.handlers.FallbackSetHandler
 import io.dylemma.spac.json.handlers.PrimitiveValueHandler
-import io.dylemma.spac.{FromHandlerFactory, HandlerFactory, ParserCompanion, ParserLike, Splitter}
+import io.dylemma.spac.{FromHandlerFactory, HandlerFactory, ParserCompanion, Parser, Splitter}
 
-abstract class JsonParser[+A] extends ParserLike[JsonEvent, JsonStackElem, A, JsonParser] {
+abstract class JsonParser[+A] extends Parser[JsonEvent, JsonStackElem, A, JsonParser] {
 	def nullable: JsonParser[Option[A]] = JsonParser.nullable(this)
 }
 
