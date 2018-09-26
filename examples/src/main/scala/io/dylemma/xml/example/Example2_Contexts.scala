@@ -54,10 +54,9 @@ object Example2_Contexts extends App {
 	The base `ContextMatcher` trait has two type parameters:
 	 1. The "context stack type"
 	 2. The context match output type
-	Since we're dealing with XML, the "context stack type" will always be `StartElement`,
-	so we'll define a type alias to avoid typing "StartElement" over and over.
+	Since we're dealing with XML, we can use the `XMLContextMatcher` type alias,
+	which uses `StartElement` as the "context stack type"
 	 */
-	type XmlContextMatcher[+A] = ContextMatcher[StartElement, A]
 
 	/*
 	ContextMatchers can be chained together with the `\` (backslash) method.
@@ -66,9 +65,9 @@ object Example2_Contexts extends App {
 	`TypeReduce` typeclass. Essentially, `Unit` will be stripped out unless
 	it is the only thing left.
 	*/
-	val chainExample1: XmlContextMatcher[Unit] = "blog" \ "post" \ "comment"
-	val chainExample2: XmlContextMatcher[String] = "blog" \ attr("id") \ "comment"
-	val chainExample3: XmlContextMatcher[(String, String)] = "blog" \ attr("id") \ attr("stuff")
+	val chainExample1: XMLContextMatcher[Unit] = "blog" \ "post" \ "comment"
+	val chainExample2: XMLContextMatcher[String] = "blog" \ attr("id") \ "comment"
+	val chainExample3: XMLContextMatcher[(String, String)] = "blog" \ attr("id") \ attr("stuff")
 
 	/*
 	The same type reduction logic also applies when combining two single-element
@@ -81,7 +80,7 @@ object Example2_Contexts extends App {
 	/*
 	Complicated context matchers can be built from the combination methods
 	 */
-	val chainedMatcher: XmlContextMatcher[(String, (String, Int))] = {
+	val chainedMatcher: XMLContextMatcher[(String, (String, Int))] = {
 		// The individual segments are [String] + [(String, Int)] + [Unit].
 		// Unit is stripped, leaving a tuple of `String` and `(String, Int)`
 		attr("title") \ (attr("author") & attr("id").map(_.toInt)) \ "comment"
@@ -92,7 +91,7 @@ object Example2_Contexts extends App {
 	as well as its `flatMap` and `filter` methods (not shown).
 	 */
 	case class PostContext(blogTitle: String, author: String, postId: Int)
-	val postContextMatcher: ContextMatcher[StartElement, PostContext] = chainedMatcher map {
+	val postContextMatcher: XMLContextMatcher[PostContext] = chainedMatcher map {
 		case (title, (author, postId)) => PostContext(title, author, postId)
 	}
 
@@ -113,7 +112,7 @@ object Example2_Contexts extends App {
 	case class Comment(body: String, context: PostContext)
 	def commentParser(context: PostContext): XMLParser[Comment] = (
 		XMLParser.forText and
-			XMLParser.constant(context)
+			Parser.constant(context)
 	).as(Comment)
 
 	/*
@@ -132,5 +131,5 @@ object Example2_Contexts extends App {
 	- `[...] consumeForeach println` creates a consumer
 	- `[...] consume rawXml` runs that consumer on the raw xml
 	 */
-	postSplitter map commentParser consumeForEach println consume rawXml
+	postSplitter map commentParser consumeForEach println parse rawXml
 }

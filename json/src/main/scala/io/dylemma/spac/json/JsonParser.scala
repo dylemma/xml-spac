@@ -1,39 +1,39 @@
 package io.dylemma.spac.json
 
-import io.dylemma.spac.handlers.FallbackSetHandler
+import io.dylemma.spac.Parser
 import io.dylemma.spac.json.handlers.PrimitiveValueHandler
-import io.dylemma.spac.{FromHandlerFactory, HandlerFactory, ParserCompanion, Parser, Splitter}
 
-abstract class JsonParser[+A] extends Parser[JsonEvent, JsonStackElem, A, JsonParser] {
-	def nullable: JsonParser[Option[A]] = JsonParser.nullable(this)
-}
-
-object JsonParser extends ParserCompanion[JsonEvent, JsonParser] {
-
-	val handlerFactoryConverter: FromHandlerFactory[JsonEvent, JsonParser] = new FromHandlerFactory[JsonEvent, JsonParser] {
-		def makeInstance[Out](hf: HandlerFactory[JsonEvent, Out], debugName: String): JsonParser[Out] = new JsonParser[Out] {
-			def makeHandler() = hf.makeHandler()
-			override def toString = debugName
-		}
-	}
+object JsonParser {
 
 	def forPrimitive[A](describePrimitive: String, matchPrimitive: PartialFunction[JsonValueEvent, A]): JsonParser[A] = new JsonParser[A] {
 		override def toString = s"Parser.forPrimitive[$describePrimitive]"
 		def makeHandler() = new PrimitiveValueHandler(describePrimitive, matchPrimitive)
 	}
 
-	implicit lazy val forString: JsonParser[String] = forPrimitive("String", { case JsonEvent.JString(s) => s })
-	implicit lazy val forInt: JsonParser[Int] = forPrimitive("Int", { case JsonEvent.JLong(num) => num.intValue })
-	implicit lazy val forLong: JsonParser[Long] = forPrimitive("Long", { case JsonEvent.JLong(num) => num })
-	implicit lazy val forFloat: JsonParser[Float] = forPrimitive("Float", { case JsonEvent.JDouble(num) => num.floatValue })
-	implicit lazy val forDouble: JsonParser[Double] = forPrimitive("Double", { case JsonEvent.JDouble(num) => num })
-	implicit lazy val forBoolean: JsonParser[Boolean] = forPrimitive("Boolean", { case JsonEvent.JBool(bool) => bool })
-	implicit lazy val forNull: JsonParser[None.type] = forPrimitive("Null", { case JsonEvent.JNull => None })
+	lazy val forString: JsonParser[String] = forPrimitive("String", { case JsonEvent.JString(s) => s })
+	lazy val forInt: JsonParser[Int] = forPrimitive("Int", { case JsonEvent.JLong(num) => num.intValue })
+	lazy val forLong: JsonParser[Long] = forPrimitive("Long", { case JsonEvent.JLong(num) => num })
+	lazy val forFloat: JsonParser[Float] = forPrimitive("Float", { case JsonEvent.JDouble(num) => num.floatValue })
+	lazy val forDouble: JsonParser[Double] = forPrimitive("Double", { case JsonEvent.JDouble(num) => num })
+	lazy val forBoolean: JsonParser[Boolean] = forPrimitive("Boolean", { case JsonEvent.JBool(bool) => bool })
+	lazy val forNull: JsonParser[None.type] = forPrimitive("Null", { case JsonEvent.JNull => None })
 
+	/** Implicitly resolve a `JsonParser[T]`.
+	  *
+	  * Note that because the "class" `JsonParser` is only a type alias, the `JsonParser` object
+	  * unfortunately doesn't behave as a companion object. To work around this, the various `forXYZ`
+	  * parser methods are redefined as implicits in the `io.dylemma.spac.json.syntax.Implicits` trait,
+	  * which is included in the `io.dylemma.spac.json` package object.
+	  *
+	  * @param parser An implicitly-available JsonParser[T] which will be returned
+	  * @tparam T
+	  * @return `parser`
+	  */
 	def apply[T](implicit parser: JsonParser[T]): JsonParser[T] = parser
-	def nullable[T](implicit parser: JsonParser[T]): JsonParser[Option[T]] = oneOf(parser.map(Some(_)), forNull)
+	def nullable[T](implicit parser: JsonParser[T]): JsonParser[Option[T]] = Parser.oneOf(parser.map(Some(_)), forNull)
 
 	def listOf[T](implicit parser: JsonParser[T]): JsonParser[List[T]] = JsonSplitter(anyIndex).asListOf(parser)
-		.expectInputs(List("a '[' token" -> { _ == JsonEvent.ArrayStart }))
+		.expectInputs[JsonEvent](List("a '[' token" -> { _ == JsonEvent.ArrayStart }))
    	.withName(s"Parser.listOf($parser)")
 }
+

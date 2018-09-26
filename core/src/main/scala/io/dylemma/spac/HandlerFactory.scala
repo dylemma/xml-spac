@@ -37,10 +37,10 @@ trait FromHandlerFactory[+In, T[+_]] {
 }
 
 object FromHandlerFactory {
-	implicit def toConsumer[In]: FromHandlerFactory[In, ({ type T[+out] = Consumer[In, out] })#T] = new FromHandlerFactory[In, ({ type T[+out] = Consumer[In, out] })#T] {
-		def makeInstance[Out](hf: HandlerFactory[In, Out], debugName: String): Consumer[In, Out] = new Consumer[In, Out] {
-			def makeHandler() = hf.makeHandler()
-			override def toString = debugName
-		}
-	}
+//	implicit def toConsumer[In]: FromHandlerFactory[In, ({ type T[+out] = AltParser[In, out] })#T] = new FromHandlerFactory[In, ({ type T[+out] = AltParser[In, out] })#T] {
+//		def makeInstance[Out](hf: HandlerFactory[In, Out], debugName: String): AltParser[In, Out] = new AltParser[In, Out] {
+//			def makeHandler() = hf.makeHandler()
+//			override def toString = debugName
+//		}
+//	}
 }

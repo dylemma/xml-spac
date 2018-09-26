@@ -3,7 +3,7 @@ package io.dylemma.spac.json
 import java.io.Closeable
 
 import com.fasterxml.jackson.core.{JsonFactory, JsonToken}
-import io.dylemma.spac.{ConsumableLike, Consumer, Handler}
+import io.dylemma.spac.{ConsumableLike, Parser, Handler}
 
 object JsonEvents {
 	implicit val consumableLike: ConsumableLike[JsonEvents, JsonEvent] = new ConsumableLike[JsonEvents, JsonEvent] {
@@ -40,7 +40,7 @@ class JsonEvents private(r: JsonEvents.Resource) {
 	private val factory = r.factory
 	private val provider = r.provider
 
-	def feedTo[Out](consumer: Consumer[JsonEvent, Out]): Out = {
+	def feedTo[Out](consumer: Parser[JsonEvent, Out]): Out = {
 		val itr = iterator
 		var result: Option[Out] = None
 		try {

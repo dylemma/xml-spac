@@ -97,12 +97,12 @@ object Example6_NestedContexts extends App {
 	/** Consumer for `Data` objects that prints a message for each one.
 	  * This consumer's result type is Unit because all it does are side effects.
 	  */
-	val printData = Consumer.foreach[Data]{ d => println(s"RESULT - $d") }
+	val printData = Parser.foreach[Data]{ d => println(s"RESULT - $d") }
 
 	// Data(DYLAN, A, 123)
 	// Data(DYLAN, A, 124)
 	// ...
 	// Data(DYLAN, B, 568
 	// Data(DYLAN, B, 569)
-	/*printEvent >>*/ verboseSelectDataFromStuff >> printData consume xml
+	/*printEvent >>*/ verboseSelectDataFromStuff >> printData parse xml
 }

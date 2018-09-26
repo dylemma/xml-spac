@@ -95,8 +95,8 @@ trait Transformer[-In, +B] extends (Any => Transformer[In, B]) { self =>
 		override def toString = s"$self >> $nextT"
 	}
 
-	def andThen[Out](end: Consumer[B, Out]): Consumer[In, Out] = >>(end)
-	def >>[Out](end: Consumer[B, Out]): Consumer[In, Out] = new Consumer[In, Out] {
+	def andThen[Out](end: Parser[B, Out]): Parser[In, Out] = >>(end)
+	def >>[Out](end: Parser[B, Out]): Parser[In, Out] = new Parser[In, Out] {
 		def makeHandler(): Handler[In, Out] = {
 			self.makeHandler(end.makeHandler())
 		}
@@ -120,28 +120,18 @@ trait Transformer[-In, +B] extends (Any => Transformer[In, B]) { self =>
 	def wrapSafe: Transformer[In, Try[B]] = andThen(Transformer.wrapSafe)
 	def withSideEffect(effect: B => Any): Transformer[In, B] = andThen(Transformer.sideEffect(effect))
 
-	def consumeToList: Consumer[In, List[B]] = andThen(Consumer.toList)
-	def consumeFirst: Consumer[In, B] = andThen(Consumer.first)
-	def consumeFirstOption: Consumer[In, Option[B]] = andThen(Consumer.firstOption)
-	def consumeAsFold[R](init: R)(f: (R, B) => R): Consumer[In, R] = andThen(Consumer.fold(init, f))
-	def consumeForEach(f: B => Any): Consumer[In, Unit] = andThen(Consumer.foreach(f))
-
-	def parseWith[Out, Parser[+_]](consumer: Consumer[B, Out], setDebugName: Option[String] = None)(implicit fhf: FromHandlerFactory[In, Parser]): Parser[Out] = {
-		val debugName = setDebugName getOrElse s"$self.parseWith($consumer)"
-		fhf.makeInstance(self >> consumer, debugName)
+	def parseWith[Out](consumer: Parser[B, Out], setDebugName: Option[String] = None): Parser[In, Out] = new Parser[In, Out] {
+		override def toString = setDebugName getOrElse s"$self.parseWith($consumer)"
+		def makeHandler(): Handler[In, Out] = {
+			self.andThen(consumer).makeHandler()
+		}
 	}
-	def parseToList[Parser[+_]](implicit fhf: FromHandlerFactory[In, Parser]): Parser[List[B]] = {
-		parseWith(Consumer.toList, Some(s"$this.parseToList"))
-	}
-	def parseFirst[Parser[+_]](implicit fhf: FromHandlerFactory[In, Parser]): Parser[B] = {
-		parseWith(Consumer.first, Some(s"$this.parseFirst"))
-	}
-	def parseFirstOption[Parser[+_]](implicit fhf: FromHandlerFactory[In, Parser]): Parser[Option[B]] = {
-		parseWith(Consumer.firstOption, Some(s"$this.parseFirstOption"))
-	}
-	def parseAsFold[Out, Parser[+_]](init: Out)(f: (Out, B) => Out)(implicit fhf: FromHandlerFactory[In, Parser]): Parser[Out] = {
-		parseWith(Consumer.fold(init, f), Some(s"$this.fold($init, $f)"))
-	}
+	def parseToList: Parser[In, List[B]] = parseWith(Parser.toList, Some(s"$this.parseToList"))
+	def parseFirst: Parser[In, B] = parseWith(Parser.first, Some(s"$this.parseFirst"))
+	def parseFirstOption: Parser[In, Option[B]] = parseWith(Parser.firstOption, Some(s"$this.parseFirstOption"))
+	def parseAsFold[Out](init: Out)(f: (Out, B) => Out): Parser[In, Out] = parseWith(Parser.fold(init, f), Some(s"$this.fold($init, $f)"))
+	def parseForeach(f: B => Any): Parser[In, Unit] = parseWith(Parser.foreach(f), Some(s"$this.parseForeach($f)"))
+	def sink: Parser[In, Unit] = parseForeach(_ => ())
 }
 
 object Transformer {
@@ -256,7 +246,7 @@ object Transformer {
 		override def toString = s"SideEffect($effect)"
 	}
 
-	def sequenced[In: Stackable, T1, T2](consumer: Consumer[In, T1], getTransformer: T1 => Transformer[In, T2]): Transformer[In, T2] = new Transformer[In, T2] {
+	def sequenced[In: Stackable, T1, T2](consumer: Parser[In, T1], getTransformer: T1 => Transformer[In, T2]): Transformer[In, T2] = new Transformer[In, T2] {
 		def makeHandler[Out](next: Handler[T2, Out]): Handler[In, Out] = {
 			val handler1 = consumer.makeHandler()
 

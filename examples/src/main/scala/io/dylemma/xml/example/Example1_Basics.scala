@@ -61,7 +61,7 @@ object Example1_Basics extends App {
 	Transformers can be turned into Consumers via a handful of convenience methods.
 	They can also be turned into Parsers as long as their input type is XMLEvent.
 	 */
-	val bookListConsumer: Consumer[XMLEvent, List[String]] = bookTransformer.consumeToList
+	val bookListConsumer: XMLParser[List[String]] = bookTransformer.consumeToList
 	val bookListParser: XMLParser[List[String]] = bookTransformer.parseToList
 
 	/*
@@ -71,7 +71,7 @@ object Example1_Basics extends App {
 	This will wrap its output in a `scala.util.Try` class, where exceptions will appear as
 	`Failure` instances, and regular outputs will appear inside `Success` instances.
 	 */
-	val safeBookListConsumer: Consumer[XMLEvent, Try[List[String]]] = bookListConsumer.wrapSafe
+	val safeBookListConsumer: XMLParser[Try[List[String]]] = bookListConsumer.wrapSafe
 
 	/*
 	The bookList parser and consumer will yield the same result; the list of titles emitted by the `bookTransformer`.
@@ -80,7 +80,7 @@ object Example1_Basics extends App {
 	See the docs for specifics, but for example, you could parse a File, String,
 	InputStream, Iterable[XMLEvent], or Iterator[XMLEvent].
 	 */
-	val allBooksResult1 = bookListConsumer consume libraryXml
+	val allBooksResult1 = bookListConsumer parse libraryXml
 	val allBooksResult2 = bookListParser parse libraryXml
 	assert(allBooksResult2 == allBooksResult1)
 	println(allBooksResult1)
@@ -90,6 +90,6 @@ object Example1_Basics extends App {
 	You can handle results as they are discovered by using one of the `foreach` transformer methods.
 	 */
 	val foreachConsumer = bookTransformer.consumeForEach{ title => println(s"book: $title") }
-	foreachConsumer consume libraryXml
+	foreachConsumer parse libraryXml
 
 }

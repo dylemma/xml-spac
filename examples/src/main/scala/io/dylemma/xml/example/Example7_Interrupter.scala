@@ -33,19 +33,19 @@ object Example7_Interrupter extends App {
 	val handleGreetings = captureOptionalContext.followedByStream(dataStream).consumeForEach(println)
 
 	println("The greetings should be all ok here:")
-	handleGreetings consume rawXml1
+	handleGreetings parse rawXml1
 
 	println("\n\nBut we won't get *anything* here:")
-	handleGreetings consume rawXml2
+	handleGreetings parse rawXml2
 
 	// make the context capturing parser hit an early EOF when we reach a <data>
-	val interrupter = XMLSplitter("stuff" \ "data").first(XMLParser.constant("interrupt!" /* this value doesn't matter */))
+	val interrupter = XMLSplitter("stuff" \ "data").first(Parser.constant("interrupt!" /* this value doesn't matter */))
 	val betterCaptureOptionalContext = captureOptionalContext.interruptedBy(interrupter)
 	val betterHandleGreetings = betterCaptureOptionalContext.followedByStream(dataStream).consumeForEach(println)
 
 	println("\n\nNow the new handler:")
-	betterHandleGreetings consume rawXml1
+	betterHandleGreetings parse rawXml1
 
 	println("\n\nAnd now with the missing context (this time it should work!):")
-	betterHandleGreetings consume rawXml2
+	betterHandleGreetings parse rawXml2
 }

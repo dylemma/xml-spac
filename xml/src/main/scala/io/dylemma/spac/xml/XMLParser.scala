@@ -4,11 +4,9 @@ import javax.xml.namespace.QName
 import javax.xml.stream.events.{StartElement, XMLEvent}
 
 import io.dylemma.spac.xml.handlers.{MandatoryAttributeHandler, OptionalAttributeHandler, TextCollectorHandler}
-import io.dylemma.spac.{FromHandlerFactory, HandlerFactory, ParserCompanion, Parser}
+import io.dylemma.spac.{FromHandlerFactory, HandlerFactory, Parser}
 
-abstract class XMLParser[+A] extends Parser[XMLEvent, StartElement, A, XMLParser]
-
-object XMLParser extends ParserCompanion[XMLEvent, XMLParser] {
+object XMLParser {
 
 	val handlerFactoryConverter: FromHandlerFactory[XMLEvent, XMLParser] = new FromHandlerFactory[XMLEvent, XMLParser] {
 		override def makeInstance[Out](hf: HandlerFactory[XMLEvent, Out], debugName: String): XMLParser[Out] = new XMLParser[Out] {

@@ -2,7 +2,7 @@ package io.dylemma.spac.syntax
 
 import io.dylemma.spac.handlers.SequencedInStackHandler
 import io.dylemma.spac.types.Stackable
-import io.dylemma.spac.{HandlerCombination, Consumer, FollowedBy, FromHandlerFactory, Handler, Transformer}
+import io.dylemma.spac.{ParserCombination, Parser, FollowedBy, FromHandlerFactory, Handler, Transformer}
 
 trait ConsumerSyntax {
 
@@ -14,7 +14,7 @@ trait ConsumerSyntax {
 	  * @tparam In The consumer's input type, which must be a member of the `Stackable` typeclass
 	  * @tparam T1 The consumer's output type
 	  */
-	implicit class ConsumerFollowedByOps[In: Stackable, T1](consumer: Consumer[In, T1]) {
+	implicit class ConsumerFollowedByOps[In: Stackable, T1](consumer: Parser[In, T1]) {
 
 		/** An intermediate object with an `apply` and `flatMap` that both create a sequenced consumer
 		  * which combines this consumer with a function to create the next one.
@@ -39,14 +39,14 @@ trait ConsumerSyntax {
 		  * @return An intermediate object which has an `apply` and `flatMap` that can be used
 		  *         to combine this Consumer and another in a sequence.
 		  */
-		def followedBy = new FollowedBy[({ type M[+T2] = Consumer[In, T2] })#M, T1] {
-			def apply[T2](getNext: T1 => Consumer[In, T2]): Consumer[In, T2] = new Consumer[In, T2] {
-				override def toString = s"$consumer.followedBy($getNext)"
-				def makeHandler(): Handler[In, T2] = {
-					new SequencedInStackHandler[In, T1, T2](consumer.makeHandler(), r1 => getNext(r1).makeHandler())
-				}
-			}
-		}
+//		def followedBy = new FollowedBy[({ type M[+T2] = AltParser[In, T2] })#M, T1] {
+//			def apply[T2](getNext: T1 => AltParser[In, T2]): AltParser[In, T2] = new AltParser[In, T2] {
+//				override def toString = s"$consumer.followedBy($getNext)"
+//				def makeHandler(): Handler[In, T2] = {
+//					new SequencedInStackHandler[In, T1, T2](consumer.makeHandler(), r1 => getNext(r1).makeHandler())
+//				}
+//			}
+//		}
 
 		/** An intermediate object with an `apply` and `flatMap` that can be used to create a Transformer from result of this consumer.
 		  *
@@ -71,16 +71,16 @@ trait ConsumerSyntax {
 		  * @return An intermediate object which has an `apply` and `flatMap` that can be used
 		  *         to combine this consumer and a Transformer in a sequence.
 		  */
-		def followedByStream = new FollowedBy[({ type F[+T2] = Transformer[In, T2] })#F, T1] {
-			def apply[T2](getTransformer: (T1) => Transformer[In, T2]): Transformer[In, T2] = new Transformer[In, T2] {
-				override def toString = s"$consumer.followedBy($getTransformer)"
-				def makeHandler[Out](next: Handler[T2, Out]): Handler[In, Out] = {
-					val handler1 = consumer.makeHandler()
-					def getHandler2(h1Result: T1) = getTransformer(h1Result).makeHandler(next)
-					new SequencedInStackHandler(handler1, getHandler2)
-				}
-			}
-		}
+//		def followedByStream = new FollowedBy[({ type F[+T2] = Transformer[In, T2] })#F, T1] {
+//			def apply[T2](getTransformer: (T1) => Transformer[In, T2]): Transformer[In, T2] = new Transformer[In, T2] {
+//				override def toString = s"$consumer.followedBy($getTransformer)"
+//				def makeHandler[Out](next: Handler[T2, Out]): Handler[In, Out] = {
+//					val handler1 = consumer.makeHandler()
+//					def getHandler2(h1Result: T1) = getTransformer(h1Result).makeHandler(next)
+//					new SequencedInStackHandler(handler1, getHandler2)
+//				}
+//			}
+//		}
 
 	}
 
@@ -94,12 +94,12 @@ trait ConsumerSyntax {
 	  * @tparam In The consumer input type
 	  * @tparam A The consumer output type
 	  */
-	implicit class ConsumerCombineOps[In, A](self: Consumer[In, A])(implicit fhf: FromHandlerFactory[In, ({ type C[+o] = Consumer[In, o] })#C]) {
+	implicit class ConsumerCombineOps[In, A](self: Parser[In, A])(implicit fhf: FromHandlerFactory[In, ({ type C[+o] = Parser[In, o] })#C]) {
 		/** Starting point for Consumer combination methods.
 		  *
 		  * @return A HandlerCombination instance for `Consumer`
 		  */
-		protected def combination = new HandlerCombination[In, ({ type C[+o] = Consumer[In, o] })#C]
+//		protected def combination = new HandlerCombination[In, ({ type C[+o] = AltParser[In, o] })#C]
 
 		/** Combine this Consumer with another one of the same input type.
 		  * Note that the value returned by this method is an intermediate object which should be finalized
@@ -122,7 +122,7 @@ trait ConsumerSyntax {
 		  *       instance available for every `Consumer` type. The fact that this method is added implicitly
 		  *       is due to a type-variance conflict related to the `In` type.
 		  */
-		def and[B](other: Consumer[In, B]) = combination.combine(self, other)
+//		def and[B](other: AltParser[In, B]) = combination.combine(self, other)
 
 		/** Operator version of `and`, used to combine this Consumer with another one of the same input type.
 		  * Note that the value returned by this method is an intermediate object which should be finalized
@@ -145,6 +145,6 @@ trait ConsumerSyntax {
 		  *       instance available for every `Consumer` type. The fact that this method is added implicitly
 		  *       is due to a type-variance conflict related to the `In` type.
 		  */
-		def ~[B](other: Consumer[In, B]) = combination.combine(self, other)
+//		def ~[B](other: AltParser[In, B]) = combination.combine(self, other)
 	}
 }

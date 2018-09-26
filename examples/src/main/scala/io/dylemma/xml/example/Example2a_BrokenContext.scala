@@ -22,9 +22,9 @@ object Example2a_BrokenContext extends App {
 	case class Comment(postId: Int, user: String, text: String)
 
 	def CommentParser(idFromContext: Int): XMLParser[Comment] = (
-		XMLParser.constant(idFromContext) and
-			XMLParser.forMandatoryAttribute("user") and
-			XMLParser.forText
+		Parser.constant(idFromContext) and
+		XMLParser.forMandatoryAttribute("user") and
+		XMLParser.forText
 	).as(Comment)
 
 	val contextMatcher = "blog" \ ("post" & attr("id").map(_.toInt)) \ "comment"
@@ -34,5 +34,5 @@ object Example2a_BrokenContext extends App {
 		.wrapSafe // wrap inputs and errors as `scala.util.Try` so we don't throw during the foreach
 		.consumeForEach(println) // println each of the results
 
-	consumer consume rawXml
+	consumer parse rawXml
 }

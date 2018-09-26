@@ -9,13 +9,13 @@ import scala.util.control.NonFatal
 class TransformerTests extends FunSpec with Matchers {
 
 	protected def runTransformer[T, U](inputs: List[T])(transformer: Transformer[T, U]): List[U] = {
-		transformer >> Consumer.toList[U] consume inputs
+		transformer >> Parser.toList[U] parse inputs
 	}
 
 	protected def enforceIsFinishedContract[A](transformers: Transformer[Int, A]*) = {
 		it("should not call handle* on the downstream handler if the downstream handler is finished"){
 			for(transformer <- transformers) {
-				val consumer = new Consumer[A, Unit] {
+				val consumer = new Parser[A, Unit] {
 					def makeHandler(): Handler[A, Unit] = new Handler[A, Unit] with ManualFinish {
 						def handleEnd(): Unit = {
 							if (isFinished) fail("downstream handler's handleEnd method called after it had already finished")
@@ -32,7 +32,7 @@ class TransformerTests extends FunSpec with Matchers {
 					}
 				}
 				try {
-					transformer >> consumer consume List(1, 2, 3, 4, 5, 6, 7)
+					transformer >> consumer parse List(1, 2, 3, 4, 5, 6, 7)
 				} catch {
 					case NonFatal(err) => fail(err)
 				}
@@ -114,7 +114,7 @@ class TransformerTests extends FunSpec with Matchers {
 			runTransformer(List("1", "2"))(Transformer.map(_.toInt)) should be(List(1,2))
 		}
 		it("should catch errors thrown by the function and call handleError on the downstream handler"){
-			val result = Transformer.map{s: String => s.toInt} >> Consumer.toList[Int].wrapSafe consume List("not a number")
+			val result = Transformer.map{s: String => s.toInt} >> Parser.toList[Int].wrapSafe parse List("not a number")
 			result should matchPattern {
 				case Failure(err: NumberFormatException) =>
 			}
@@ -131,7 +131,7 @@ class TransformerTests extends FunSpec with Matchers {
 			runTransformer(List[Int]())(Transformer.collect { case x => x }) should be(Nil)
 		}
 		it("should catch errors thrown by the collector function and pass them downstream via handleError"){
-			val result = Transformer.collect[String, Int]{ case s => s.toInt } >> Consumer.toList[Int].wrapSafe consume List("1", "2", "hi")
+			val result = Transformer.collect[String, Int]{ case s => s.toInt } >> Parser.toList[Int].wrapSafe parse List("1", "2", "hi")
 			result should matchPattern { case Failure(e: NumberFormatException) => }
 		}
 		enforceIsFinishedContract(
@@ -163,7 +163,7 @@ class TransformerTests extends FunSpec with Matchers {
 	describe("Splitter.splitOnMatch"){
 		def collectListsStartingWithOne(numbers: Int*) = {
 			runTransformer(List(numbers: _*)){
-				Splitter.splitOnMatch[Int](_ == 1) map Consumer.toList[Int]
+				Splitter.splitOnMatch[Int](_ == 1) map Parser.toList[Int]
 			}
 		}
 
@@ -195,12 +195,12 @@ class TransformerTests extends FunSpec with Matchers {
 		val consecutiveAlphas = Splitter.consecutiveMatches[Char, Char] { case c if c.isLetter => c }
 
 		it("should create a substream for each sequence of consecutive matches"){
-			val strList = runTransformer("123ABC456DEF789".toList){ consecutiveAlphas map Consumer.toList[Char].map(_.mkString) }
+			val strList = runTransformer("123ABC456DEF789".toList){ consecutiveAlphas map Parser.toList[Char].map(_.mkString) }
 			strList should be(List("ABC", "DEF"))
 		}
 
 		it("should use the first match in each substream as the context"){
-			val collectContexts = consecutiveAlphas.map{ Consumer.constant }
+			val collectContexts = consecutiveAlphas.map{ Parser.constant }
 			var firstChars = runTransformer("123ABC456DEF789".toList){ collectContexts }
 			firstChars should be(List('A', 'D'))
 		}
@@ -214,15 +214,15 @@ class TransformerTests extends FunSpec with Matchers {
 		enforceIsFinishedContract(multiplesOfThree parallel multiplesOfTwo)
 
 		it("should send results of each transformer to the downstream consumer"){
-			val parallel = Transformer.parallel(multiplesOfTwo :: multiplesOfThree :: Nil).consumeToList
-			parallel.consume(nums) should be(
+			val parallel = Transformer.parallel(multiplesOfTwo :: multiplesOfThree :: Nil).parseToList
+			parallel.parse(nums) should be(
 				List("2/2", "3/3", "4/2", "6/2", "6/3")
 			)
 		}
 
 		it("should send results in the order of the transformers in the constructor"){
-			val parallel = Transformer.parallel(multiplesOfThree :: multiplesOfTwo :: Nil).consumeToList
-			parallel.consume(nums) should be(
+			val parallel = Transformer.parallel(multiplesOfThree :: multiplesOfTwo :: Nil).parseToList
+			parallel.parse(nums) should be(
 				List("2/2", "3/3", "4/2", "6/3", "6/2")
 			)
 		}
@@ -232,12 +232,12 @@ class TransformerTests extends FunSpec with Matchers {
 			var rightCount = 0
 			val leftTransform = Transformer.sideEffect[Int](_ => leftCount += 1)
 			val rightTransform = Transformer.sideEffect[Int](_ => rightCount += 1)
-			val parallel = leftTransform.parallel(rightTransform) >> Consumer.constant("hi")
+			val parallel = leftTransform.parallel(rightTransform) >> Parser.constant("hi")
 			// early-exit thanks to "Constant" consumer.
 			// The left transformer would have handled one input just to activate the consumer,
 			// which would have returned a result, causing the early exit, ensuring the "right"
 			// transformer's handler never runs.
-			parallel.consume(nums) should be("hi")
+			parallel.parse(nums) should be("hi")
 			leftCount should be(1)
 			rightCount should be(0)
 		}
@@ -245,7 +245,7 @@ class TransformerTests extends FunSpec with Matchers {
 		it("should exit early if all of the parallel handlers finish"){
 			val take1 = Transformer.take[Int](1)
 			val take2 = Transformer.take[Int](2)
-			val parallel = (take1 parallel take2).consumeToList.makeHandler()
+			val parallel = (take1 parallel take2).parseToList.makeHandler()
 
 			// manually drive the consumption of a data source, so we can test exactly when the "exit" condition is hit
 			parallel.handleInput(1) should be(None)
@@ -255,8 +255,8 @@ class TransformerTests extends FunSpec with Matchers {
 		it("should continue if the downstream and at least one member is unfinished"){
 			val take1 = Transformer.take[Int](1)
 			val passThrough = Transformer.sideEffect[Int](_ => ())
-			val parallel = (take1 parallel passThrough).consumeToList
-			parallel.consume(nums) should be(List(1, 1, 2, 3, 4, 5, 6))
+			val parallel = (take1 parallel passThrough).parseToList
+			parallel.parse(nums) should be(List(1, 1, 2, 3, 4, 5, 6))
 		}
 	}
 

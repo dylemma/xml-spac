@@ -1,5 +1,6 @@
 package io.dylemma.spac.json
 
+import io.dylemma.spac.Parser
 import org.scalatest.{FunSpec, Matchers}
 
 class ParserTests extends FunSpec with Matchers {
@@ -58,15 +59,15 @@ class ParserTests extends FunSpec with Matchers {
 		}
 	}
 
-	describe("JsonParser.oneOf"){
+	describe("Parser.oneOf"){
 		it("should succeed if the input causes one of the parsers to succeed"){
-			val oneOf = JsonParser.oneOf(JsonParser[Int], JsonParser[String], JsonParser[Boolean])
+			val oneOf = Parser.oneOf(JsonParser[Int], JsonParser[String], JsonParser[Boolean])
 			oneOf.parse("1") should be(1)
 			oneOf.parse("\"hello\"") should be("hello")
 			oneOf.parse("false") should equal(false) // compile fail with `be`... scalatest bug?
 		}
 		it("should fail if the input causes all of the parsers to fail"){
-			val oneOf = JsonParser.oneOf(JsonParser[Int], JsonParser[String], JsonParser[Boolean])
+			val oneOf = Parser.oneOf(JsonParser[Int], JsonParser[String], JsonParser[Boolean])
 			intercept[IllegalArgumentException] {
 				oneOf.parse("[1,2,3]")
 			}
@@ -115,7 +116,7 @@ class ParserTests extends FunSpec with Matchers {
 		}
 
 		it("should extract field names") {
-			val fieldParser = JsonSplitter(anyField).asListOf.choose(JsonParser.constant)
+			val fieldParser = JsonSplitter(anyField).asListOf.choose(Parser.constant)
 			val json = """{ "a": 1, "b": 2 }"""
 			fieldParser.parse(json) should be(List("a", "b"))
 		}
@@ -129,7 +130,7 @@ class ParserTests extends FunSpec with Matchers {
 		}
 
 		it("should extract array indexes") {
-			val parser = JsonSplitter(indexWhere(_ % 2 == 0)).asListOf.choose(JsonParser.constant)
+			val parser = JsonSplitter(indexWhere(_ % 2 == 0)).asListOf.choose(Parser.constant)
 			val json = "[10, 20, 30, 40, 50]" // indexes 0,2,4 match
 			parser.parse(json) should be(List(0, 2, 4))
 		}

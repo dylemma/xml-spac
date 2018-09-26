@@ -1,6 +1,7 @@
 package io.dylemma.spac
 
 import io.dylemma.spac.xml.syntax._
+import javax.xml.stream.events.{StartElement, XMLEvent}
 
 /** `xml-spac` uses classes from `javax.xml.stream.events` to create parsing logic for XML.
   *
@@ -33,6 +34,9 @@ package object xml
 	extends ContextMatcherSyntax
 	with Implicits
 {
+	type XMLParser[+T] = Parser[XMLEvent, T]
+	type XMLTransformer[+T] = Transformer[XMLEvent, T]
+	type XMLContextMatcher[+Context] = ContextMatcher[StartElement, Context]
 
 	/** Defines XML-specific conveniences for creating `ContextMatchers`.
 	  *

@@ -4,115 +4,34 @@ import io.dylemma.spac.handlers._
 import io.dylemma.spac.types.Stackable
 
 import scala.language.higherKinds
+import scala.util.Try
 
-/** Base class for parsers dealing with a fixed input type, e.g. XMLEvent or JSONEvent.
-  *
-  * @param handlerFactoryConverter
-  * @param stackable
-  * @tparam In The generated handler's input type
-  * @tparam Out The generated handler's output type
-  * @tparam Self
-  *
-  * @define Event event
-  * @define pl parser
-  * @define PL Parser
-  */
-abstract class Parser[In, StackElem, +Out, Self[+o] <: HandlerFactory[In, o]](
-	protected implicit val handlerFactoryConverter: FromHandlerFactory[In, Self],
-	protected implicit val stackable: Stackable.Aux[In, StackElem]
-) extends HandlerFactory[In, Out] { self =>
+/** An immutable object that can be used to create `Handler`s.
+	*/
+trait Parser[-In, +Out] extends HandlerFactory[In, Out] { self =>
 
 	/** Parse the given source object by spawning a handler and feeding events
 	  * from the source into that handler until it yields a result.
 	  *
-	  * @param src An object that can be treated as a stream of $Event
-	  * @param cl Typeclass instance allowing instances of `Src` to be treated as a stream of $Event
-	  * @tparam Src The source object type
+	  * @param source An object that can be treated as a stream of $Event
+	  * @param consume Typeclass instance allowing instances of `Src` to be treated as a stream of $Event
+	  * @tparam S The source object type
 	  * @return The parse result
 	  */
-	def parse[Src](src: Src)(implicit cl: ConsumableLike[Src, In]): Out = {
-		cl(src, makeHandler())
+	def parse[S](source: S)(implicit consume: ConsumableLike[S, In]): Out = {
+		consume(source, makeHandler())
 	}
 
-	/** Convert this $PL to a Consumer.
+	/** Transform this Parser's results using a transformation function.
 	  *
-	  * @return A Consumer with the same behavior as this $PL
-	  */
-	def toConsumer: Consumer[In, Out] = new Consumer[In, Out] {
-		def makeHandler() = self.makeHandler()
-		override def toString = self.toString
-	}
-
-	/** Convert this $PL to another handler factory type.
-	  *
-	  * @param sfhf Typeclass instance facilitating construction of an `S[Out]` from
-	  *             the HandlerFactory logic in this $PL.
-	  * @tparam S Another handler factory type
-	  * @return An instance of `S[Out]` with the same behavior as this $PL
-	  */
-	def to[S[+_]](implicit sfhf: FromHandlerFactory[In, S]): S[Out] = {
-		sfhf.makeInstance(this, this.toString)
-	}
-
-	/** Starting point for $PL combination methods.
-	  *
-	  * @return A HandlerCombination instance for $PL
-	  */
-	@inline protected def combination = new HandlerCombination[In, Self]
-
-	/** Combine this $PL with another one.
-	  * Note that the value returned by this method is an intermediate object which should be finalized
-	  * by calling its `asTuple` or `as{(a,b) => result}` method.
-	  * Further combinations can be added by calling `and` again on the intermediate object.
-	  *
-	  * Example:
-	  * {{{
-	  * val p1: $PL[A] = /* ... */
-	  * val p2: $PL[B] = /* ... */
-	  * val pc: $PL[(A, B)] = (p1 and p2).asTuple
-	  * // or
-	  * val pc: $PL[R] = (p1 and p2).as{ (a, b) => combineResults(a, b) }
-	  * }}}
-	  *
-	  * @param other Another $PL to combine with
-	  * @tparam O2 The output type of the other $PL
-	  * @return An intermediate oject with `as` and `asTuple` methods that finish the combination
-	  */
-	def and[O2](other: Self[O2]): HandlerCombination[In, Self]#Combined2[Out, O2] = combination.combine(this, other)
-
-	/** Operator version of `and`; combines this $PL with another one.
-	  * Note that the value returned by this method is an intermediate object which should be finalized
-	  * by calling its `asTuple` or `as{(a,b) => result}` method.
-	  * Further combinations can be added by calling `~` again on the intermediate object.
-	  *
-	  * Example:
-	  * {{{
-	  * val p1: $PL[A] = /* ... */
-	  * val p2: $PL[B] = /* ... */
-	  * val pc: $PL[(A, B)] = (p1 and p2).asTuple
-	  * // or
-	  * val pc: $PL[R] = (p1 and p2).as{ (a, b) => combineResults(a, b) }
-	  * }}}
-	  *
-	  * @param other Another $PL to combine with
-	  * @tparam O2 The output type of the other $PL
-	  * @return An intermediate oject with `as` and `asTuple` methods that finish the combination
-	  */
-	def ~[O2](other: Self[O2]): HandlerCombination[In, Self]#Combined2[Out, O2] = combination.combine(this, other)
-
-	/** Transform this $PL's results using a transformation function.
-	  *
- 	  * @param f The transformation function
+	  * @param f The transformation function
 	  * @tparam B The result type of the transformation function
-	  * @return A new $PL instance which computes its results by applying `f` to the
-	  *         results computed by this $PL
+	  * @return A new Parser instance which computes its results by applying `f` to the
+	  *         results computed by this Parser
 	  */
-	def map[B](f: Out => B): Self[B] = handlerFactoryConverter.makeInstance(
-		new HandlerFactory[In, B] {
-			def makeHandler() = new MappedConsumerHandler(f, self.makeHandler())
-		},
-		s"$self.map($f)"
-	)
+	def map[U](f: Out => U): Parser[In, U] = new Parser[In, U] {
+		def makeHandler(): Handler[In, U] = new MappedConsumerHandler(f, self.makeHandler())
+	}
 
 	/** Combine this parser with the `fallback` such that if either one fails but the other succeeds,
 	  * the result will be taken from the one that succeeds.
@@ -124,54 +43,110 @@ abstract class Parser[In, StackElem, +Out, Self[+o] <: HandlerFactory[In, o]](
 	  * @tparam B
 	  * @return
 	  */
-	def orElse[B >: Out](fallback: Self[B]): Self[B] = handlerFactoryConverter.makeInstance(
-		new HandlerFactory[In, B] {
-			def makeHandler() = new FallbackSetHandler[In, B](self.makeHandler(), fallback.makeHandler())
-		},
-		s"$self.orElse($fallback)"
-	)
+	def orElse[I2 <: In, B >: Out](fallback: Parser[I2, B]): Parser[I2, B] = new Parser[I2, B] {
+		override def toString = s"$self.orElse($fallback)"
+		def makeHandler(): Handler[I2, B] = new FallbackSetHandler[I2, B](self.makeHandler(), fallback.makeHandler())
+	}
 
-	/** An intermediate object with an `apply` and `flatMap` that both create a sequenced $PL
-	  * which combines this $PL with a function to create the next one.
+	/** Create a new parser to wrap this one, such that any exception thrown during parsing will be caught
+	  * and returned as a `Failure`.
+	  * @return A parser that will return a Failure instead of throwing an exception
+	  */
+	def wrapSafe: Parser[In, Try[Out]] = Parser.wrapSafe(this)
+
+	/** Given a parser whose output type is a `Try[T]`, return a new parser which will unwrap the `Try`,
+	  * returning either the underlying `T` for `Success`, or throwing the caught exception for `Failure`.
+	  * This operation is the opposite of `wrapSafe`.
+	  *
+	  * @param ev Evidence that this parser's output type is a `Try[T]` for some type `T`
+	  * @tparam T The unwrapped type
+	  * @return A parser that unwraps the `Try` returned by this parser
+	  */
+	def unwrapSafe[T](implicit ev: Out <:< Try[T]): Parser[In, T] = Parser.unwrapSafe(asInstanceOf[Parser[In, Try[T]]])
+
+	/** Combine this Parser with another one, so that all inputs will be sent to both `this` and the `other` parser,
+	  * and the results of the two parsers will be combined.
+	  * Note that the value returned by this method is an intermediate object which should be finalized
+	  * by calling its `asTuple` or `as{(a,b) => result}` method, which defines how the results of the two parsers are combined.
+	  * Further combinations can be added by calling `and` again on the intermediate object.
+	  *
+	  * Example:
+	  * {{{
+	  * val p1: Parser[A] = /* ... */
+	  * val p2: Parser[B] = /* ... */
+	  * val pc: Parser[(A, B)] = (p1 and p2).asTuple
+	  * // or
+	  * val pc: Parser[R] = (p1 and p2).as{ (a, b) => combineResults(a, b) }
+	  * }}}
+	  *
+	  * @param other Another Parser to combine with
+	  * @tparam O2 The output type of the other Parser
+	  * @return An intermediate oject with `as` and `asTuple` methods that finish the combination
+	  * @usecase def and[O2](other: Parser[In, O2]): ParserCombination[In]#Combined2[Out, O2]
+	  */
+	def and[I2 <: In, O2](other: Parser[I2, O2]): ParserCombination[I2]#Combined2[Out, O2] = new ParserCombination[I2]().combine(self, other)
+
+	/** Operator version of `and`
+	  *
+	  * @param other
+	  * @tparam I2
+	  * @tparam O2
+	  * @return
+	  * @usecase def ~[O2](other: Parser[In, O2]): ParserCombination[In]#Combined2[Out, O2]
+	  */
+	def ~[I2 <: In, O2](other: Parser[I2, O2]): ParserCombination[I2]#Combined2[Out, O2] = new ParserCombination[I2]().combine(self, other)
+
+	/** Creates a sequence handler by combining this one and a `getNext` function such that when this
+	  * handler finishes, a second handler is created by passing its result ot `getNext`.
+	  *
+	  * @param getNext A function that takes this handler's result to create a second handler
+	  * @tparam T2 The output type of the second handler
+	  * @return The combined handler
+	  */
+
+	/** Intermediate object for creating a sequence parser in which the result of this parser will
+	  * be used to initialize a second parser as soon as it is available.
+	  *
+	  * In other words, the source (series of `In` values) will be fed into this Parser until this
+	  * parser's handler returns a result of type `Out`. At that point, the second parser (as
+	  * specified by using the `apply` or `flatMap` methods on the `FollowedBy` returned by this method)
+	  * will be instantiated. Any relevent "stack events" (see `Stackable`) will be replayed so the
+	  * second parser has the right context, and from that point on, all `In` values will be sent
+	  * to the second parser. When that second parser returns a result, that result becomes the output
+	  * of the combined parser created by `this.followedBy(out => makeSecondParser(out))`
 	  *
 	  * Examples:
 	  * {{{
-	  *    val p1: $PL[A] = /* ... */
-	  *    def getP2(p1Result: A): $PL[B] = /* ... */
-	  *    val combined: $PL[B] = p1.followedBy(getP2)
+	  *    val p1: Parser[A] = /* ... */
+	  *    def getP2(p1Result: A): Parser[B] = /* ... */
+	  *    val combined: Parser[B] = p1.followedBy(getP2)
 	  *
 	  *    // alternative `flatMap` syntax
-	  *    val combined: $PL[B] = for {
+	  *    val combined: Parser[B] = for {
 	  *      p1Result <- p1.followedBy
 	  *      p2Result <- getP2(p1Result)
 	  *    } yield p2Result
 	  * }}}
 	  *
-	  * An example of where this is useful is when a $pl for XML element depends on values
-	  * parsed from one of its previous siblings, but where you don't want to wait until the
-	  * end of their parent element before they can be combined.
-	  *
-	  * @return An intermediate object which has an `apply` and `flatMap` that can be used
-	  *         to combine this $PL and another in a sequence.
+	  * See `interruptedBy`, which is useful when a `transformer.parseFirstOption`
+	  * must be `followedBy` some other parser.
 	  */
-	object followedBy extends FollowedBy[Self, Out] {
-		def apply[T2](getNext: Out => Self[T2]): Self[T2] = handlerFactoryConverter.makeInstance(
-			new HandlerFactory[In, T2] {
-				def makeHandler(): Handler[In, T2] = {
-					val handler1 = self.makeHandler()
-					def getHandler2(h1Result: Out) = getNext(h1Result).makeHandler()
-					new SequencedInStackHandler(handler1, getHandler2)
-				}
-			},
-			s"$self.followedBy($getNext)"
-		)
+	def followedBy: FollowedBy[In, Out, Parser] = new FollowedBy[In, Out, Parser] {
+		def apply[I2 <: In, T2](getNext: Out => Parser[I2, T2])(implicit stackable: Stackable[I2]): Parser[I2, T2] = new Parser[I2, T2] {
+			override def toString = s"$self.followedBy($getNext)"
+			def makeHandler(): Handler[I2, T2] = {
+				new SequencedInStackHandler[I2, Out, T2](self.makeHandler(), r1 => getNext(r1).makeHandler())
+			}
+		}
 	}
 
-	/** An intermediate object that can be used to create a Transformer from result of this Parser.
+	/** Intermediate object creating a transformer that depends on this parser.
+	  * Particularly useful in cases where one or more specific "info" elements precede
+	  * a stream of other elements which require that "info" to be parsed.
 	  *
 	  * Examples:
 	  * {{{
-	  *    val p1: $PL[A] = /* ... */
+	  *    val p1: Parser[A] = /* ... */
 	  *    def getP2Stream(p1Result: A): Transformer[$Event, B] = /* ... */
 	  *    val combined: Transformer[$Event, B] = p1.andThenStream(getP2Stream)
 	  *
@@ -182,20 +157,24 @@ abstract class Parser[In, StackElem, +Out, Self[+o] <: HandlerFactory[In, o]](
 	  *    } yield p2Result
 	  * }}}
 	  *
-	  * An example of where this is useful is when an XML element contains some "dictionary" object
-	  * at the beginning, followed by a sequence of "data" objects which reference the dictionary.
-	  * For large sequences, combining them to a List (to use with $PL's `and` combiners) is undesireable;
-	  * we can use this approach to avoid doing so.
+	  * See `followedBy` for a general explanation of how the combination works.
 	  *
-	  * @return An intermediate object which has an `apply` and `flatMap` that can be used
-	  *         to combine this $PL and a Transformer in a sequence.
+	  * See also, `interruptedBy`, which is useful when a `transformer.parseFirstOption`
+	  * must be `followedBy` some other transformer.
 	  */
-	object followedByStream extends FollowedBy[({ type F[+T2] = Transformer[In, T2] })#F, Out] {
-		def apply[T2](getTransformer: Out => Transformer[In, T2]): Transformer[In, T2] = new Transformer[In, T2] {
+	def followedByStream: FollowedBy[In, Out, Transformer] = new FollowedBy[In, Out, Transformer] {
+		/** Creates a sequence handler by combining this one and a `getNext` function such that when this
+		  * handler finishes, a second handler is created by passing its result ot `getNext`.
+		  *
+		  * @param getNext A function that takes this handler's result to create a second handler
+		  * @tparam T2 The output type of the second handler
+		  * @return The combined handler
+		  */
+		def apply[I2 <: In, T2](getTransformer: Out => Transformer[I2, T2])(implicit stackable: Stackable[I2]): Transformer[I2, T2] = new Transformer[I2, T2] {
 			override def toString = s"$self.followedByStream($getTransformer)"
-			def makeHandler[End](next: Handler[T2, End]): Handler[In, End] = {
+			def makeHandler[End](next: Handler[T2, End]): Handler[I2, End] = {
 				val handler1 = self.makeHandler()
-				def getHandler2(h1Result: Out): Handler[In, End] = getTransformer(h1Result).makeHandler(next)
+				def getHandler2(h1Result: Out): Handler[I2, End] = getTransformer(h1Result).makeHandler(next)
 				new SequencedInStackHandler(handler1, getHandler2)
 			}
 		}
@@ -216,12 +195,10 @@ abstract class Parser[In, StackElem, +Out, Self[+o] <: HandlerFactory[In, o]](
 	  * @param interrupter
 	  * @return
 	  */
-	def interruptedBy(interrupter: HandlerFactory[In, Any]): Self[Out] = handlerFactoryConverter.makeInstance(
-		new HandlerFactory[In, Out] {
-			def makeHandler() = new InterrupterHandler(self.makeHandler(), interrupter.makeHandler())
-		},
-		s"$self.interruptedBy($interrupter)"
-	)
+	def interruptedBy[I2 <: In](interrupter: Parser[I2, Any]): Parser[I2, Out] = new Parser[I2, Out] {
+		def makeHandler() = new InterrupterHandler[I2, Out](self.makeHandler(), interrupter.makeHandler())
+		override def toString = s"$self.interruptedBy($interrupter)"
+	}
 
 	/** Create a copy of this parser that will observe an early EOF upon entering a context matched by the
 	  * given `matcher`. This is especially useful for creating `followedBy` chains involving optional elements.
@@ -247,8 +224,8 @@ abstract class Parser[In, StackElem, +Out, Self[+o] <: HandlerFactory[In, o]](
 	  * @param matcher
 	  * @return
 	  */
-	def beforeContext(matcher: ContextMatcher[StackElem, Any]): Self[Out] = {
-		val interrupter = new ContextStackSplitter[In, StackElem, Any](matcher).map(Consumer.constant(true)).consumeFirst
+	def beforeContext[I2 <: In, StackElem](matcher: ContextMatcher[StackElem, Any])(implicit stackable: Stackable.Aux[I2, StackElem]): Parser[I2, Out] = {
+		val interrupter = new ContextStackSplitter[I2, StackElem, Any](matcher).map(Parser.constant(true)).parseFirst
 		self.interruptedBy(interrupter)
 	}
 
@@ -263,53 +240,83 @@ abstract class Parser[In, StackElem, +Out, Self[+o] <: HandlerFactory[In, o]](
 	  * @param expectations A sequence of `label -> test` expectations imposed on inputs to this parser
 	  * @return A copy of this parser with expectations imposed on its inputs
 	  */
-	def expectInputs(expectations: List[(String, In => Boolean)]): Self[Out] = handlerFactoryConverter.makeInstance(
-		new HandlerFactory[In, Out] {
-			def makeHandler() = new ExpectationSequenceHandler(expectations, self.makeHandler())
-		},
-		s"$self.expectInputs($expectations)"
-	)
+	def expectInputs[I2 <: In](expectations: List[(String, I2 => Boolean)]): Parser[I2, Out] = new Parser[I2, Out] {
+		override def toString = s"$self.expectInputs($expectations)"
+		def makeHandler() = new ExpectationSequenceHandler(expectations, self.makeHandler())
+	}
 
 	/** Creates a copy of this parser, but with a different `toString`
 	  *
 	  * @param name The new "name" (i.e. `toString`) for this parser
 	  * @return A copy of this parser whose `toString` returns the given `name`
 	  */
-	def withName(name: String): Self[Out] = handlerFactoryConverter.makeInstance(self, name)
+	def withName(name: String): Parser[In, Out] = new Parser[In, Out] {
+		override def toString = name
+		def makeHandler(): Handler[In, Out] = self.makeHandler()
+	}
 }
 
-trait ParserCompanion[In, Self[+o] <: HandlerFactory[In, o]] { self =>
-	def handlerFactoryConverter: FromHandlerFactory[In, Self]
+object Parser {
 
-	def from[Out](hf: HandlerFactory[In, Out]): Self[Out] = {
-		handlerFactoryConverter.makeInstance(hf, hf.toString)
+	def wrapSafe[In, Out](self: Parser[In, Out]): Parser[In, Try[Out]] = new Parser[In, Try[Out]] {
+		def makeHandler(): Handler[In, Try[Out]] = new SafeConsumerHandler(self.makeHandler())
 	}
 
-	def constant[Out](value: Out): Self[Out] = from(new HandlerFactory[In, Out]{
-		def makeHandler() = new ConstantHandler(value)
-		override def toString = s"$self.constant($value)"
-	})
+	def unwrapSafe[In, Out](self: Parser[In, Try[Out]]): Parser[In, Out] = new Parser[In, Out] {
+		def makeHandler(): Handler[In, Out] = new UnwrapSafeConsumerHandler(self.makeHandler())
+	}
 
-	def oneOf[Out](parsers: Self[Out]*): Self[Out] = from(new HandlerFactory[In, Out]{
+	def toList[A]: Parser[A, List[A]] = new Parser[A, List[A]] {
+		def makeHandler(): Handler[A, List[A]] = {
+			new ToListHandler[A]
+		}
+		override def toString = "ToList"
+	}
+
+	def first[A]: Parser[A, A] = new Parser[A, A] {
+		def makeHandler(): Handler[A, A] = {
+			new GetFirstHandler[A]
+		}
+		override def toString = "First"
+	}
+
+	def firstOption[A]: Parser[A, Option[A]] = new Parser[A, Option[A]] {
+		def makeHandler(): Handler[A, Option[A]] = {
+			new GetFirstOptionHandler[A]
+		}
+		override def toString = "FirstOption"
+	}
+
+	def fold[A, R](init: R, f: (R, A) => R): Parser[A, R] = new Parser[A, R] {
+		def makeHandler(): Handler[A, R] = {
+			new FoldHandler(init, f)
+		}
+		override def toString = s"Fold($init, $f)"
+	}
+
+	def foreach[A](f: A => Any): Parser[A, Unit] = new Parser[A, Unit] {
+		def makeHandler() = new ForEachHandler(f)
+		override def toString = s"ForEach($f)"
+	}
+
+	def constant[A](result: A): Parser[Any, A] = new Parser[Any, A] {
+		def makeHandler(): Handler[Any, A] = new ConstantHandler(result)
+		override def toString = s"Constant($result)"
+	}
+
+	/** Create a single parser which will attempt to run each of the given `parsers` in parallel,
+	  * yielding the result from the first of the `parsers` that successfully completes.
+	  * If multiple `parsers` return a result for the same input, priority is determined by
+	  * their order when given to this method.
+	  * If all of the `parsers` fail by throwing exceptions, all but the latest exception
+	  * will be swallowed, and the last exception will be rethrown.
+	  *
+	  * @param parsers A collection of Parsers which will be run in parallel.
+	  * @tparam In
+	  * @tparam Out
+	  * @return
+	  */
+	def oneOf[In, Out](parsers: Parser[In, Out]*): Parser[In, Out] = new Parser[In, Out] {
 		def makeHandler() = new FallbackSetHandler(parsers.map(_.makeHandler()): _*)
-	})
+	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

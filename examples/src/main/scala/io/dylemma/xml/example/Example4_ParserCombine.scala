@@ -70,7 +70,7 @@ object Example4_ParserCombine {
 
 		val mainParser = XMLSplitter("comments" \ "comment").as[Comment].consumeForEach(println)
 
-		mainParser consume rawXml
+		mainParser parse rawXml
 	}
 
 }

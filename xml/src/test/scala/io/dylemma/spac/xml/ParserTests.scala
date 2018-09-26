@@ -22,7 +22,7 @@ class ParserTests extends FunSpec with Matchers {
 	}
 
 	// convenience for testing behavior of transformers
-	protected def runTransformer[Out](xml: String, t: Transformer[XMLEvent, Out]): List[Out] = t.consumeToList.consume(xml)
+	protected def runTransformer[Out](xml: String, t: Transformer[XMLEvent, Out]): List[Out] = t.parseToList.parse(xml)
 
 	describe("Parser.forText") {
 		it("should concatenate text events") {
@@ -171,7 +171,7 @@ class ParserTests extends FunSpec with Matchers {
 			val rawXml = """<foo a="123"><x>Hello</x><y>Goodbye</y></foo>"""
 			// the two inner parsers should receive the same 'A' instance passed to this parser from a splitter
 			def parseAText(context: A, elem: String) = {
-				(XMLParser.constant(context) and XMLSplitter(* \ elem).first.asText).as(AText)
+				(Parser.constant(context) and XMLSplitter(* \ elem).first.asText).as(AText)
 			}
 			val combinedContextualParser: XMLParser[(AText, AText)] = splitter.first{ a =>
 				(parseAText(a, "x") and parseAText(a, "y")).asTuple
@@ -184,28 +184,28 @@ class ParserTests extends FunSpec with Matchers {
 
 	describe("Consumer.and <via ConsumerSyntax>"){
 		it("should combine results of the combined consumers"){
-			val c1 = Consumer.first[Int].map(_ * 2)
-			val c2 = Consumer.first[Int].map(_ * 3)
+			val c1 = Parser.first[Int].map(_ * 2)
+			val c2 = Parser.first[Int].map(_ * 3)
 			val cc = (c1 and c2).asTuple
 
-			cc.consume(List(2)) should be(4 -> 6)
+			cc.parse(List(2)) should be(4 -> 6)
 		}
 	}
 
 	describe("Parser.constant"){
 		it("should emit the result immediately"){
-			testParserResult("<a></a>", XMLParser.constant(123), 123)
+			testParserResult("<a></a>", Parser.constant(123), 123)
 		}
 
 		it("should pass errors through instead of the result"){
 			val e = new Exception("test error")
 			the[Exception] thrownBy {
-				XMLParser.constant(123).makeHandler().handleError(e) should equal(Some(Failure(e)))
+				Parser.constant(123).makeHandler().handleError(e) should equal(Some(Failure(e)))
 			} should be(e)
 		}
 
 		it("should emit in response to an EOF"){
-			XMLParser.constant(123).makeHandler().handleEnd() should equal(123)
+			Parser.constant(123).makeHandler().handleEnd() should equal(123)
 		}
 	}
 

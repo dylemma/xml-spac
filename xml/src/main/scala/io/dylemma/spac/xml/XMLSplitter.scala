@@ -1,14 +1,12 @@
 package io.dylemma.spac.xml
 
+import io.dylemma.spac._
 import javax.xml.namespace.QName
 import javax.xml.stream.events.{StartElement, XMLEvent}
 
-import io.dylemma.spac._
-import XMLParser.handlerFactoryConverter
-
 import scala.util.Try
 
-class XMLSplitter[+Context](matcher: ContextMatcher[StartElement, Context]) extends ContextStackSplitter(matcher) { self =>
+class XMLSplitter[+Context](matcher: XMLContextMatcher[Context]) extends ContextStackSplitter[XMLEvent, StartElement, Context](matcher) { self =>
 
 	def attr(name: QName): Transformer[XMLEvent, String] = map(XMLParser.forMandatoryAttribute(name))
 	def attr(name: String): Transformer[XMLEvent, String] = map(XMLParser.forMandatoryAttribute(name))
@@ -54,5 +52,5 @@ object XMLSplitter {
 	  * @tparam Context The type of the "context" matched by the `matcher`
 	  * @return A new XMLSplitter that will split a stream into sub-streams identified by the `matcher`
 	  */
-	def apply[Context](matcher: ContextMatcher[StartElement, Context]) = new XMLSplitter(matcher)
+	def apply[Context](matcher: XMLContextMatcher[Context]) = new XMLSplitter(matcher)
 }
