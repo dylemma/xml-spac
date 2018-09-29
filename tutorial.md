@@ -43,6 +43,7 @@ And the following imports:
 
 ```scala
 import io.dylemma.spac._
+import io.dylemma.spac.xml._
 ```
 
 ### XMLParser[Author]
@@ -89,18 +90,18 @@ Using some new concepts, we can define the `Comment` parser.
 val commentDateFormat = DateTimeFormat.forPattern("yyyy-MM-dd")
 implicit val CommentParser: XMLParser[Comment] = (
 	XMLParser.forMandatoryAttribute("date").map(commentDateFormat.parseLocalDate) and
-	Splitter(* \ "author").first[Author] and
-	Splitter(* \ "body").first.asText
+	XMLSplitter(* \ "author").first[Author] and
+	XMLSplitter(* \ "body").first.asText
 ).as(Comment)
 ```
 
-The `Splitter(* \ "author")` is a new Splitter that only passes along events coming from the `<author>` element directly within
+The `XMLSplitter(* \ "author")` is a new Splitter that only passes along events coming from the `<author>` element directly within
 the top-level element, which in this case could be anything. Then we call `first[Author]`, which implicitly looks for a
 `XMLParser[Author]` and should find our `AuthorParser` that we defined earlier. `first[T]` is actually shorthand for
 `through(parser).parseFirst`, meaning that we will run the AuthorParser only on the first `<author>` substream, returning a
 single `Author` instance rather than a list or option.
 
-The `Splitter(* \ "body" ).first.asText` is a parser that collects the text in first `<body>` element directly within the top-level
+The `XMLSplitter(* \ "body" ).first.asText` is a parser that collects the text in first `<body>` element directly within the top-level
 element. Any `Characters` events encountered within that substream will be concatenated to generate the result.
 
 ### XMLParser[Post]
@@ -110,10 +111,10 @@ Combining the parsers and concepts from above, we can define the `Post` parser.
 ```scala
 implicit val PostParser: XMLParser[Post] = (
 	XMLParser.forMandatoryAttribute("date").map(commentDateFormat.parseLocalDate) and
-	Splitter(* \ "author").first[Author] and
-	Splitter(* \ "stats").first[Stats] and
-	Splitter(* \ "body").first.asText and
-	Splitter(* \ "comments" \ "comment").asListOf[Comment]
+	XMLSplitter(* \ "author").first[Author] and
+	XMLSplitter(* \ "stats").first[Stats] and
+	XMLSplitter(* \ "body").first.asText and
+	XMLSplitter(* \ "comments" \ "comment").asListOf[Comment]
 ).as(Post)
 ```
 
@@ -127,7 +128,7 @@ functionality can be pulled out to some common location and reused anywhere, e.g
 
 ```scala
 val dateAttributeParser = XMLParser.forMandatoryAttribute("date").map(commentDateFormat.parseLocalDate)
-val authorElementParser = Splitter(* \ "author").first[Author]
+val authorElementParser = XMLSplitter(* \ "author").first[Author]
 
 implicit val CommentParser: XMLParser[Comment] = (
   dateAttributeParser and
@@ -142,21 +143,20 @@ Remember that the `<post>` element was inside the top-level `<blog>` element, so
 on the XML stream. We need to put it in the right context first.
 
 ```scala
-val postTransformer: Transformer[XMLEvent, Post] = Splitter("blog" \ "post") through PostParser
+val postTransformer: XMLTransformer[Post] = XMLSplitter("blog" \ "post") through PostParser
 // or
-val postTransformerAlt: Transformer[XMLEvent, Post] = Splitter("blog" \ "post").as[Post]
+val postTransformerAlt: XMLTransformer[Post] = XMLSplitter("blog" \ "post").as[Post]
 ```
 
-The `postTransformer` is a `Transformer[XMLEvent, Post]`, meaning that it can be used to transform a stream of XMLEvent
+The `postTransformer` is an `Transformer[XMLEvent, Post]`, meaning that it can be used to transform a stream of XMLEvent
 to a stream of `Post` values. Depending on how you want to consume that stream, you might call `postTransformer.parseToList` or
-`postTransformer.consumeForeach(println)`, or one of `Transformer`'s several other convenience methods. These methods return
-`Parsers` or `Consumers`, both of which can then be used to consume the whole XML stream.
+`postTransformer.parseForeach(println)`, or one of `Transformer`'s several other convenience methods. These methods return
+`Parsers` which can then be used to consume the whole XML stream.
 
 ```scala
 // the raw xml data can be a String, a File, an InputStream,
 // or anything belonging to the `ConsumableLike` typeclass.
 val xml = ...
-postTransformer.consumeForEach(println) consume xml // println each Post as the stream finds it
-println(postTransformer.consumeToList consume xml) // collect all of the Posts to a list
-println(postTransformer.parseToList parse xml) // collect all of the Posts, but wrap parsing failures as values
+postTransformer.parseForEach(println) parse xml // println each Post as the stream finds it
+println(postTransformer.parseToList parse xml) // collect all of the Posts to a list
 ```

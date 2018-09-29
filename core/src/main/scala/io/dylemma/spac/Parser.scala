@@ -13,8 +13,8 @@ trait Parser[-In, +Out] extends HandlerFactory[In, Out] { self =>
 	/** Parse the given source object by spawning a handler and feeding events
 	  * from the source into that handler until it yields a result.
 	  *
-	  * @param source An object that can be treated as a stream of $Event
-	  * @param consume Typeclass instance allowing instances of `Src` to be treated as a stream of $Event
+	  * @param source An object that can be treated as a stream of `In` events
+	  * @param consume Typeclass instance allowing instances of `Src` to be treated as a stream of `In` events
 	  * @tparam S The source object type
 	  * @return The parse result
 	  */
@@ -146,12 +146,12 @@ trait Parser[-In, +Out] extends HandlerFactory[In, Out] { self =>
 	  *
 	  * Examples:
 	  * {{{
-	  *    val p1: Parser[A] = /* ... */
-	  *    def getP2Stream(p1Result: A): Transformer[$Event, B] = /* ... */
-	  *    val combined: Transformer[$Event, B] = p1.andThenStream(getP2Stream)
+	  *    val p1: Parser[In, A] = /* ... */
+	  *    def getP2Stream(p1Result: A): Transformer[In, B] = /* ... */
+	  *    val combined: Transformer[In, B] = p1.andThenStream(getP2Stream)
 	  *
 	  *    // alternative `flatMap` syntax
-	  *    val combined: Transformer[$Event, B] = for {
+	  *    val combined: Transformer[In, B] = for {
 	  *      p1Result <- p1.andThenStream
 	  *      p2Result <- getP2Stream(p1Result)
 	  *    } yield p2Result

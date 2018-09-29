@@ -28,7 +28,6 @@ import javax.xml.stream.events.{StartElement, XMLEvent}
   *  - `[[ContextMatcherSyntax]].elem` for matching elements by name
   *  - `[[ContextMatcherSyntax]].attr` for extracting element attributes as context
   *  - `[[ContextMatcherSyntax]].*` and `[[ContextMatcherSyntax]].**` as wildcards for element matching
-  *  - `[[io.dylemma.spac.xml.Parser]]` as an alias for `[[io.dylemma.spac.xml.XMLParser]]``
   */
 package object xml
 	extends ContextMatcherSyntax
