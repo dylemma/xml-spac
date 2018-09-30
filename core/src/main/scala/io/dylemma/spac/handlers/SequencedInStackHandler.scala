@@ -29,7 +29,7 @@ import scala.collection.mutable.ArrayBuffer
   */
 class SequencedInStackHandler[In: Stackable, T1, T2](handler1: Handler[In, T1], getHandler2: T1 => Handler[In, T2]) extends Handler[In, T2] {
 	private val stackable = implicitly[Stackable[In]]
-	private val stack = new ArrayBuffer[stackable.StackElem]
+	private val stack = new ArrayBuffer[In]
 	private var handler2Opt: Option[Handler[In, T2]] = None
 
 	override def toString = {
@@ -76,11 +76,9 @@ class SequencedInStackHandler[In: Stackable, T1, T2](handler1: Handler[In, T1], 
 	  * in response to an EndElement.
 	  */
 	private def updateStack(event: In): Unit = {
-		stackable.asPush(event) match {
-			case Some(elem) => stack += elem
-			case None if(stackable.isPop(event)) => stack.remove(stack.length - 1)
-			case _ => ()
-		}
+		if (stackable isPush event) stack += event
+		else if (stackable isPop event) stack.remove(stack.length - 1)
+		else ()
 	}
 
 	/** Pass the StartElement events in the stack into `handler2` until either
@@ -104,37 +102,3 @@ class SequencedInStackHandler[In: Stackable, T1, T2](handler1: Handler[In, T1], 
 		handler2 -> replayStack(handler2)
 	}
 }
-
-/*
-object SequencedInStackHandler {
-	def main(args: Array[String]): Unit = {
-		import io.dylemma.spac._
-		import javax.xml.stream.events.XMLEvent
-
-		val xml = """<parent>
-			<id>Dylan</id>
-			<tag>Author</tag>
-			<message>Hello</message>
-			<message>Goodbye</message>
-			<message>Have fun</message>
-		</parent>"""
-
-		case class Entity(id: String, tag: String)
-
-		val printer = Transformer.SideEffect[XMLEvent](e => println(s"  event [$e]"))
-
-		val transformer = for {
-			id <- Splitter(* \ "id").first.asText.followedByStream
-			_ = println("Got the id")
-			tag <- Splitter(* \ "tag").first.asText.followedByStream
-			entity = { println("Got the 'entity'"); Entity(id, tag) }
-			msg <- Splitter(* \ "message").asText
-		} yield s"Message from $entity: $msg"
-
-
-		val result = (printer >> transformer).consumeForEach(println).consume(xml)
-		println(s"Got result:\n  $result")
-
-	}
-}
-*/

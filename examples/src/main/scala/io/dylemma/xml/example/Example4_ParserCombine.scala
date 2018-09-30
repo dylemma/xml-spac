@@ -4,6 +4,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 
 import io.dylemma.spac._
+import io.dylemma.spac.xml._
 
 /**
  * Created by dylan on 10/11/2015.
@@ -39,37 +40,37 @@ object Example4_ParserCombine {
 
 	/*
 	Note that we're marking the `UserParser` and `StatsParser` below as implicit.
-	This is simply for convenience so that we can use `Splitter(...).first[User]`
-	and `Splitter(...).first[Stats]` later on.
+	This is simply for convenience so that we can use `XMLSplitter(...).first[User]`
+	and `XMLSplitter(...).first[Stats]` later on.
 	 */
 
 	// Parse <user id="..." name="..." /> into a User(id, name)
-	implicit val UserParser: Parser[User] = (
-		Parser.forMandatoryAttribute("id") and
-		Parser.forMandatoryAttribute("name")
+	implicit val UserParser: XMLParser[User] = (
+		XMLParser.forMandatoryAttribute("id") and
+		XMLParser.forMandatoryAttribute("name")
 	).as(User)
 
 	// Parse <stats upvote-count="..." downvote-count="..." /> into a Stats(upvoteCount, downvoteCount)
-	implicit val StatsParser: Parser[Stats] = (
-		Parser.forMandatoryAttribute("upvote-count").map(_.toInt) and
-		Parser.forMandatoryAttribute("downvote-count").map(_.toInt)
+	implicit val StatsParser: XMLParser[Stats] = (
+		XMLParser.forMandatoryAttribute("upvote-count").map(_.toInt) and
+		XMLParser.forMandatoryAttribute("downvote-count").map(_.toInt)
 	).as(Stats)
 
 	// note that SimpleDateFormat isn't thread-safe. You should use Joda time instead
 	val commentDateFormat = new SimpleDateFormat("yyyy-MM-dd")
 	// Parser for Comment
-	implicit val CommentParser: Parser[Comment] = (
-		Parser.forMandatoryAttribute("date").map(commentDateFormat.parse) and
-		Splitter(* \ "user").first[User] and
-		Splitter(* \ "stats").first[Stats] and
-		Splitter(* \ "body").first.asText
+	implicit val CommentParser: XMLParser[Comment] = (
+		XMLParser.forMandatoryAttribute("date").map(commentDateFormat.parse) and
+		XMLSplitter(* \ "user").first[User] and
+		XMLSplitter(* \ "stats").first[Stats] and
+		XMLSplitter(* \ "body").first.asText
 	).as(Comment)
 
 	def main(args: Array[String]) {
 
-		val mainParser = Splitter("comments" \ "comment").as[Comment].consumeForEach(println)
+		val mainParser = XMLSplitter("comments" \ "comment").as[Comment].consumeForEach(println)
 
-		mainParser consume rawXml
+		mainParser parse rawXml
 	}
 
 }

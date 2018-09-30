@@ -1,6 +1,9 @@
 package io.dylemma.xml.example
 
+import javax.xml.stream.events.StartElement
+
 import io.dylemma.spac._
+import io.dylemma.spac.xml._
 
 object Example2_Contexts extends App {
 
@@ -48,15 +51,23 @@ object Example2_Contexts extends App {
 	val commentElementMatcher2: SingleElementContextMatcher[Unit] = "comment"
 
 	/*
+	The base `ContextMatcher` trait has two type parameters:
+	 1. The "context stack type"
+	 2. The context match output type
+	Since we're dealing with XML, we can use the `XMLContextMatcher` type alias,
+	which uses `StartElement` as the "context stack type"
+	 */
+
+	/*
 	ContextMatchers can be chained together with the `\` (backslash) method.
 	When combining two matchers as a chain, their two context types will be
 	combined as a Tuple2, then reduced according to the rules of the
 	`TypeReduce` typeclass. Essentially, `Unit` will be stripped out unless
 	it is the only thing left.
 	*/
-	val chainExample1: ContextMatcher[Unit] = "blog" \ "post" \ "comment"
-	val chainExample2: ContextMatcher[String] = "blog" \ attr("id") \ "comment"
-	val chainExample3: ContextMatcher[(String, String)] = "blog" \ attr("id") \ attr("stuff")
+	val chainExample1: XMLContextMatcher[Unit] = "blog" \ "post" \ "comment"
+	val chainExample2: XMLContextMatcher[String] = "blog" \ attr("id") \ "comment"
+	val chainExample3: XMLContextMatcher[(String, String)] = "blog" \ attr("id") \ attr("stuff")
 
 	/*
 	The same type reduction logic also applies when combining two single-element
@@ -69,7 +80,7 @@ object Example2_Contexts extends App {
 	/*
 	Complicated context matchers can be built from the combination methods
 	 */
-	val chainedMatcher: ContextMatcher[(String, (String, Int))] = {
+	val chainedMatcher: XMLContextMatcher[(String, (String, Int))] = {
 		// The individual segments are [String] + [(String, Int)] + [Unit].
 		// Unit is stripped, leaving a tuple of `String` and `(String, Int)`
 		attr("title") \ (attr("author") & attr("id").map(_.toInt)) \ "comment"
@@ -80,7 +91,7 @@ object Example2_Contexts extends App {
 	as well as its `flatMap` and `filter` methods (not shown).
 	 */
 	case class PostContext(blogTitle: String, author: String, postId: Int)
-	val postContextMatcher: ContextMatcher[PostContext] = chainedMatcher map {
+	val postContextMatcher: XMLContextMatcher[PostContext] = chainedMatcher map {
 		case (title, (author, postId)) => PostContext(title, author, postId)
 	}
 
@@ -88,37 +99,37 @@ object Example2_Contexts extends App {
 	Now you can use the `postContextMatcher` to create a splitter that
 	has a `PostContext` as its context.
 	 */
-	val postSplitter: XmlSplitter[PostContext] = Splitter(postContextMatcher)
+	val postSplitter: XMLSplitter[PostContext] = XMLSplitter(postContextMatcher)
 
 	/*
 	Create a `Comment` class then create a parser for it.
 	The comment parser can't create a `Comment` without a `PostContext`,
 	since that comes from an xml element further up the tree. We'll get
-	that context from the `Splitter` (via the `through` method), so for
-	now we only create a `PostContext => Parser[Comment]` to represent
+	that context from the `Splitter` (via the `map` method), so for
+	now we only create a `PostContext => XMLParser[Comment]` to represent
 	that dependency.
 	 */
 	case class Comment(body: String, context: PostContext)
-	def commentParser(context: PostContext): Parser[Comment] = (
-		Parser.forText and
-		Parser.constant(context)
+	def commentParser(context: PostContext): XMLParser[Comment] = (
+		XMLParser.forText and
+			Parser.constant(context)
 	).as(Comment)
 
 	/*
 	Note: for this particular use case it might be more convenient to
 	insert the `context` with a `map` on the text parser.
 	 */
-	def alternateCommentParser(context: PostContext): Parser[Comment] = {
-		Parser.forText.map(Comment(_, context))
+	def alternateCommentParser(context: PostContext): XMLParser[Comment] = {
+		XMLParser.forText.map(Comment(_, context))
 	}
 
 	/*
-	With splitter's `through` method, the `commentParser` method will be
+	With splitter's `map` method, the `commentParser` method will be
 	called for each substream, with that substream's context as the argument.
 
-	- `postSplitter through commentParser` creates a transformer
+	- `postSplitter map commentParser` creates a transformer
 	- `[...] consumeForeach println` creates a consumer
 	- `[...] consume rawXml` runs that consumer on the raw xml
 	 */
-	postSplitter through commentParser consumeForEach println consume rawXml
+	postSplitter map commentParser consumeForEach println parse rawXml
 }

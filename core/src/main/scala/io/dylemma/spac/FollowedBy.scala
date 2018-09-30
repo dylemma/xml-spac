@@ -1,15 +1,17 @@
 package io.dylemma.spac
 
+import io.dylemma.spac.types.Stackable
+
 import scala.language.higherKinds
 
 /** An intermediate object for creating sequence-based combination methods for a Parser or Consumer.
   *
-  * @tparam M Type constructor for the parser/consumer of a given output type
-  * @tparam T1 Output type for the "first" parser/consumer; using the combination methods in this trait
-  *            will result in an instance of T1 being used to create a "second" parser/consumer/transformer
-  *            to be run sequentially after the first.
+  * @tparam M   Type constructor for the parser/consumer of a given output type
+  * @tparam Out Output type for the "first" parser/consumer; using the combination methods in this trait
+  *             will result in an instance of T1 being used to create a "second" parser/consumer/transformer
+  *             to be run sequentially after the first.
   */
-trait FollowedBy[M[+_], +T1] { ts =>
+trait FollowedBy[-In, +Out, M[- _, + _]] { ts =>
 
 	/** Creates a sequence handler by combining this one and a `getNext` function such that when this
 	  * handler finishes, a second handler is created by passing its result ot `getNext`.
@@ -17,8 +19,9 @@ trait FollowedBy[M[+_], +T1] { ts =>
 	  * @param getNext A function that takes this handler's result to create a second handler
 	  * @tparam T2 The output type of the second handler
 	  * @return The combined handler
+	  * @usecase def apply[T2](getNext: Out => M[In, T2])(implicit stackable: Stackable[In]): Parser[In, T2]
 	  */
-	def apply[T2](getNext: T1 => M[T2]): M[T2]
+	def apply[I2 <: In, T2](getNext: Out => M[I2, T2])(implicit stackable: Stackable[I2]): M[I2, T2]
 
 	/** Alias for `apply`, to help use this object in for-comprehensions.
 	  *
@@ -29,13 +32,13 @@ trait FollowedBy[M[+_], +T1] { ts =>
 	  * @tparam T2 The output type of the second handler
 	  * @return The combined handler
 	  */
-	def flatMap[T2](getNext: T1 => M[T2]): M[T2] = apply(getNext)
+	def flatMap[I2 <: In, T2](getNext: Out => M[I2, T2])(implicit stackable: Stackable[I2]): M[I2, T2] = apply(getNext)
 
 	/** Convenience for using this object in for-comprehensions; wraps this `ToSequence`
 	  * by calling `f` on the first handler's result and passing that into the `getNext` function.
 	  * You probably don't want to call this directly
 	  */
-	def map[T2](f: T1 => T2): FollowedBy[M, T2] = new FollowedBy[M, T2] {
-		def apply[T3](getNext: T2 => M[T3]): M[T3] = ts{ n => getNext(f(n)) }
+	def map[I2 <: In, T2](f: Out => T2)(implicit stackable: Stackable[I2]): FollowedBy[In, T2, M] = new FollowedBy[In, T2, M] {
+		def apply[I2 <: In, T3](getNext: T2 => M[I2, T3])(implicit stackable: Stackable[I2]): M[I2, T3] = ts { n => getNext(f(n)) }
 	}
 }

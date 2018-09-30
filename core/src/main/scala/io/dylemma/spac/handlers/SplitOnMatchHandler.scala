@@ -1,39 +1,47 @@
 package io.dylemma.spac.handlers
 
-import io.dylemma.spac.{Handler, HandlerFactory, debug}
+import io.dylemma.spac.{ContextSensitiveHandler, Handler}
 
 import scala.util.{Failure, Success, Try}
 
-class SplitOnMatchHandler[In, Context, P, Out](
+class SplitOnMatchHandler[In, Context, Out](
 	matcher: PartialFunction[In, Context],
-	joiner: Context => HandlerFactory[In, Try[P]],
-	val downstream: Handler[P, Out]
-) extends SplitterHandlerBase[In, Context, P, Out]{
+	downstream: ContextSensitiveHandler[In, Context, Out]
+) extends Handler[In, Out] {
 
-	protected def debugName = s"Splitter($matcher)"
+	def isFinished = downstream.isFinished
+	def handleError(error: Throwable) = downstream.handleError(error)
+	def handleEnd() = downstream.handleEnd()
 
-	def handleInput(input: In): Option[Out] = {
-		if(matcher isDefinedAt input){
-			// end the current substream, feeding the inner result downstream
-			val downstreamResult = feedEndToCurrentParser()
-			  .map(debug as "Got inner parser result (from context end)")
-			  .flatMap(feedResultToDownstream)
+	private var startedMatching = false
 
-			// if the inner result did not cause the downstream to end, start a new substream
-			downstreamResult.orElse {
-				currentParserHandler = Some(Util.initHandler(Try(matcher(input)), joiner))
+	def handleInput(input: In) = {
+		Try { matcher.lift(input) } match {
+			case Success(ctxMatch) =>
 
-				// feed the input to the newly-created inner handler, possibly getting an input
-				// to feed to the downstream handler
-				feedEventToCurrentParser(input)
-				  .map(debug as "Got inner parser result (from context begin input)")
-				  .flatMap(feedResultToDownstream)
-			}
-		} else {
-			// continue the current substream by passing this input to the inner handler
-			feedEventToCurrentParser(input)
-			  .map(debug as "Got inner parer result (from input)")
-			  .flatMap(feedResultToDownstream)
+				ctxMatch match {
+					// forward the event since we're in a context
+					case None if startedMatching => downstream.handleInput(input)
+
+					// all inputs before the initial match are ignored
+					case None => None
+
+					// start a new context
+					case Some(ctx) =>
+						// replace the old one (if any)
+						val resultFromEnd = if(startedMatching) downstream.handleContextEnd() else None
+						// then start the new one and send the event
+						resultFromEnd orElse {
+							startedMatching = true
+							downstream handleContextStart Success(ctx)
+						} orElse {
+							downstream handleInput input
+						}
+				}
+
+			case Failure(err) =>
+				startedMatching = true
+				downstream handleContextStart Failure(err)
 		}
 	}
 }

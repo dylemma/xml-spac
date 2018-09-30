@@ -1,11 +1,15 @@
 XML SPaC
 ========
 
-[![Build Status](https://travis-ci.org/dylemma/xml-spac.svg?branch=master)](https://travis-ci.org/dylemma/xml-spac)
-[Scaladoc](http://javadoc.io/doc/io.dylemma/xml-spac_2.12/0.5)
+[![Build Status](https://travis-ci.org/dylemma/xml-spac.svg?branch=dev/v0.6)](https://travis-ci.org/dylemma/xml-spac)
+[Scaladoc](http://javadoc.io/doc/io.dylemma/xml-spac_2.12/0.6)
 
-**XML** **S**treaming **Pa**rser **C**ombinators is a Scala library for creating event-based
-[StAX](https://docs.oracle.com/javase/8/docs/api/javax/xml/stream/package-summary.html) parsers that are:
+**S**treaming **Pa**rser **C**ombinators is a Scala library for turning streams of "parser events" into strongly-typed data, for:
+
+ - **XML** via [javax.xml.stream](https://docs.oracle.com/javase/8/docs/api/javax/xml/stream/package-summary.html), a.k.a. "StAX"
+ - **JSON** via [Jackson](https://github.com/FasterXML/jackson-core)
+
+using handlers that are:
 
  - **Declarative** - You write *what* you want to get, not *how* to get it.
  - **Immutable** - Parsers that you create have no internal state.
@@ -18,11 +22,11 @@ but here's a taste of how you'd write a parser for a relatively-complex blog pos
 
 ```scala
 val PostParser = (
-	Parser.forMandatoryAttribute("date").map(commentDateFormat.parseLocalDate) and
-	Splitter(* \ "author").first[Author] and
-	Splitter(* \ "stats").first[Stats] and
-	Splitter(* \ "body").first.asText and
-	Splitter(* \ "comments" \ "comment").asListOf[Comment]
+	XMLParser.forMandatoryAttribute("date").map(commentDateFormat.parseLocalDate) and
+	XMLSplitter(* \ "author").first[Author] and
+	XMLSplitter(* \ "stats").first[Stats] and
+	XMLSplitter(* \ "body").first.asText and
+	XMLSplitter(* \ "comments" \ "comment").asListOf[Comment]
 ).as(Post)
 ```
 
@@ -30,65 +34,101 @@ val PostParser = (
 
 Add the following to your `build.sbt` file:
 
+## For XML
+
 ```sbt
-libraryDependencies += "io.dylemma" %% "xml-spac" % "0.5"
+libraryDependencies += "io.dylemma" %% "xml-spac" % "0.6"
+```
+
+## For JSON
+
+```sbt
+libraryDependencies += "io.dylemma" %% "json-spac" % "0.6"
+```
+
+## To integrate another format yourself
+
+```sbt
+libraryDependencies += "io.dylemma" %% "spac-core" % "0.6"
 ```
 
 # Main Concepts
 
-The classes you'll interact with most in **XML SPaC** are `Parser`, `Transformer`, `Splitter`, and `Consumer`.
+SPaC is about handling streams of events, possibly transforming that stream, and eventually consuming it.
 
-A **`Consumer[In, Out]`** knows how to consume a stream of `In` events, producing an `Out` result.
+ - **`ConsumableLike[-Resource, +In]`** is the typeclass used to represent a "Stream",
+   showing how a `Resource` can be treated as an Iterator/Traversable of `In` events.
+   Implementations are provided for `String`, `InputStream`, `Reader`, and `File` resources.
+ - **`Transformer[-In, +In2]`** is a stream processing step that converts a stream of `In` events
+   to a stream of `In2` events.
+    - `XMLTransformer[+In2]` is an alias for `Transformer[XMLEvent, In2]`
+    - `JsonTransformer[+In2]` is an alias for `Transformer[JsonEvent, In2]`
+ - **`Parser[-In, +Out]`** is a stream processing step that consumes a stream of `In` events to
+   a single `Out` value.
+    - `XMLParser[+Out]` is an alias for `Parser[XMLEvent, Out]`
+    - `JsonParser[+Out]` is an alias for `Parser[JsonEvent, Out]`
+ - **`Splitter[In, +Context]`** is a building block for `Transformer`s and `Parser`s.
+   It "splits" a stream of `In` events into a *stream of streams* of `In` events,
+   where each "substream" is associated with a `Context` value.
+   The idea here is that if you know how to parse a certain sequence of events, you can easily
+   extend that knowledge to parse a repetition of that sequence of events.
+   You can also think of Splitter as a stream-based analog to an XPath.
+    - `XMLSplitter` is available for xml-specific splitter semantics
+    - `JsonSplitter` is available for json-specific splitter semantics
 
-A **`Parser[Out]`** is like a `Consumer` of [XMLEvents](https://docs.oracle.com/javase/8/docs/api/javax/xml/stream/events/XMLEvent.html)
-which wraps its results in a `Try[Out]`.
-
-A **`Transformer[A, B]`** turns a stream of `A` events into a stream of `B` events.
-
-A **`Splitter[In, Context]`** combines with a `Context => Parser[Out]` to create a `Transformer[In, Out]`.
-A Splitter "splits" a stream into "substreams", assigning a context value to each substream.
-A parser can be run on each of the substreams, and the resulting values become the contents of the transformed stream.
-
-Note that each of the four classes mentioned here are completely immutable,
-which means they can be shared and combined without worrying about state or thread safety.
-All of the *mutable* stuff is encapsulated in a `Handler` instance, which is created each time you want to process a stream.
-For the most part, you won't need to interact with Handlers; the library will do it for you.
+Instances of `Transformer`, `Parser`, and `Splitter` are *immutable*, meaning they can safely be
+reused and shared at any time, even between multiple threads.
+It's common to define an `implicit val fooParser: XMLParser[Foo] = /* ... */`
 
 ## Example
 
-`Parser.forMandatoryAttribute("foo")` is a parser which will find the "foo" attribute of the first element it sees.
+`XMLParser.forMandatoryAttribute("foo")` is a parser which will find the "foo" attribute of the first element it sees.
+
+```xml
+<!-- file: elem.xml -->
+<elem foo="bar" />
+```
 
 ```scala
-val parser = Parser forMandatoryAttribute "foo"
-val result = parser parse """<elem foo="bar"/>"""
-assert(result == Success("bar"))
+val xml = new File("elem.xml")
+val parser: XMLParser[String] = XMLParser.forMandatoryAttribute("foo")
+val result: String = parser.parse(xml)
+assert(result == "bar")
 ```
 
 Suppose you have some XML with a bunch of `<elem foo="..."/>` and you want the "foo" attribute from each of them.
-This is a job for a Splitter. You write an XML Splitter sort of like an XPATH, to describe how to get to each element that you want to parse.
+This is a job for a Splitter. You write an `XMLSplitter` sort of like an XPATH, to describe how to get to each element that you want to parse.
 
-```scala
-val xml = """<root><elem foo="bar"/><elem foo="baz"/></root>"""
-val splitter = Splitter(* \ "elem")
-val transformer = splitter through parser
+With the XML below, we want to parse the `<root>` element, since it represents the entire file.
+We'll write our splitter by using the `*` matcher (representing the current element),
+then selecting `<elem>` elements that are its direct children, using `* \ elem`.
 
-val rootConsumer = transformer.consumeToList
-assert(rootConsumer.consume(xml) == List("bar", "baz"))
-
-val rootParser = transformer.parseToList
-assert(rootParser.parse(xml) == Success(List("bar", "baz")))
+```xml
+<!-- file: root.xml -->
+<root>
+  <elem foo="bar" />
+  <elem foo="baz" />
+</root>
 ```
 
-Check out the docs for [ContextMatcherSyntax](http://static.javadoc.io/io.dylemma/xml-spac_2.11/0.5/index.html#io.dylemma.spac.syntax.ContextMatcherSyntax),
-which defines helpers for creating the arguments to a `Splitter`,
-and [Parser](http://static.javadoc.io/io.dylemma/xml-spac_2.11/0.5/index.html#io.dylemma.spac.Parser$),
-which provides lots of convenience implementations of xml parsers.
+```scala
+val xml = new File("root.xml")
+val splitter: XMLSplitter[Unit] = XMLSplitter(* \ "elem")
+val transformer: XMLTransformer[String] = splitter map parser
+
+val rootParser: XMLParser[List[String]] = transformer.parseToList
+val root: List[String] = rootParser.parse(xml)
+assert(root == List("bar", "baz"))
+```
+
+Check out the docs for [ContextMatcherSyntax](http://static.javadoc.io/io.dylemma/xml-spac_2.11/0.6/index.html#io.dylemma.spac.syntax.ContextMatcherSyntax),
+which defines helpers for creating the arguments to a `Splitter`, like the `*` value used above.
 
 # Under the Hood
 
-The core classes are able to be immutable because they act as factories for "handlers",
-which contain all of the mutable state and stream processing logic.
-The `Handler` class is fairly simple:
+The underlying abstraction for processing "streams" is `Handler`.
+`Handler` is allowed to be mutable, so that implementations can use utilities like `Builder`.
+`Parser` and `Transformer` remain immutable by acting as *factories* for `Handler`.
 
 ```scala
 trait Handler[-In, +Out] {
@@ -99,20 +139,20 @@ trait Handler[-In, +Out] {
 }
 ```
 
-When the stream wants to send a value, it calls `handleInput`.
-When the stream ends, it calls `handleEnd`.
-When something goes wrong, it calls `handleError`.
-If the `handleInput` or `handleError` methods returned a `Some`, the stream can stop and clean up.
-If the handler `isFinished` at any point, the stream can stop and clean up.
+While processing a "stream", the `handleInput` method will be called for each `In` event.
+The handler can indicate an early completion by returning `Some(out)`,
+or indicate it is ready for more input by returning `None`.
 
-Now, I said "stream" a lot in the previous paragraph, but there is no "Stream" class in **XML SPaC**.
-Instead, there's the `ConsumableLike[S, In]` typeclass, which says that `S` is a stream of `In`.
-For example, `List[A]` could be a stream of `A`, so there would be an instance of `ConsumableLike[List[A], A]`.
-An `InputStream` could be a stream of `XMLEvent`, so there would be an instance of `ConsumableLike[InputStream, XMLEvent]`.
+At the end of the stream, `handleEnd` is used to force the handler to return an output.
+
+When you call `parser.parse(source)`, the `source` is opened by an implicit `ConsumableLike`,
+which then feeds events from the opened source into a fresh `Handler` until the handler
+indicates an early return, or the stream reaches its end, at which point the `source` is closed.
 
 
 ```scala
 trait ConsumableLike[-S, +In]{
+    def getIterator(resource: S): Iterator[In] with AutoCloseable
 	def apply[Out](source: S, handler: Handler[In, Out]): Out
 }
 ```
@@ -121,21 +161,16 @@ The `apply` method asks the `source` (stream) to drive the `handler` until it pr
 
 There are many different `ConsumableLike` instances already, including generalized ones for `Iterable` collections and
 `Iterator`s, and XML-specific ones for `String`, `File`, and `InputStream`. If you have a more specific "Stream" type,
-you can [write your own `ConsumableLike[StreamType, EventType]`](https://github.com/dylemma/xml-spac/blob/master/core/src/main/scala/io/dylemma/spac/ConsumableLike.scala).
+you can [write your own `ConsumableLike[StreamType, EventType]`](core/src/main/scala/io/dylemma/spac/ConsumableLike.scala).
 
 Here's how the core classes act like handler factories:
 
 ```scala
-trait Consumer[-In, +Out] {
+trait Parser[-In, +Out] extends (Any => Parser[In, Out]) {
 	def makeHandler(): Handler[In, Out]
 }
 
-trait Parser[+Out] {
-	def makeHandler(): Handler[XMLEvent, Try[Out]]
+trait Transformer[-In, +In2] extends (Any => Transformer[In, In2] {
+	def makeHandler[Out](downstream: Handler[In2, Out]): Handler[In, Out]
 }
-
-trait Transformer[In, B] {
-	def makeHandler[Out](downstream: Handler[B, Out]): Handler[In, Out]
-}
-
 ```

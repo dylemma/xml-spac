@@ -3,6 +3,7 @@ package io.dylemma.xml.example
 import javax.xml.stream.events.XMLEvent
 
 import io.dylemma.spac._
+import io.dylemma.spac.xml._
 import org.joda.time.LocalDate
 import org.joda.time.format.DateTimeFormat
 
@@ -39,36 +40,36 @@ object Example_FromReadme extends App {
 		|</blog>"""
 
 	val commentDateFormat = DateTimeFormat.forPattern("yyyy-MM-dd")
-	val dateAttributeParser = Parser.forMandatoryAttribute("date").map(commentDateFormat.parseLocalDate)
+	val dateAttributeParser = XMLParser.forMandatoryAttribute("date").map(commentDateFormat.parseLocalDate)
 
-	implicit val AuthorParser: Parser[Author] = (
-		Parser.forMandatoryAttribute("id") and
-		Parser.forMandatoryAttribute("name")
+	implicit val AuthorParser: XMLParser[Author] = (
+		XMLParser.forMandatoryAttribute("id") and
+		XMLParser.forMandatoryAttribute("name")
 	).as(Author)
 
-	val authorElementParser = Splitter(* \ "author").first[Author]
+	val authorElementParser = XMLSplitter(* \ "author").first[Author]
 
-	implicit val StatsParser: Parser[Stats] = (
-		Parser.forMandatoryAttribute("likes").map(_.toInt) and
-		Parser.forMandatoryAttribute("tweets").map(_.toInt)
+	implicit val StatsParser: XMLParser[Stats] = (
+		XMLParser.forMandatoryAttribute("likes").map(_.toInt) and
+		XMLParser.forMandatoryAttribute("tweets").map(_.toInt)
 	).as(Stats)
 
-	implicit val CommentParser: Parser[Comment] = (
+	implicit val CommentParser: XMLParser[Comment] = (
 		dateAttributeParser and
 		authorElementParser and
-		Splitter(* \ "body").first.asText
+		XMLSplitter(* \ "body").first.asText
 	).as(Comment)
 
-	implicit val PostParser: Parser[Post] = (
+	implicit val PostParser: XMLParser[Post] = (
 		dateAttributeParser and
 		authorElementParser and
-		Splitter(* \ "stats").first[Stats] and
-		Splitter(* \ "body").first.asText and
-		Splitter(* \ "comments" \ "comment").asListOf[Comment]
+		XMLSplitter(* \ "stats").first[Stats] and
+		XMLSplitter(* \ "body").first.asText and
+		XMLSplitter(* \ "comments" \ "comment").asListOf[Comment]
 	).as(Post)
 
-	val postTransformer: Transformer[XMLEvent, Post] = Splitter("blog" \ "post") through PostParser
-	val postTransformerAlt = Splitter("blog" \ "post").as[Post] // available because PostParser is marked implicit
+	val postTransformer: Transformer[XMLEvent, Post] = XMLSplitter("blog" \ "post") map PostParser
+	val postTransformerAlt = XMLSplitter("blog" \ "post").as[Post] // available because PostParser is marked implicit
 
-	postTransformer.consumeForEach(println) consume rawXml
+	postTransformer.consumeForEach(println) parse rawXml
 }
