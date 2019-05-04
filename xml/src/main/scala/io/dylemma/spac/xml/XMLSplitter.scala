@@ -22,7 +22,7 @@ class XMLSplitter[+Context](matcher: XMLContextMatcher[Context]) extends Context
 	}
 
 	object firstOption {
-		def apply[Out](implicit parser: Context => HandlerFactory[XMLEvent, Try[Out]]) = map(parser).parseFirstOption
+		def apply[Out](implicit parser: Context => HandlerFactory[XMLEvent, Out]) = map(parser).parseFirstOption
 		def attr(name: QName) = map(XMLParser.forMandatoryAttribute(name)).parseFirstOption
 		def attr(name: String) = map(XMLParser.forMandatoryAttribute(name)).parseFirstOption
 		def asText = self.map(XMLParser.forText).parseFirstOption
