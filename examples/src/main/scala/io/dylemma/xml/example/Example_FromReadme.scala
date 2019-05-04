@@ -71,5 +71,5 @@ object Example_FromReadme extends App {
 	val postTransformer: Transformer[XMLEvent, Post] = XMLSplitter("blog" \ "post") map PostParser
 	val postTransformerAlt = XMLSplitter("blog" \ "post").as[Post] // available because PostParser is marked implicit
 
-	postTransformer.consumeForEach(println) parse rawXml
+	postTransformer.parseForeach(println) parse rawXml
 }

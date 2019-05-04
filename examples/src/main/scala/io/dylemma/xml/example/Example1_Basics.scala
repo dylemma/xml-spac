@@ -54,42 +54,36 @@ object Example1_Basics extends App {
 	val bookTransformer: Transformer[XMLEvent, String] = bookSplitter.map(bookParser)
 
 	/*
-	To actually get a result from a stream, you'll either need an `XMLParser` or a `Consumer`.
-	A Consumer is like XMLParser, except that it doesn't require a specific context type to work,
-	and it can work on any type of inputs, not just XMLEvents.
+	To actually get a result from a stream, you'll either need an `XMLParser`.
 
-	Transformers can be turned into Consumers via a handful of convenience methods.
-	They can also be turned into Parsers as long as their input type is XMLEvent.
+	Transformers can be turned into Parsers via a handful of convenience methods.
 	 */
-	val bookListConsumer: XMLParser[List[String]] = bookTransformer.consumeToList
 	val bookListParser: XMLParser[List[String]] = bookTransformer.parseToList
 
 	/*
-	The underlying handler created by a Consumer may throw exceptions when handling inputs.
+	The underlying handler created by a Parser may throw exceptions when handling inputs.
 	Normally these exceptions will bubble up to whatever method invoked the consumer. In
 	cases where these errors need to be caught, you can use the `wrapSafe` method on a Consumer.
 	This will wrap its output in a `scala.util.Try` class, where exceptions will appear as
 	`Failure` instances, and regular outputs will appear inside `Success` instances.
 	 */
-	val safeBookListConsumer: XMLParser[Try[List[String]]] = bookListConsumer.wrapSafe
+	val safeBookListConsumer: XMLParser[Try[List[String]]] = bookListParser.wrapSafe
 
 	/*
 	The bookList parser and consumer will yield the same result; the list of titles emitted by the `bookTransformer`.
 
-	Note that the `parse` and `consume` methods work on a large number of types.
+	Note that the `parse` method works on a large number of types.
 	See the docs for specifics, but for example, you could parse a File, String,
 	InputStream, Iterable[XMLEvent], or Iterator[XMLEvent].
 	 */
-	val allBooksResult1 = bookListConsumer parse libraryXml
-	val allBooksResult2 = bookListParser parse libraryXml
-	assert(allBooksResult2 == allBooksResult1)
+	val allBooksResult1 = bookListParser parse libraryXml
 	println(allBooksResult1)
 	println("\n")
 
 	/*
 	You can handle results as they are discovered by using one of the `foreach` transformer methods.
 	 */
-	val foreachConsumer = bookTransformer.consumeForEach{ title => println(s"book: $title") }
+	val foreachConsumer = bookTransformer.parseForeach{ title => println(s"book: $title") }
 	foreachConsumer parse libraryXml
 
 }

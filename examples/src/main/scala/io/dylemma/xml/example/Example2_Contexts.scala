@@ -128,8 +128,8 @@ object Example2_Contexts extends App {
 	called for each substream, with that substream's context as the argument.
 
 	- `postSplitter map commentParser` creates a transformer
-	- `[...] consumeForeach println` creates a consumer
+	- `[...] parseForeach println` creates a consumer
 	- `[...] consume rawXml` runs that consumer on the raw xml
 	 */
-	postSplitter map commentParser consumeForEach println parse rawXml
+	postSplitter map commentParser parseForeach println parse rawXml
 }

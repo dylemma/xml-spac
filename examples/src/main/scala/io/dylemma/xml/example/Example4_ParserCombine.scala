@@ -68,7 +68,7 @@ object Example4_ParserCombine {
 
 	def main(args: Array[String]) {
 
-		val mainParser = XMLSplitter("comments" \ "comment").as[Comment].consumeForEach(println)
+		val mainParser = XMLSplitter("comments" \ "comment").as[Comment].parseForeach(println)
 
 		mainParser parse rawXml
 	}

@@ -64,7 +64,7 @@ object Example5_FollowedBy extends App {
 	// Here I'm adding a println for each XMLEvent to show exactly when each message is parsed during the stream:
 	// the important point is that they are parsed *during* the stream, rather than at the end
 	println("messagesTransformer:")
-	(eventPrinter >> messagesTransformer).consumeForEach(println).parse(xml)
+	(eventPrinter >> messagesTransformer).parseForeach(println).parse(xml)
 	println("---\n")
 
 	/*
@@ -76,7 +76,7 @@ object Example5_FollowedBy extends App {
 		message <- XMLSplitter(* \ "message").as(getMessageParser(userMap))
 	} yield message
 	println("messagesTransformer2:")
-	messagesTransformer2.consumeForEach(println).parse(xml)
+	messagesTransformer2.parseForeach(println).parse(xml)
 	println("---\n")
 
 	/*
@@ -95,6 +95,6 @@ object Example5_FollowedBy extends App {
 	} yield Message(userMap(userId), content)
 
 	println("messagesTransformer3:")
-	messagesTransformer3.consumeForEach(println).parse(xml)
+	messagesTransformer3.parseForeach(println).parse(xml)
 	println("---\n")
 }

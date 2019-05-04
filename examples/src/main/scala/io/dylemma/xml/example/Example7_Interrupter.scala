@@ -30,7 +30,7 @@ object Example7_Interrupter extends App {
 		greeting.fold(s"(no greeting for) $subject"){ g => s"$g, $subject" }
 	}
 
-	val handleGreetings = captureOptionalContext.followedByStream(dataStream).consumeForEach(println)
+	val handleGreetings = captureOptionalContext.followedByStream(dataStream).parseForeach(println)
 
 	println("The greetings should be all ok here:")
 	handleGreetings parse rawXml1
@@ -41,7 +41,7 @@ object Example7_Interrupter extends App {
 	// make the context capturing parser hit an early EOF when we reach a <data>
 	val interrupter = XMLSplitter("stuff" \ "data").first(Parser.constant("interrupt!" /* this value doesn't matter */))
 	val betterCaptureOptionalContext = captureOptionalContext.interruptedBy(interrupter)
-	val betterHandleGreetings = betterCaptureOptionalContext.followedByStream(dataStream).consumeForEach(println)
+	val betterHandleGreetings = betterCaptureOptionalContext.followedByStream(dataStream).parseForeach(println)
 
 	println("\n\nNow the new handler:")
 	betterHandleGreetings parse rawXml1
