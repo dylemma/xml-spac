@@ -1,7 +1,7 @@
 package io.dylemma.spac.json.syntax
 
 import io.dylemma.spac.json.{JsonEvent, JsonEvents, JsonParser, JsonResource}
-import io.dylemma.spac.{ConsumableLike, FromHandlerFactory}
+import io.dylemma.spac.{ConsumableLike}
 
 trait Implicits {
 

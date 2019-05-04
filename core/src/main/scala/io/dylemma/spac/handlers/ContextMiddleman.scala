@@ -1,6 +1,6 @@
 package io.dylemma.spac.handlers
 
-import io.dylemma.spac.{Handler, HandlerFactory, Transformer}
+import io.dylemma.spac.{Handler, Parser, Transformer}
 
 import scala.util.{Failure, Success, Try}
 
@@ -41,7 +41,7 @@ trait ContextMiddleman[Context, In, P] {
   * @tparam In
   * @tparam P
   */
-class ContextConsumerMiddleman[Context, In, P](consumerForContext: Context => HandlerFactory[In, P]) extends ContextMiddleman[Context, In, P] {
+class ContextConsumerMiddleman[Context, In, P](consumerForContext: Context => Parser[In, P]) extends ContextMiddleman[Context, In, P] {
 	override def toString = consumerForContext.toString
 
 	def createWrapper[Out](context: Context, downstream: Handler[P, Out]) = new Handler[In, Option[Out]] {

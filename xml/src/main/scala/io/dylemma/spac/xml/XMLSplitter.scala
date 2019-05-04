@@ -4,25 +4,23 @@ import io.dylemma.spac._
 import javax.xml.namespace.QName
 import javax.xml.stream.events.{StartElement, XMLEvent}
 
-import scala.util.Try
-
 class XMLSplitter[+Context](matcher: XMLContextMatcher[Context]) extends ContextStackSplitter[XMLEvent, StartElement, Context](matcher) { self =>
 
 	def attr(name: QName): Transformer[XMLEvent, String] = map(XMLParser.forMandatoryAttribute(name))
 	def attr(name: String): Transformer[XMLEvent, String] = map(XMLParser.forMandatoryAttribute(name))
 	def asText: Transformer[XMLEvent, String] = map(XMLParser.forText)
 
-	def asListOf[Out](implicit parser: Context => HandlerFactory[XMLEvent, Out]): XMLParser[List[Out]] = as[Out].parseToList
+	def asListOf[Out](implicit parser: Context => Parser[XMLEvent, Out]): XMLParser[List[Out]] = as[Out].parseToList
 
 	object first {
-		def apply[Out](implicit parser: Context => HandlerFactory[XMLEvent, Out]) = map(parser).parseFirst
+		def apply[Out](implicit parser: Context => Parser[XMLEvent, Out]) = map(parser).parseFirst
 		def attr(name: QName) = map(XMLParser.forMandatoryAttribute(name)).parseFirst
 		def attr(name: String) = map(XMLParser.forMandatoryAttribute(name)).parseFirst
 		def asText = map(XMLParser.forText).parseFirst
 	}
 
 	object firstOption {
-		def apply[Out](implicit parser: Context => HandlerFactory[XMLEvent, Out]) = map(parser).parseFirstOption
+		def apply[Out](implicit parser: Context => Parser[XMLEvent, Out]) = map(parser).parseFirstOption
 		def attr(name: QName) = map(XMLParser.forMandatoryAttribute(name)).parseFirstOption
 		def attr(name: String) = map(XMLParser.forMandatoryAttribute(name)).parseFirstOption
 		def asText = self.map(XMLParser.forText).parseFirstOption

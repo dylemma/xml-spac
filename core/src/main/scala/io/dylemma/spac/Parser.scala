@@ -8,7 +8,12 @@ import scala.util.Try
 
 /** An immutable object that can be used to create `Handler`s.
 	*/
-trait Parser[-In, +Out] extends HandlerFactory[In, Out] { self =>
+trait Parser[-In, +Out] extends (Any => Parser[In, Out]) { self =>
+
+	def makeHandler(): Handler[In, Out]
+
+	/** Always returns `this`, so that this can be passed to [[io.dylemma.spac.Splitter.map]] */
+	def apply(any: Any) = this
 
 	/** Parse the given source object by spawning a handler and feeding events
 	  * from the source into that handler until it yields a result.

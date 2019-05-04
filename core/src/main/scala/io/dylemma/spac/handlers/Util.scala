@@ -1,6 +1,6 @@
 package io.dylemma.spac.handlers
 
-import io.dylemma.spac.{Handler, HandlerFactory}
+import io.dylemma.spac.{Handler, Parser}
 
 import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
@@ -11,7 +11,7 @@ object Util {
 	  * and a joiner function. Exceptions from the matched context or from calling the joiner
 	  * function will be caught, causing the generated Handler to be a `OneShotHandler(Failure(wrappedErr))`.
 	  */
-	def initHandler[Ctx, In, Out](matchedContext: Try[Ctx], joiner: Ctx => HandlerFactory[In, Out]): Handler[In, Out] = {
+	def initHandler[Ctx, In, Out](matchedContext: Try[Ctx], joiner: Ctx => Parser[In, Out]): Handler[In, Out] = {
 		matchedContext match {
 			case Success(ctx) =>
 				try joiner(ctx).makeHandler() catch { case NonFatal(joinErr) =>

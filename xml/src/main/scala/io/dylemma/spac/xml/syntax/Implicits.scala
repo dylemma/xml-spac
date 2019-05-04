@@ -1,8 +1,8 @@
 package io.dylemma.spac.xml.syntax
 
+import io.dylemma.spac.ConsumableLike
 import io.dylemma.spac.types.Stackable
-import io.dylemma.spac.xml.{XMLEvents, XMLParser, XMLResource}
-import io.dylemma.spac.{ConsumableLike, FromHandlerFactory}
+import io.dylemma.spac.xml.{XMLEvents, XMLResource}
 import javax.xml.stream.events.{StartElement, XMLEvent}
 
 /** Defines XML-specific instances for the core spac typeclasses. */
@@ -34,5 +34,4 @@ trait Implicits {
 	  */
 	implicit def consumableLikeXMLResource[T: XMLResource]: ConsumableLike[T, XMLEvent] = XMLResource.consumableLike[T]
 
-	implicit def xmlParserFromHandlerFactory: FromHandlerFactory[XMLEvent, XMLParser] = XMLParser.handlerFactoryConverter
 }
