@@ -46,6 +46,18 @@ object XMLResource {
 			factory.createXMLEventReader(reader)
 		}
 	}
+	
+	implicit object InputStreamReaderXMLResource extends XMLResource[BufferedSource] {
+    type Opened = InputStreamReader
+    def open(source: BufferedSource): InputStreamReader = try source.reader() catch {
+      case npe: NullPointerException if npe.getMessage == "charset decoder" => throw npe
+      case _: NullPointerException => throw new FileNotFoundException("File specified as input stream was null")
+    }
+    def close(reader: InputStreamReader): Unit = reader.close()
+    def getReader(factory: XMLInputFactory, reader: InputStreamReader): XMLEventReader = {
+      factory.createXMLEventReader(reader)
+    }
+  }
 
 	implicit object InputStreamXMLResource extends XMLResource[InputStream] {
 		type Opened = InputStream
