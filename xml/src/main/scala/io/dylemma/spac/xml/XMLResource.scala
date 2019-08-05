@@ -58,6 +58,17 @@ object XMLResource {
       factory.createXMLEventReader(reader)
     }
   }
+	
+	implicit object InputStreamXMLResource extends XMLResource[InputStreamReader] {
+    type Opened = InputStreamReader
+    def open(stream: InputStreamReader) = stream
+    def close(stream: InputStreamReader): Unit = {
+      try stream.close() catch {case NonFatal(_) => ()}
+    }
+    def getReader(factory: XMLInputFactory, stream: InputStreamReader) = {
+      factory.createXMLEventReader(stream)
+    }
+  }
 
 	implicit object InputStreamXMLResource extends XMLResource[InputStream] {
 		type Opened = InputStream
