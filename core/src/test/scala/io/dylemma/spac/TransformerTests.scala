@@ -108,6 +108,21 @@ class TransformerTests extends FunSpec with Matchers {
 		)
 	}
 
+	describe("Transformer.flatten") {
+		it("should flatten the inputs") {
+			val inputs = List[Iterable[Int]](
+				Vector(1,2,3),
+				Nil,
+				4 :: 5 :: Nil,
+				Iterable.range(6, 10)
+			)
+			runTransformer(inputs)(Transformer.flatten[Int]) should be(List.range(1, 10))
+		}
+		enforceIsFinishedContract(
+			Transformer.map[Int, Seq[Int]](i => Seq(i, i+1, i+2)).flatten
+		)
+	}
+
 	describe("Transformer.Map"){
 		it("should apply a function to inputs before sending them downstream"){
 			runTransformer(List(1,2,3))(Transformer.map(_ * 2)) should be(List(2,4,6))

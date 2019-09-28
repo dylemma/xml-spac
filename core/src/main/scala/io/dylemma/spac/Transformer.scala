@@ -111,12 +111,15 @@ trait Transformer[-In, +B] extends (Any => Transformer[In, B]) { self =>
 	def collect[C](pf: PartialFunction[B, C]): Transformer[In, C] = andThen(Transformer.collect(pf))
 	def scan[S](init: S)(f: (S, B) => S): Transformer[In, S] = andThen(Transformer.scan(init)(f))
 	def filter(p: B => Boolean): Transformer[In, B] = andThen(Transformer.filter(p))
+	def flatten[B2](implicit ev: B <:< Iterable[B2]): Transformer[In, B2] = cast[Iterable[B2]].andThen(Transformer.flatten[B2])
 	def parallel[In2 <: In, B2 >: B](other: Transformer[In2, B2]): Transformer[In2, B2] = Transformer.parallel(this :: other :: Nil)
 	def parallelEither[In2 <: In, C](other: Transformer[In2, C]): Transformer[In2, Either[B, C]] = Transformer.parallelEither(this, other)
 	def withFilter(p: B => Boolean): Transformer[In, B] = andThen(Transformer.filter(p))
 	def unwrapSafe[T](implicit ev: B <:< Try[T]): Transformer[In, T] = {
 		asInstanceOf[Transformer[In, Try[T]]].andThen(Transformer.unwrapSafe[T])
 	}
+//	def upcast[In2 <: In, B2 >: B]: Transformer[In2, B2] = this
+	def cast[B2](implicit ev: B <:< B2): Transformer[In, B2] = this.asInstanceOf[Transformer[In, B2]]
 	def wrapSafe: Transformer[In, Try[B]] = andThen(Transformer.wrapSafe)
 	def withSideEffect(effect: B => Any): Transformer[In, B] = andThen(Transformer.sideEffect(effect))
 
@@ -168,6 +171,13 @@ object Transformer {
 			new FilteringHandler[A, Out](p, next)
 		}
 		override def toString = s"Filter($p)"
+	}
+
+	def flatten[A]: Transformer[Iterable[A], A] = new Transformer[Iterable[A], A] {
+		def makeHandler[Out](next: Handler[A, Out]): Handler[Iterable[A], Out] = {
+			new FlattenTransformerHandler[A, Out](next)
+		}
+		override def toString = "Flatten"
 	}
 
 	/** Transformer that feeds all inputs to all of the transformers in `ts`,
