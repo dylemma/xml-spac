@@ -35,5 +35,11 @@ object JsonParser {
 	def listOf[T](implicit parser: JsonParser[T]): JsonParser[List[T]] = JsonSplitter(anyIndex).asListOf(parser)
 		.expectInputs[JsonEvent](List("a '[' token" -> { _ == JsonEvent.ArrayStart }))
    	.withName(s"Parser.listOf($parser)")
+
+	def objectOf[T](implicit parser: JsonParser[T]): JsonParser[Map[String, T]] = JsonSplitter(anyField)
+		.map { field => parser.map(t => field -> t) }
+		.parseToMap
+		.expectInputs[JsonEvent](List("a '{' token" -> { _ == JsonEvent.ObjectStart }))
+		.withName(s"Parser.objectOf($parser)")
 }
 

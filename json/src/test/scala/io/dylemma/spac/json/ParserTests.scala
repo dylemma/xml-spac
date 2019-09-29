@@ -59,6 +59,24 @@ class ParserTests extends FunSpec with Matchers {
 		}
 	}
 
+	describe("JsonParser.objectOf"){
+		it should behave like basicParser('object, JsonParser.objectOf[Int], """{"a": 1, "b": 2}""", Map("a" -> 1, "b" -> 2))
+		it("should work properly when the inner parser is complex") {
+			val json =
+				"""{
+				  | "x": {
+				  |  "foo": 3
+				  | },
+				  | "y": {
+				  |  "foo": 4
+				  | }
+				  |}
+				""".stripMargin
+			val fooParser = JsonSplitter("foo").first[Int]
+			JsonParser.objectOf(fooParser).parse(json) should be(Map("x" -> 3, "y" -> 4))
+		}
+	}
+
 	describe("Parser.oneOf"){
 		it("should succeed if the input causes one of the parsers to succeed"){
 			val oneOf = Parser.oneOf(JsonParser[Int], JsonParser[String], JsonParser[Boolean])

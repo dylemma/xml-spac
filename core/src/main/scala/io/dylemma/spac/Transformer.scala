@@ -130,6 +130,7 @@ trait Transformer[-In, +B] extends (Any => Transformer[In, B]) { self =>
 		}
 	}
 	def parseToList: Parser[In, List[B]] = parseWith(Parser.toList, Some(s"$this.parseToList"))
+	def parseToMap[K, V](implicit ev: B <:< (K, V)) = cast[(K, V)].parseWith(Parser.toMap, Some(s"$this.parseToMap"))
 	def parseFirst: Parser[In, B] = parseWith(Parser.first, Some(s"$this.parseFirst"))
 	def parseFirstOption: Parser[In, Option[B]] = parseWith(Parser.firstOption, Some(s"$this.parseFirstOption"))
 	def parseAsFold[Out](init: Out)(f: (Out, B) => Out): Parser[In, Out] = parseWith(Parser.fold(init, f), Some(s"$this.fold($init, $f)"))

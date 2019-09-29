@@ -273,9 +273,16 @@ object Parser {
 
 	def toList[A]: Parser[A, List[A]] = new Parser[A, List[A]] {
 		def makeHandler(): Handler[A, List[A]] = {
-			new ToListHandler[A]
+			new BuilderHandler(List.newBuilder[A])
 		}
 		override def toString = "ToList"
+	}
+
+	def toMap[K, V]: Parser[(K, V), Map[K, V]] = new Parser[(K, V), Map[K, V]] {
+		def makeHandler(): Handler[(K, V), Map[K, V]] = {
+			new BuilderHandler(Map.newBuilder[K, V])
+		}
+		override def toString = "ToMap"
 	}
 
 	def first[A]: Parser[A, A] = new Parser[A, A] {
