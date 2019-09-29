@@ -169,4 +169,17 @@ class ParserTests extends FunSpec with Matchers {
 			parser.parse(json) should be(Result(List(1,2,3), "Jason"))
 		}
 	}
+
+	describe("JsonSplitter#firstNotNull") {
+		it("should skip all null values leading up to the non-null value") {
+			val json = "[null, null, 3]"
+			JsonSplitter(anyIndex).firstNotNull[Int].parse(json) should be(3)
+		}
+		it("should fail if there is no non-null value") {
+			val json = "[null, null, null]"
+			intercept[NoSuchElementException] {
+				JsonSplitter(anyIndex).firstNotNull[Int].parse(json)
+			}
+		}
+	}
 }
