@@ -118,7 +118,7 @@ trait Transformer[-In, +B] extends (Any => Transformer[In, B]) { self =>
 	def unwrapSafe[T](implicit ev: B <:< Try[T]): Transformer[In, T] = {
 		asInstanceOf[Transformer[In, Try[T]]].andThen(Transformer.unwrapSafe[T])
 	}
-//	def upcast[In2 <: In, B2 >: B]: Transformer[In2, B2] = this
+	def upcast[In2 <: In, B2 >: B]: Transformer[In2, B2] = this
 	def cast[B2](implicit ev: B <:< B2): Transformer[In, B2] = this.asInstanceOf[Transformer[In, B2]]
 	def wrapSafe: Transformer[In, Try[B]] = andThen(Transformer.wrapSafe)
 	def withSideEffect(effect: B => Any): Transformer[In, B] = andThen(Transformer.sideEffect(effect))
