@@ -1,7 +1,7 @@
 XML SPaC
 ========
 
-[![Build Status](https://travis-ci.org/dylemma/xml-spac.svg?branch=dev/v0.6)](https://travis-ci.org/dylemma/xml-spac)
+[![Build Status](https://travis-ci.org/dylemma/xml-spac.svg?branch=master)](https://travis-ci.org/dylemma/xml-spac)
 [Scaladoc](http://javadoc.io/doc/io.dylemma/xml-spac_2.12/0.6)
 
 **S**treaming **Pa**rser **C**ombinators is a Scala library for turning streams of "parser events" into strongly-typed data, for:
