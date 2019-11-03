@@ -3,7 +3,7 @@ package io.dylemma.spac.xml
 import java.io.Writer
 
 import javax.xml.namespace.{NamespaceContext, QName}
-import javax.xml.stream.events.{Attribute, Characters, EndElement, StartElement}
+import javax.xml.stream.events._
 import javax.xml.stream.{Location, XMLStreamConstants}
 import org.scalatest.Assertions
 
@@ -13,7 +13,7 @@ object TestUtils extends Assertions {
 			val getName: QName = new QName(name)
 			def getEventType: Int = XMLStreamConstants.START_ELEMENT
 			def getAttributes: java.util.Iterator[Attribute] = null
-			def getNamespaces: java.util.Iterator[Attribute] = null
+			def getNamespaces: java.util.Iterator[Namespace] = null
 			def getAttributeByName(name: QName): Attribute = attrs.collectFirst { case (key, value) if key == name.getLocalPart => mockAttribute(name, value) }.orNull
 			def getNamespaceContext: NamespaceContext = fail("Unexpected call to getNamespaceContext")
 			def getNamespaceURI(prefix: String): String = fail("Unexpected call to getNamespaceURI")
