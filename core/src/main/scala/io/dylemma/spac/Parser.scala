@@ -87,7 +87,6 @@ trait Parser[-In, +Out] extends (Any => Parser[In, Out]) { self =>
 	  * @param other Another Parser to combine with
 	  * @tparam O2 The output type of the other Parser
 	  * @return An intermediate oject with `as` and `asTuple` methods that finish the combination
-	  * @usecase def and[O2](other: Parser[In, O2]): ParserCombination[In]#Combined2[Out, O2]
 	  */
 	def and[I2 <: In, O2](other: Parser[I2, O2]): ParserCombination[I2]#Combined2[Out, O2] = new ParserCombination[I2]().combine(self, other)
 
@@ -97,7 +96,6 @@ trait Parser[-In, +Out] extends (Any => Parser[In, Out]) { self =>
 	  * @tparam I2
 	  * @tparam O2
 	  * @return
-	  * @usecase def ~[O2](other: Parser[In, O2]): ParserCombination[In]#Combined2[Out, O2]
 	  */
 	def ~[I2 <: In, O2](other: Parser[I2, O2]): ParserCombination[I2]#Combined2[Out, O2] = new ParserCombination[I2]().combine(self, other)
 

@@ -19,7 +19,6 @@ trait FollowedBy[-In, +Out, M[- _, + _]] { ts =>
 	  * @param getNext A function that takes this handler's result to create a second handler
 	  * @tparam T2 The output type of the second handler
 	  * @return The combined handler
-	  * @usecase def apply[T2](getNext: Out => M[In, T2])(implicit stackable: Stackable[In]): Parser[In, T2]
 	  */
 	def apply[I2 <: In, T2](getNext: Out => M[I2, T2])(implicit stackable: Stackable[I2]): M[I2, T2]
 

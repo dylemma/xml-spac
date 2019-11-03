@@ -12,9 +12,8 @@ import scala.language.higherKinds
   * Transformers operate by wrapping a `downstream` handler with a new
   * handler that manages the transformation.
   *
-  * Transformers themselves are immutable; they act as handler factories
-  * (though not specifically the [[HandlerFactory]] trait, as a transformer
-  * requires a `downstream` handler in order to create its own handler.
+  * Transformers themselves are immutable; they act as handler factories,
+  * as a transformer requires a `downstream` handler in order to create its own handler.
   */
 trait Transformer[-In, +B] extends (Any => Transformer[In, B]) { self =>
 	def makeHandler[Out](next: Handler[B, Out]): Handler[In, Out]
