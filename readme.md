@@ -1,8 +1,8 @@
-XML SPaC
+XML SPaC [![Build Status](https://travis-ci.org/dylemma/xml-spac.svg?branch=master)](https://travis-ci.org/dylemma/xml-spac)
 ========
 
-[![Build Status](https://travis-ci.org/dylemma/xml-spac.svg?branch=master)](https://travis-ci.org/dylemma/xml-spac)
-[Scaladoc](http://javadoc.io/doc/io.dylemma/xml-spac_2.12/0.6)
+
+**API Docs:** [spac-core](https://javadoc.io/doc/io.dylemma/spac-core_2.13/0.7/io/dylemma/spac/index.html) | [xml-spac](https://javadoc.io/doc/io.dylemma/xml-spac_2.13/0.7/io/dylemma/spac/xml/index.html) | [json-spac](https://javadoc.io/doc/io.dylemma/json-spac_2.13/0.7/io/dylemma/spac/json/index.html)
 
 **S**treaming **Pa**rser **C**ombinators is a Scala library for turning streams of "parser events" into strongly-typed data, for:
 
@@ -37,19 +37,19 @@ Add the following to your `build.sbt` file:
 ## For XML
 
 ```sbt
-libraryDependencies += "io.dylemma" %% "xml-spac" % "0.6"
+libraryDependencies += "io.dylemma" %% "xml-spac" % "0.7"
 ```
 
 ## For JSON
 
 ```sbt
-libraryDependencies += "io.dylemma" %% "json-spac" % "0.6"
+libraryDependencies += "io.dylemma" %% "json-spac" % "0.7"
 ```
 
 ## To integrate another format yourself
 
 ```sbt
-libraryDependencies += "io.dylemma" %% "spac-core" % "0.6"
+libraryDependencies += "io.dylemma" %% "spac-core" % "0.7"
 ```
 
 # Main Concepts
@@ -121,7 +121,7 @@ val root: List[String] = rootParser.parse(xml)
 assert(root == List("bar", "baz"))
 ```
 
-Check out the docs for [ContextMatcherSyntax](http://static.javadoc.io/io.dylemma/xml-spac_2.11/0.6/index.html#io.dylemma.spac.syntax.ContextMatcherSyntax),
+Check out the docs for [ContextMatcherSyntax](https://javadoc.io/doc/io.dylemma/xml-spac_2.13/0.7/io/dylemma/spac/xml/syntax/ContextMatcherSyntax.html),
 which defines helpers for creating the arguments to a `Splitter`, like the `*` value used above.
 
 # Under the Hood
