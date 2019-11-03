@@ -2,6 +2,8 @@ package io.dylemma.spac.json
 
 import io.dylemma.spac.ContextMatcher
 
+import scala.collection.IndexedSeq
+
 trait SingleTokenContextMatcher[A] extends ContextMatcher[JsonStackElem, A]{
 	def applyToken(token: JsonStackElem): Option[A]
 

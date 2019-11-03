@@ -1,16 +1,13 @@
 lazy val commonSettings = Seq(
 	version := "0.6",
-	scalaVersion := "2.11.8",
-	crossScalaVersions := Seq("2.10.6", "2.11.11", "2.12.2"),
+	scalaVersion := "2.13.0",
+	crossScalaVersions := Seq("2.10.6", "2.11.11", "2.12.2", "2.13.0"),
 	scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
 	organization := "io.dylemma"
 )
 
 lazy val testSettings = Seq(
-	libraryDependencies ++= Seq(
-		"org.scalatest" %% "scalatest" % "3.0.3" % Test,
-		"org.scalamock" %% "scalamock-scalatest-support" % "3.6.0" % Test
-	)
+	libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % Test
 )
 
 lazy val core = (project in file("core"))

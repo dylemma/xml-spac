@@ -66,7 +66,7 @@ object Example4_ParserCombine {
 		XMLSplitter(* \ "body").first.asText
 	).as(Comment)
 
-	def main(args: Array[String]) {
+	def main(args: Array[String]): Unit = {
 
 		val mainParser = XMLSplitter("comments" \ "comment").as[Comment].parseForeach(println)
 

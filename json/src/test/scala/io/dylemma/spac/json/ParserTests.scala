@@ -5,15 +5,15 @@ import org.scalatest.{FunSpec, Matchers}
 
 class ParserTests extends FunSpec with Matchers {
 
-	def basicParser[A](successType: Symbol, parser: JsonParser[A], successInput: String, expected: A): Unit = {
+	def basicParser[A](successType: String, parser: JsonParser[A], successInput: String, expected: A): Unit = {
 		val failInputs = List(
-			'long -> "1",
-			'double -> "1.2",
-			'string -> "\"hello\"",
-			'array -> "[1,2,3]",
-			'object -> "{ \"a\": 3 }",
-			'null -> "null",
-			'bool -> "true"
+			"long" -> "1",
+			"double" -> "1.2",
+			"string" -> "\"hello\"",
+			"array" -> "[1,2,3]",
+			"object" -> "{ \"a\": 3 }",
+			"null" -> "null",
+			"bool" -> "true"
 		).filterNot(_._1 == successType)
 
 		it(s"should succeed on a $successType input"){
@@ -28,29 +28,29 @@ class ParserTests extends FunSpec with Matchers {
 	}
 
 	describe("JsonParser[Int]"){
-		it should behave like basicParser('long, JsonParser[Int], "1", 1)
+		it should behave like basicParser("long", JsonParser[Int], "1", 1)
 	}
 	describe("JsonParser[Long]"){
-		it should behave like basicParser('long, JsonParser[Long], "1", 1L)
+		it should behave like basicParser("long", JsonParser[Long], "1", 1L)
 	}
 	describe("JsonParser[Float]"){
-		it should behave like basicParser('double, JsonParser[Float], "1.2", 1.2f)
+		it should behave like basicParser("double", JsonParser[Float], "1.2", 1.2f)
 	}
 	describe("JsonParser[Double]"){
-		it should behave like basicParser('double, JsonParser[Double], "1.2", 1.2)
+		it should behave like basicParser("double", JsonParser[Double], "1.2", 1.2)
 	}
 	describe("JsonParser[String]") {
-		it should behave like basicParser('string, JsonParser[String], "\"hello\"", "hello")
+		it should behave like basicParser("string", JsonParser[String], "\"hello\"", "hello")
 	}
 	describe("JsonParser[Boolean]"){
-		it should behave like basicParser('bool, JsonParser[Boolean], "true", true)
+		it should behave like basicParser("bool", JsonParser[Boolean], "true", true)
 	}
 	describe("JsonParser.forNull"){
-		it should behave like basicParser('null, JsonParser.forNull, "null", None)
+		it should behave like basicParser("null", JsonParser.forNull, "null", None)
 	}
 
 	describe("JsonParser.listOf"){
-		it should behave like basicParser('array, JsonParser.listOf[Int], "[1,2,3]", List(1,2,3))
+		it should behave like basicParser("array", JsonParser.listOf[Int], "[1,2,3]", List(1,2,3))
 
 		it("should succeed when given an array as input"){
 			JsonParser.listOf[Int].parse("[1,2,3]") should be(List(1,2,3))
@@ -60,7 +60,7 @@ class ParserTests extends FunSpec with Matchers {
 	}
 
 	describe("JsonParser.objectOf"){
-		it should behave like basicParser('object, JsonParser.objectOf[Int], """{"a": 1, "b": 2}""", Map("a" -> 1, "b" -> 2))
+		it should behave like basicParser("object", JsonParser.objectOf[Int], """{"a": 1, "b": 2}""", Map("a" -> 1, "b" -> 2))
 		it("should work properly when the inner parser is complex") {
 			val json =
 				"""{

@@ -2,6 +2,9 @@ package io.dylemma.spac.handlers
 
 import io.dylemma.spac.{Handler, debug}
 
+import scala.reflect.ClassTag
+import scala.collection.IndexedSeq
+
 /** A composition of a number of "inner" handlers which delegates each
 	* event to each (unfinished) inner handler, then reforms a final result
 	* based on the final results of each of the inner handlers.
@@ -24,7 +27,7 @@ import io.dylemma.spac.{Handler, debug}
 	*           This will typically be `Any` or `Result[Any]`.
 	* @tparam Out The type of the final combined result
 	*/
-class CompoundHandler[In, B, Out](
+class CompoundHandler[In, B: ClassTag, Out](
 	innerHandlers: IndexedSeq[Handler[In, B]],
 	reform: IndexedSeq[B] => Out
 ) extends Handler[In, Out] {

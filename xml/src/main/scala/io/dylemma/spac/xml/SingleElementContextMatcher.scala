@@ -1,9 +1,10 @@
 package io.dylemma.spac.xml
 
-import javax.xml.stream.events.StartElement
-
 import io.dylemma.spac.ContextMatcher
 import io.dylemma.spac.types.TypeReduce
+import javax.xml.stream.events.StartElement
+
+import scala.collection.IndexedSeq
 
 /** Specialization of ContextMatcher which only checks the first element in the stack for matching operations.
   * Transformation operations on single-element matchers will yield other single-element matchers (rather than
