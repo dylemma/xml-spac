@@ -12,8 +12,8 @@ object TestUtils extends Assertions {
 		new StartElement {
 			val getName: QName = new QName(name)
 			def getEventType: Int = XMLStreamConstants.START_ELEMENT
-			def getAttributes: java.util.Iterator[_] = null
-			def getNamespaces: java.util.Iterator[_] = null
+			def getAttributes: java.util.Iterator[Attribute] = null
+			def getNamespaces: java.util.Iterator[Attribute] = null
 			def getAttributeByName(name: QName): Attribute = attrs.collectFirst { case (key, value) if key == name.getLocalPart => mockAttribute(name, value) }.orNull
 			def getNamespaceContext: NamespaceContext = fail("Unexpected call to getNamespaceContext")
 			def getNamespaceURI(prefix: String): String = fail("Unexpected call to getNamespaceURI")
