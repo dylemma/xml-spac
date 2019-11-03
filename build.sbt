@@ -33,8 +33,7 @@ lazy val json = (project in file("json"))
 	.settings(apiDocSettings: _*)
 	.settings(publishingSettings: _*)
 	.settings(
-		libraryDependencies += "com.fasterxml.jackson.core" % "jackson-core" % "latest.integration" % "provided",
-		libraryDependencies += "com.fasterxml.jackson.core" % "jackson-core" % "latest.integration" % "test"
+		libraryDependencies += "com.fasterxml.jackson.core" % "jackson-core" % "2.10.0"
 	)
 	.dependsOn(core)
 
