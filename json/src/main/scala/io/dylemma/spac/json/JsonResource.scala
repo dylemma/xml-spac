@@ -31,7 +31,7 @@ object JsonResource {
 	  * Will *NOT* auto-close the reader; the responsibility for closing the reader lies with whoever created it.
 	  */
 	implicit val readerResource: JsonResource[Reader] = JsonResource[Reader](_.createParser(_).disable(JacksonParser.Feature.AUTO_CLOSE_SOURCE))
-	
+
 	implicit val stringResource: JsonResource[String] = JsonResource[String](_ createParser _)
 
 	/** JsonResource for "constructors" of types that belong to the JsonResource typeclass.
@@ -41,7 +41,9 @@ object JsonResource {
 	  * as the responsibility for closing the stream/reader lies with whoever created it,
 	  * which is this JsonResource.
 	  */
-	implicit def constructedResource[T: JsonResource]: JsonResource[() => T] = {
-		(factory, constructor) => implicitly[JsonResource[T]].createParser(factory, constructor()).enable(JacksonParser.Feature.AUTO_CLOSE_SOURCE)
+	implicit def constructedResource[T: JsonResource]: JsonResource[() => T] = new JsonResource[() => T] {
+		def createParser(factory: JsonFactory, constructor: () => T): JacksonParser = {
+			implicitly[JsonResource[T]].createParser(factory, constructor()).enable(JacksonParser.Feature.AUTO_CLOSE_SOURCE)
+		}
 	}
 }
