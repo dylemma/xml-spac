@@ -59,6 +59,34 @@ class XMLResourceTests extends FunSpec with Matchers {
 			xr.close(opened)
 			assert(attemptedClose, "XMLResource[() => T] should close AutoCloseable objects that it creates")
 		}
+
+		it("should not attempt to close InputStreams that it did not construct") {
+			var attemptedClose = false
+			val in = new ByteArrayInputStream("<foo>hi</foo>".getBytes("UTF-8")) {
+				override def close(): Unit = {
+					println("But you closed the test InputStream???")
+					new Exception("whoops").printStackTrace()
+					attemptedClose = true
+					super.close()
+				}
+			}
+			XMLParser.forText.parse(in)
+			attemptedClose should be(false)
+		}
+
+		it("should not attempt to close Readers that it did not construct") {
+			var attemptedClose = false
+			val reader = new StringReader("<foo>hi</foo>") {
+				override def close(): Unit = {
+					println("But you closed the test Reader???")
+					new Exception("hey").printStackTrace()
+					attemptedClose = true
+					super.close()
+				}
+			}
+			XMLParser.forText.parse(reader)
+			attemptedClose should be(false)
+		}
 	}
 
 }
