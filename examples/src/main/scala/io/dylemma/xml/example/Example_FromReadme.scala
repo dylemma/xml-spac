@@ -1,9 +1,8 @@
 package io.dylemma.xml.example
 
 import javax.xml.stream.events.XMLEvent
-
 import io.dylemma.spac._
-import io.dylemma.spac.xml._
+import io.dylemma.spac.old.Transformer
 import org.joda.time.LocalDate
 import org.joda.time.format.DateTimeFormat
 

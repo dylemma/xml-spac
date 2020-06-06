@@ -1,6 +1,6 @@
-package io.dylemma.spac
+package io.dylemma.spac.old
 
-import io.dylemma.spac.handlers.CompoundHandler
+import io.dylemma.spac.old.handlers.CompoundHandler
 import scala.language.higherKinds
 
 class ParserCombination[In] {

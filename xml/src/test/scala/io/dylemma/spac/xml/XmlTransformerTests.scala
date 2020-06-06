@@ -1,8 +1,7 @@
 package io.dylemma.spac.xml
 
-import io.dylemma.spac._
-
-import org.scalatest.{ FunSpec, Matchers }
+import io.dylemma.spac.old.xml._
+import org.scalatest.{FunSpec, Matchers}
 
 class XmlTransformerTests extends FunSpec with Matchers {
 	describe("Transformer.transform"){

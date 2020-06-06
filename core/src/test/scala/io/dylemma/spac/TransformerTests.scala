@@ -1,6 +1,7 @@
 package io.dylemma.spac
 
-import io.dylemma.spac.handlers.{ConstantHandler, ManualFinish}
+import io.dylemma.spac.old.{Handler, Parser, Splitter, Transformer}
+import io.dylemma.spac.old.handlers.{ConstantHandler, ManualFinish}
 import org.scalatest.{FunSpec, Matchers}
 
 import scala.util.{Failure, Success}

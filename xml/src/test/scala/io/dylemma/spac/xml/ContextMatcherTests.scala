@@ -1,5 +1,6 @@
 package io.dylemma.spac.xml
 
+import io.dylemma.spac.old.xml._
 import io.dylemma.spac.xml.TestUtils.mockElem
 import javax.xml.namespace.QName
 import org.scalatest.{FunSpec, Matchers}

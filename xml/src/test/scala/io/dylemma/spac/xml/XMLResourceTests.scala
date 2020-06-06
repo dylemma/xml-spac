@@ -2,6 +2,7 @@ package io.dylemma.spac.xml
 
 import java.io.{ByteArrayInputStream, Reader, StringReader}
 
+import io.dylemma.spac.old.xml._
 import org.scalatest.{FunSpec, Matchers}
 
 import scala.io.{BufferedSource, Source}

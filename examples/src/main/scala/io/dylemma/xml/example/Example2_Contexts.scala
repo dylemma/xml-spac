@@ -3,7 +3,6 @@ package io.dylemma.xml.example
 import javax.xml.stream.events.StartElement
 
 import io.dylemma.spac._
-import io.dylemma.spac.xml._
 
 object Example2_Contexts extends App {
 
@@ -39,16 +38,16 @@ object Example2_Contexts extends App {
 
 	// extracts the "title" attribute from the first element in the stack,
 	// but does not match if that element is missing the "title" attribute.
-	val titleAttributeMatcher: SingleElementContextMatcher[String] = attr("title")
+	val titleAttributeMatcher: SingleItemContextMatcher[StartElement, String] = attr("title")
 
 	// same as above, but for the "id" attribute
-	val idAttributeMatcher: SingleElementContextMatcher[String] = attr("id")
+	val idAttributeMatcher: SingleItemContextMatcher[StartElement, String] = attr("id")
 
 	// extracts nothing, and only matches if the name of the element is "comment"
-	val commentElementMatcher: SingleElementContextMatcher[Unit] = elem("comment")
+	val commentElementMatcher: SingleItemContextMatcher[StartElement, Unit] = elem("comment")
 
 	// the `syntax._` import gives an implicit conversion from `String` or `QName` to a matcher
-	val commentElementMatcher2: SingleElementContextMatcher[Unit] = "comment"
+	val commentElementMatcher2: SingleItemContextMatcher[StartElement, Unit] = "comment"
 
 	/*
 	The base `ContextMatcher` trait has two type parameters:
@@ -75,7 +74,7 @@ object Example2_Contexts extends App {
 	"id" and "author" attributes from the first element in the stack. If the context
 	is matched successfully, the result will be an `(id, author)` tuple.
 	*/
-	val andExample1: SingleElementContextMatcher[(String, String)] = attr("id") & attr("author")
+	val andExample1: SingleItemContextMatcher[StartElement, (String, String)] = attr("id") & attr("author")
 
 	/*
 	Complicated context matchers can be built from the combination methods

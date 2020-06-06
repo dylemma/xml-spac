@@ -1,10 +1,9 @@
 package io.dylemma.spac.xml
 
+import io.dylemma.spac.old._
+import io.dylemma.spac.old.xml._
 import javax.xml.stream.XMLStreamException
 import javax.xml.stream.events.XMLEvent
-
-import io.dylemma.spac._
-import io.dylemma.spac.xml._
 import org.scalatest.{FunSpec, Matchers}
 
 import scala.util.{Failure, Success}
