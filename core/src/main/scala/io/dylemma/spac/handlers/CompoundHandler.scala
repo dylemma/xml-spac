@@ -59,20 +59,22 @@ class CompoundHandler[In, B: ClassTag, Out](
 		* @param f A function to call on the handler, telling it to call
 		*          `handleInput` or `handleError`
 		*/
-	@inline private def feedHandlers(f: Handler[In, B] => Option[B]) = {
-		for {
-			i <- innerHandlers.indices
-			if results(i).isEmpty
-			handler = innerHandlers(i) if !handler.isFinished
-			hOutOpt = f(handler)
-			hOut <- hOutOpt
-		} {
-			results(i) = hOutOpt
-			pendingCount -= 1
-			if (pendingCount < 0) {
-				debug("[PROBLEM] pending count in compound handler reached below 0")
-				pendingCount = 0
+	@inline private def feedHandlers(f: Handler[In, B] => Option[B]): Unit = {
+		var i = 0
+		while (i < innerHandlers.size) {
+			val handler = innerHandlers(i)
+			if (results(i).isEmpty && !handler.isFinished) {
+				val hOutOpt = f(handler)
+				if (hOutOpt.isDefined) {
+					results(i) = hOutOpt
+					pendingCount -= 1
+					if (pendingCount < 0) {
+						debug("[PROBLEM] pending count in compound handler reached below 0")
+						pendingCount = 0
+					}
+				}
 			}
+			i += 1
 		}
 	}
 
