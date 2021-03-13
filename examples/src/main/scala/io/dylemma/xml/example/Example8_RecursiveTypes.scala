@@ -1,7 +1,7 @@
 package io.dylemma.xml.example
 
-import io.dylemma.spac._
-import io.dylemma.spac.old.{Handler, Transformer}
+import io.dylemma.spac.old._
+import io.dylemma.spac.old.xml._
 import javax.xml.stream.events.XMLEvent
 
 // based on https://github.com/dylemma/xml-spac/issues/19

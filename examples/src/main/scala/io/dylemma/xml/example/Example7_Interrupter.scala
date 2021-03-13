@@ -1,6 +1,7 @@
 package io.dylemma.xml.example
 
-import io.dylemma.spac._
+import io.dylemma.spac.old._
+import io.dylemma.spac.old.xml._
 
 object Example7_Interrupter extends App {
 

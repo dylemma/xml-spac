@@ -28,7 +28,7 @@ object Fs2Support {
 	}
 
 	implicit class PullableOps[S](source: S) {
-		def toStream[F[+_], A](implicit toPull: ToPullable[F, S, A]): Stream[F, A] = {
+		def toFs2Stream[F[+_], A](implicit toPull: ToPullable[F, S, A]): Stream[F, A] = {
 			Stream.resource(toPull(source)).flatMap { start =>
 				Stream.unfoldEval[F, Pullable[F, A], A](start)(_.uncons)
 			}

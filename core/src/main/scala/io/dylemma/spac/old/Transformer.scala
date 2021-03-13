@@ -120,7 +120,10 @@ trait Transformer[-In, +B] extends (Any => Transformer[In, B]) { self =>
 	}
 	def upcast[In2 <: In, B2 >: B]: Transformer[In2, B2] = this
 	def cast[B2](implicit ev: B <:< B2): Transformer[In, B2] = this.asInstanceOf[Transformer[In, B2]]
+
+	@deprecated("It doesn't actually make sense to catch errors at the transformer level; use the `wrapSafe` on the appropriate Parser instead", "10/18/2020")
 	def wrapSafe: Transformer[In, Try[B]] = andThen(Transformer.wrapSafe)
+
 	def withSideEffect(effect: B => Any): Transformer[In, B] = andThen(Transformer.sideEffect(effect))
 
 	def parseWith[Out](consumer: Parser[B, Out], setDebugName: Option[String] = None): Parser[In, Out] = new Parser[In, Out] {

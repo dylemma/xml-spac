@@ -18,10 +18,7 @@ trait Splitter[F[+_], In, C] {
 	}
 
 	/** Convenience alias for `map` which lets you pass the parser implicitly in cases where the context value is ignored */
-	def as[Out](implicit parseMatches: Parser[F, In, Out], F: MonadError[F, Throwable]): Transformer[F, In, Out] = {
-		map(_ => parseMatches)
-	}
-
+	def as = new SplitterConsumerOps(this, ConsumerK.identity[F])
 	def first(implicit F: MonadThrow[F]) = new SplitterConsumerOps(this, ConsumerK.first[F])
 	def firstOption(implicit F: Monad[F]) = new SplitterConsumerOps(this, ConsumerK.firstOption[F])
 	def asList(implicit F: Monad[F]) = new SplitterConsumerOps(this, ConsumerK.toList[F])

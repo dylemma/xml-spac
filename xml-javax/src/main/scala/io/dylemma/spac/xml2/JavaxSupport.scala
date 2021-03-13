@@ -1,6 +1,7 @@
 package io.dylemma.spac.xml2
 
 import cats.effect.{Resource, Sync}
+import io.dylemma.spac.{Pullable, ToPullable}
 import javax.xml.XMLConstants
 import javax.xml.namespace.QName
 import javax.xml.stream.XMLInputFactory
@@ -15,9 +16,9 @@ import javax.xml.stream.XMLInputFactory
   * Note that because javax's `XMLStreamReader` is internally mutable, the resulting XmlPull instances will not be referentially transparent.
   */
 object JavaxSupport {
-	implicit def xmlStreamReadableAsImpureXmlPull[F[_], R](implicit F: Sync[F], intoXmlStreamReader: IntoXmlStreamReader[F, R], factory: XMLInputFactory = defaultFactory): AsXmlPull[F, R] = new AsXmlPull[F, R] {
-		def apply(source: R): Resource[F, XmlPull[F]] = {
-			val readerResource = intoXmlStreamReader(factory, source).flatMap { streamReader =>
+	implicit def xmlStreamReadableAsImpureXmlPull[F[+_], R](implicit F: Sync[F], intoXmlStreamReader: IntoXmlStreamReader[F, R], factory: XMLInputFactory = defaultFactory): ToPullable[F, R, XmlEvent] = new ToPullable[F, R, XmlEvent] {
+		def apply(source: R): Resource[F, Pullable[F, XmlEvent]] = {
+			val readerResource: Resource[F, WrappedStreamReader] = intoXmlStreamReader(factory, source).flatMap { streamReader =>
 				Resource.fromAutoCloseable(F.delay {new WrappedStreamReader(streamReader)})
 			}
 			WrappedStreamReader.resourceAsXmlPull(readerResource)
@@ -39,7 +40,6 @@ object JavaxSupport {
 			case n2 => (n.getLocalPart == N2.name(n2)) && (n.getNamespaceURI == N2.namespaceUri(n2).getOrElse(XMLConstants.NULL_NS_URI))
 		}
 	}
-	private val QN = javaxQNameAsQName
 
 	lazy val defaultFactory: XMLInputFactory = {
 		val factory = XMLInputFactory.newInstance

@@ -1,8 +1,8 @@
 package io.dylemma.xml.example
 
 import javax.xml.stream.events.XMLEvent
-import io.dylemma.spac._
-import io.dylemma.spac.old.Transformer
+import io.dylemma.spac.old._
+import io.dylemma.spac.old.xml._
 
 object Example6_NestedContexts extends App {
 

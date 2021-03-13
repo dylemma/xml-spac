@@ -6,9 +6,9 @@ import javax.xml.namespace.QName
 import javax.xml.stream.{Location, XMLStreamReader}
 
 object WrappedStreamReader {
-	def resourceAsXmlPull[F[_]](resource: Resource[F, WrappedStreamReader])(implicit F: Sync[F]): Resource[F, XmlPull[F]] = resource.map { reader =>
-		new XmlPull[F] { self =>
-			def uncons: F[Option[(XmlEvent, XmlPull[F])]] = F.delay {
+	def resourceAsXmlPull[F[+_]](resource: Resource[F, WrappedStreamReader])(implicit F: Sync[F]): Resource[F, Pullable[F, XmlEvent]] = resource.map { reader =>
+		new Pullable[F, XmlEvent] { self =>
+			def uncons: F[Option[(XmlEvent, Pullable[F, XmlEvent])]] = F.delay {
 				if(reader.hasNext) Some(reader.next() -> self)
 				else None
 			}

@@ -1,6 +1,7 @@
 package io.dylemma.xml.example
 
-import io.dylemma.spac._
+import io.dylemma.spac.old._
+import io.dylemma.spac.old.xml._
 
 object Example2a_BrokenContext extends App {
 
@@ -29,8 +30,7 @@ object Example2a_BrokenContext extends App {
 	val contextMatcher = "blog" \ ("post" & attr("id").map(_.toInt)) \ "comment"
 
 	val consumer = XMLSplitter(contextMatcher)
-		.map(CommentParser) // parse the substreams created by the Splitter, using the implicit CommentParser
-		.wrapSafe // wrap inputs and errors as `scala.util.Try` so we don't throw during the foreach
+		.map(CommentParser(_).wrapSafe) // parse the substreams created by the Splitter, using the implicit CommentParser
 		.parseForeach(println) // println each of the results
 
 	consumer parse rawXml

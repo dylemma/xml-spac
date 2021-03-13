@@ -3,10 +3,18 @@ package io.dylemma.spac
 import cats.data.{Chain, NonEmptyChain}
 import cats.effect.Resource
 import cats.implicits._
-import cats.{Applicative, Monad}
+import cats.{Applicative, Functor, Monad}
+import io.dylemma.spac.types.Unconsable
 
-trait ToPullable[F[+_], S, A] {
+trait ToPullable[F[+_], S, +A] {
 	def apply(source: S): Resource[F, Pullable[F, A]]
+}
+object ToPullable {
+	implicit def forUnconsable[F[+_]: Applicative, C[_]: Unconsable, A]: ToPullable[F, C[A], A] = new ToPullable[F, C[A], A] {
+		def apply(source: C[A]) = Resource.liftF {
+			source.pure[F].map { Pullable.fromUnconsable[F, C, A] }
+		}
+	}
 }
 
 trait Pullable[F[+_], +A] {
@@ -27,6 +35,11 @@ trait Pullable[F[+_], +A] {
 	}
 }
 object Pullable {
+	def apply[F[+_], A] = new PullablePartialApply[F, A]
+	class PullablePartialApply[F[+_], A] {
+		def from[S](source: S)(implicit toPullable: ToPullable[F, S, A]): Resource[F, Pullable[F, A]] = toPullable(source)
+	}
+
 	def nil[F[+_] : Applicative]: Pullable[F, Nothing] = new Pullable[F, Nothing] {
 		def uncons = None.pure[F]
 	}
@@ -42,6 +55,17 @@ object Pullable {
 				case Some(tailBuffer) => new BufferedPullable[F, A](tailBuffer, next)
 			}
 			Some(head -> nextPull).pure[F]
+	}
+
+	def fromUnconsable[F[+_]: Applicative, C[_]: Unconsable, A](c: C[A]): Pullable[F, A] = {
+		new UnconsableWrapper(c.pure[F])
+	}
+	private class UnconsableWrapper[F[+_], C[_], A](seqF: F[C[A]])(implicit F: Applicative[F], C: Unconsable[C]) extends Pullable[F, A] {
+		def uncons: F[Option[(A, UnconsableWrapper[F, C, A])]] = F.map(seqF){ seq =>
+			C.uncons(seq) map { case (head, tail) =>
+				head -> new UnconsableWrapper(tail.pure[F])
+			}
+		}
 	}
 }
 

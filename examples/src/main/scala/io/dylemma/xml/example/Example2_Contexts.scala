@@ -1,8 +1,9 @@
 package io.dylemma.xml.example
 
+import io.dylemma.spac.SingleItemContextMatcher
 import javax.xml.stream.events.StartElement
-
-import io.dylemma.spac._
+import io.dylemma.spac.old._
+import io.dylemma.spac.old.xml._
 
 object Example2_Contexts extends App {
 
