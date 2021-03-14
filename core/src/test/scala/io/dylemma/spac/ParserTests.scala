@@ -1,8 +1,9 @@
 package io.dylemma.spac
 
-import cats.data.NonEmptyList
+import cats.data.Chain
 import cats.effect.SyncIO
-import io.dylemma.spac.impl.ParserOrElseList
+import io.dylemma.spac.impl.{ParserInterruptedBy, ParserOrElseList}
+import io.dylemma.spac.types.Stackable2
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -175,32 +176,109 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 			"3" -> { _ == 3 },
 		))
 
-		it ("should not interrupt the underlying parser if all of the inputs match the expectations") {
+		it("should not interrupt the underlying parser if all of the inputs match the expectations") {
 			forAll { (tail: List[Int]) =>
 				val list = 1 :: 2 :: 3 :: tail
 				p2.parseSeq(list).unsafeRunSync() shouldEqual list
 			}
 		}
 
-		it ("should raise an UnfulfilledInputsException which lists the remaining expected inputs, upon encountering an early EOF") {
+		it("should raise an UnfulfilledInputsException which lists the remaining expected inputs, upon encountering an early EOF") {
 			def expectUnfulfilled(expectations: List[String], inputs: List[Int]) = {
 				intercept[SpacException.UnfulfilledInputsException] { p2.parseSeq(inputs).unsafeRunSync() }
 					.expectations.toList.shouldEqual(expectations)
 			}
+
 			expectUnfulfilled(List("1", "an even number", "3"), Nil)
 			expectUnfulfilled(List("an even number", "3"), List(1))
 			expectUnfulfilled(List("3"), List(1, 2))
 		}
 
-		it ("should raise an UnexpectedInputException which lists the current and remaining expected inputs, upon encountering an input that doesn't match the predicate") {
+		it("should raise an UnexpectedInputException which lists the current and remaining expected inputs, upon encountering an input that doesn't match the predicate") {
 			def expectUnexpected(unexpected: Int, expectations: List[String], inputs: List[Int]) = {
 				val captured = intercept[SpacException.UnexpectedInputException[Int]] { p2.parseSeq(inputs).unsafeRunSync() }
 				captured.expectations.toList shouldEqual expectations
 				captured.input shouldEqual unexpected
 			}
+
 			expectUnexpected(69, List("1", "an even number", "3"), List(69, 2, 3))
 			expectUnexpected(7, List("an even number", "3"), List(1, 7, 3))
 			expectUnexpected(5, List("3"), List(1, 2, 5)) // three, sir!
+		}
+	}
+
+	describe("Parser # interruptedBy") {
+		val p1 = Parser[SyncIO].toList[Int]
+		val interrupter = Transformer.op[SyncIO, Int, Any] { Emit.one(_).filter(_ == 0) } :> Parser.firstOpt
+		val parser = p1 interruptedBy interrupter
+
+		it("should proceed normally if the interrupter never yields a result") {
+			forAll { (_list: List[Int]) =>
+				val list = _list.filterNot(_ == 0) // 0 is the interruption criteria
+				parser.parseSeq(list).unsafeRunSync() shouldEqual list
+			}
+		}
+
+		it("should stop parsing when the interrupter yields a result, not sending the input that triggered the interruption") {
+			parser.parseSeq(List(3, 2, 1, 0, 5, 4, 3, 2, 1)).unsafeRunSync() shouldEqual List(3, 2, 1)
+		}
+
+		it("should raise an error if the interrupter raises an error") {
+			val dummyException = new Exception("hi")
+			val errorInterrupter = interrupter.map { _ => throw dummyException }
+			val list = List(3, 2, 1, 0, -1, -2, -3)
+			p1.interruptedBy(errorInterrupter).parse(list).attempt.unsafeRunSync() shouldEqual Left(dummyException)
+			p1.interruptedBy(errorInterrupter.attempt).parse(list).attempt.unsafeRunSync() shouldEqual Right(List(3, 2, 1))
+		}
+
+		it("should raise an error if the base parser raises an error") {
+			val dummyException = new Exception("oh no")
+			val p2 = Parser[SyncIO, Int].fold(0) { (sum, i) =>
+				val nextSum = sum + i
+				if (nextSum > 5) throw dummyException else nextSum
+			}
+			val pE = p2.interruptedBy(interrupter)
+			pE.parseSeq(List(1, 1, 1, 1)).attempt.unsafeRunSync() shouldEqual Right(4)
+			pE.parseSeq(List(1, 2, 3, 4)).attempt.unsafeRunSync() shouldEqual Left(dummyException)
+		}
+	}
+
+	describe("Parser # beforeContext") {
+		type In = (Int, String)
+		implicit val DemoStackable: Stackable2[SyncIO, In, String] = new Stackable2[SyncIO, In, String] {
+			def interpret = Transformer[SyncIO, In].op {
+				case e@(i, s) if i > 0 => Emit(Right(e), Left(ContextPush(ContextTrace(Chain.nil), s)))
+				case e@(i, s) if i < 0 => Emit(Left(ContextPop), Right(e))
+				case e => Emit.one(Right(e))
+			}
+		}
+		val matcher = new SingleItemContextMatcher.Predicate[String](_ == "one") \ new SingleItemContextMatcher.Predicate[String](_ == "two")
+
+		val p1 = Transformer[SyncIO, In].map(_._2) :> Parser.toList
+		val parser = p1.beforeContext(matcher)
+
+		it("should delegate to `interruptedBy`") {
+			parser shouldBe a[ParserInterruptedBy[SyncIO, _, _]]
+		}
+
+		it("should not interrupt the main parser if the `matcher` never causes a ContextPush") {
+			parser.parseSeq(List(
+				0 -> "A",
+				0 -> "B",
+				1 -> "C", // stack push "C"
+				-1 -> "D" // stack pop
+			)).unsafeRunSync() shouldEqual List("A", "B", "C", "D")
+		}
+
+		it("should interrupt the main parser immediately when the `matcher` causes a ContextPush") {
+			parser.parseSeq(List(
+				0 -> "A",
+				1 -> "one", // stack push "one"
+				1 -> "two", // stack push "two" --> `matcher` should match here and interrupt the toList parser
+				-1 -> "exit2", // would-be stack pop
+				-1 -> "exit1", // would-be stack pop
+				0 -> "end"
+			)).unsafeRunSync() shouldEqual List("A", "one")
 		}
 	}
 }

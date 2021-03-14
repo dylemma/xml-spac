@@ -5,6 +5,7 @@ import cats.effect.Bracket
 import cats.{Applicative, ApplicativeError, Defer, Functor, Monad, MonadError}
 import io.dylemma.spac.impl._
 import io.dylemma.spac.types.Unconsable
+import types.Stackable2
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -22,6 +23,14 @@ trait Parser[F[+_], -In, +Out] {
 	def wrapSafe(implicit F: MonadError[F, Throwable]): Parser[F, In, Try[Out]] = attempt.map(_.toTry)
 
 	def expectInputs[I2 <: In](expectations: List[(String, I2 => Boolean)])(implicit F: MonadError[F, Throwable]): Parser[F, I2, Out] = new ParserExpectInputs(this, expectations)
+
+	def interruptedBy[I2 <: In](interrupter: Parser[F, I2, Any])(implicit F: Monad[F]): Parser[F, I2, Out] = new ParserInterruptedBy(this, interrupter)
+	def beforeContext[I2 <: In, StackElem](matcher: ContextMatcher[StackElem, Any])(implicit stackable: Stackable2[F, I2, StackElem], F: Monad[F]): Parser[F, I2, Out] = {
+		// use ContextMatchSplitter to drive the stackable+matcher together, and pipe it into a parser that returns when a ContextPush is interpreted,
+		// i.e. the `interrupter` will yield a result upon entering a context matched by the `matcher`
+		val interrupter = new ContextMatchSplitter[F, I2, StackElem, Any](matcher).addBoundaries.collect { case Left(ContextPush(_, _)) => () } :> Parser.firstOpt
+		interruptedBy(interrupter)
+	}
 
 	def withName(name: String)(implicit F: Functor[F]): Parser[F, In, Out] = new ParserNamed(name, this)
 
