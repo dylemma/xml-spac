@@ -13,7 +13,7 @@ trait Parser[F[+_], -In, +Out] {
 	def step(in: In): F[Either[Out, Parser[F, In, Out]]]
 	def finish: F[Out]
 
-	def map[Out2](f: Out => Out2)(implicit F: Functor[F]): Parser[F, In, Out2] = new MappedParser(this, f)
+	def map[Out2](f: Out => Out2)(implicit F: Functor[F]): Parser[F, In, Out2] = new ParserMapped(this, f)
 
 	def withName(name: String)(implicit F: Functor[F]): Parser[F, In, Out] = new ParserNamed(name, this)
 

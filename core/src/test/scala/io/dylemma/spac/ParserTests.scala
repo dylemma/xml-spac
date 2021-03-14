@@ -496,10 +496,10 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 	describe("Applicative[Parser]") {
 		val F = Applicative[Parser[SyncIO, Int, *]]
 
-		val p1 = Parser[SyncIO, Int].toList.named("P1")
-		val p2 = Parser[SyncIO, Int].firstOpt.named("P2")
-		val p3 = Parser[SyncIO, Int].fold("")(_ + _).named("P3")
-		val p4 = Parser[SyncIO, Int].pure("hello").named("P4")
+		val p1 = Parser[SyncIO, Int].toList.withName("P1")
+		val p2 = Parser[SyncIO, Int].firstOpt.withName("P2")
+		val p3 = Parser[SyncIO, Int].fold("")(_ + _).withName("P3")
+		val p4 = Parser[SyncIO, Int].pure("hello").withName("P4")
 
 		val dummyException = new Exception("oh no")
 		val dummyException2 = new Exception("oh yeah!")
