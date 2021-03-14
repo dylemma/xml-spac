@@ -4,8 +4,7 @@ import cats.data.Chain
 import cats.effect.SyncIO
 import cats.implicits._
 import cats.{Applicative, Traverse}
-import io.dylemma.spac.impl.{ParserCompoundN, ParserOrElseList}
-import io.dylemma.spac.impl.ParserOrElseList.NoSuccessfulParsersException
+import io.dylemma.spac.impl.ParserCompoundN
 import org.scalacheck.Arbitrary
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
@@ -95,7 +94,7 @@ class ParserCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPrope
 				}
 			}
 			it("should throw a MissingFirstException when parsing an empty sequence") {
-				assertThrows[MissingFirstException[In]] {
+				assertThrows[SpacException.MissingFirstException[In]] {
 					parser.parseSeq(Nil).unsafeRunSync()
 				}
 			}

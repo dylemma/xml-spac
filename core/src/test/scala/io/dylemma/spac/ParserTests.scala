@@ -1,8 +1,8 @@
 package io.dylemma.spac
 
+import cats.data.NonEmptyList
 import cats.effect.SyncIO
 import io.dylemma.spac.impl.ParserOrElseList
-import io.dylemma.spac.impl.ParserOrElseList.NoSuccessfulParsersException
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -84,10 +84,10 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		}
 		it("should raise a NoSuccessfulParsersException if all of the underlying parsers fail") {
 			forAll { (list: List[Int]) =>
-				val e = intercept[NoSuccessfulParsersException] {
+				val e = intercept[SpacException.FallbackChainFailure] {
 					pErr1.orElse(pErr2).parse(list).unsafeRunSync()
 				}
-				e.getSuppressed.toList shouldEqual List(err2, err1)
+				e.underlyingErrors.toList shouldEqual List(err2, err1)
 			}
 		}
 		it("should allow many parsers to be composed together into a single fallback chain") {
@@ -120,7 +120,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 			}
 		}
 		it("should catch an exception thrown by a failed parser if the Err type is Throwable") {
-			p2.attempt.parseSeq(Nil).unsafeRunSync() should matchPattern { case Left(e: MissingFirstException[_]) => }
+			p2.attempt.parseSeq(Nil).unsafeRunSync() should matchPattern { case Left(e: SpacException.MissingFirstException[_]) => }
 			p2.attempt.parseSeq(List("hi")).unsafeRunSync() should matchPattern { case Left(e: NumberFormatException) => }
 			p2.attempt.parseSeq(List("42")).unsafeRunSync() shouldEqual Right(42)
 			pErr.attempt.parseSeq(List("...")).unsafeRunSync() shouldEqual Left(err)
@@ -164,6 +164,43 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 
 		it("should treat a successful `Failure` result as an error in the effect context instead") {
 			intercept[Exception] { p2.unwrapSafe.parseSeq(List(1, 2, 3)).unsafeRunSync() } shouldEqual err
+		}
+	}
+
+	describe("Parser # expectInputs") {
+		val p1 = Parser[SyncIO].toList[Int]
+		val p2 = p1.expectInputs[Int](List(
+			"1" -> { _ == 1 },
+			"an even number" -> { _ % 2 == 0 },
+			"3" -> { _ == 3 },
+		))
+
+		it ("should not interrupt the underlying parser if all of the inputs match the expectations") {
+			forAll { (tail: List[Int]) =>
+				val list = 1 :: 2 :: 3 :: tail
+				p2.parseSeq(list).unsafeRunSync() shouldEqual list
+			}
+		}
+
+		it ("should raise an UnfulfilledInputsException which lists the remaining expected inputs, upon encountering an early EOF") {
+			def expectUnfulfilled(expectations: List[String], inputs: List[Int]) = {
+				intercept[SpacException.UnfulfilledInputsException] { p2.parseSeq(inputs).unsafeRunSync() }
+					.expectations.toList.shouldEqual(expectations)
+			}
+			expectUnfulfilled(List("1", "an even number", "3"), Nil)
+			expectUnfulfilled(List("an even number", "3"), List(1))
+			expectUnfulfilled(List("3"), List(1, 2))
+		}
+
+		it ("should raise an UnexpectedInputException which lists the current and remaining expected inputs, upon encountering an input that doesn't match the predicate") {
+			def expectUnexpected(unexpected: Int, expectations: List[String], inputs: List[Int]) = {
+				val captured = intercept[SpacException.UnexpectedInputException[Int]] { p2.parseSeq(inputs).unsafeRunSync() }
+				captured.expectations.toList shouldEqual expectations
+				captured.input shouldEqual unexpected
+			}
+			expectUnexpected(69, List("1", "an even number", "3"), List(69, 2, 3))
+			expectUnexpected(7, List("an even number", "3"), List(1, 7, 3))
+			expectUnexpected(5, List("3"), List(1, 2, 5)) // three, sir!
 		}
 	}
 }

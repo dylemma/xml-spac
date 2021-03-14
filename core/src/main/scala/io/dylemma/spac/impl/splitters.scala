@@ -117,7 +117,7 @@ class SplitterJoiner[F[+_], In, C, Out](
 				case Some(ms @ MatchedState(startTrace, Some(inner), extraDepth)) =>
 					// feed the input to the inner transformer
 					inner.step(in)
-						.adaptErr { case e: Exception => ContextualizedException(startTrace, e) }
+						.adaptErr { case e: Exception => SpacException.ContextualizedException(startTrace, e) }
 						.map {
 							case (emit, Some(`inner`)) => emit -> Some(this)
 							case (emit, nextInner) => emit -> continueMatched(ms.copy(inner = nextInner))
@@ -143,7 +143,7 @@ class SplitterJoiner[F[+_], In, C, Out](
 				case None =>
 					// entering a new context, time to start a new transformer
 					F.catchNonFatal(getTransformer(push))
-						.adaptErr { case e: Exception => ContextualizedException(trace, e) }
+						.adaptErr { case e: Exception => SpacException.ContextualizedException(trace, e) }
 						.map { inner => Emit.nil -> continueMatched(MatchedState(trace, Some(inner), 0)) }
 			}
 
@@ -153,7 +153,7 @@ class SplitterJoiner[F[+_], In, C, Out](
 					// popping out of our matched state; inner transformer needs to be finished if it hasn't already
 					val finalOuts = innerOpt match {
 						case None => F.pure(Emit.nil)
-						case Some(inner) => inner.finish.adaptErr { case e: Exception => ContextualizedException(trace, e) }
+						case Some(inner) => inner.finish.adaptErr { case e: Exception => SpacException.ContextualizedException(trace, e) }
 					}
 					finalOuts.map(_ -> continueUnmatched)
 
@@ -177,6 +177,6 @@ class SplitterJoiner[F[+_], In, C, Out](
 
 		case Some(MatchedState(trace, Some(inner), _)) =>
 			// in a matched context with an inner transformer left unfinished
-			inner.finish.adaptErr { case e: Exception => ContextualizedException(trace, e) }
+			inner.finish.adaptErr { case e: Exception => SpacException.ContextualizedException(trace, e) }
 	}
 }

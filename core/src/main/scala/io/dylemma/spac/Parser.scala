@@ -21,6 +21,8 @@ trait Parser[F[+_], -In, +Out] {
 	def attempt[Err](implicit F: ApplicativeError[F, Err]): Parser[F, In, Either[Err, Out]] = new ParserAttempt(this)
 	def wrapSafe(implicit F: MonadError[F, Throwable]): Parser[F, In, Try[Out]] = attempt.map(_.toTry)
 
+	def expectInputs[I2 <: In](expectations: List[(String, I2 => Boolean)])(implicit F: MonadError[F, Throwable]): Parser[F, I2, Out] = new ParserExpectInputs(this, expectations)
+
 	def withName(name: String)(implicit F: Functor[F]): Parser[F, In, Out] = new ParserNamed(name, this)
 
 	def asTransformer(implicit F: Functor[F]): Transformer[F, In, Out] = new ParserAsTransformer(this)
@@ -134,7 +136,7 @@ object Parser {
 
 	def firstOpt[F[+_] : Applicative, In]: Parser[F, In, Option[In]] = new ParseFirstOpt[F, In]
 	def firstOrError[F[+_], In, Err](ifNone: Err)(implicit F: MonadError[F, Err]): Parser[F, In, In] = firstOpt[F, In].errorIfNone(ifNone)
-	def first[F[+_], In](implicit F: MonadError[F, Throwable], tag: ClassTag[In]): Parser[F, In, In] = firstOpt[F, In].errorIfNone[Throwable](new MissingFirstException[In])
+	def first[F[+_], In](implicit F: MonadError[F, Throwable], tag: ClassTag[In]): Parser[F, In, In] = firstOpt[F, In].errorIfNone[Throwable](new SpacException.MissingFirstException[In])
 	def find[F[+_] : Applicative, In](predicate: In => Boolean): Parser[F, In, Option[In]] = new ParserFind(predicate)
 	def findEval[F[+_] : Monad, In](predicate: In => F[Boolean]): Parser[F, In, Option[In]] = new ParserFindEval(predicate)
 	def fold[F[+_] : Applicative, In, Out](init: Out)(op: (Out, In) => Out): Parser[F, In, Out] = new ParserFold(init, op)

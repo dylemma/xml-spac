@@ -4,13 +4,6 @@ package impl
 import cats.MonadError
 import cats.data.NonEmptyList
 import cats.implicits._
-import io.dylemma.spac.impl.ParserOrElseList.NoSuccessfulParsersException
-
-object ParserOrElseList {
-	class NoSuccessfulParsersException(errors: List[Throwable]) extends Exception("All of the parsers in the orElse chain failed") {
-		for (err <- errors) this.addSuppressed(err)
-	}
-}
 
 case class ParserOrElseList[F[+_], In, Out](state: List[Either[Throwable, Parser[F, In, Out]]])(implicit F: MonadError[F, Throwable]) extends Parser[F, In, Out] {
 
@@ -64,12 +57,9 @@ case class ParserOrElseList[F[+_], In, Out](state: List[Either[Throwable, Parser
 				if (built.forall(_.isLeft)) {
 					// all of the parsers have failed. The one at the head of the 'built' list should be furthest back in the chain,
 					// so we'll grab that one and add all the others as "suppressed" exceptions
-					if (built.isEmpty) {
-						F.raiseError(new IllegalStateException("ParserOrElseList step with no inner parsers"))
-					} else {
-						val errors = built.collect { case Left(ex) => ex }
-						F.raiseError { new NoSuccessfulParsersException(errors) }
-					}
+					assert(built.nonEmpty, "Shouldn't be able to reach the end of the 'step' recursion with an empty 'built' list")
+					val errors = built.collect { case Left(ex) => ex }
+					F.raiseError { new SpacException.FallbackChainFailure(NonEmptyList fromListUnsafe errors) }
 				} else {
 					Right(Right(built.reverse)).pure[F]
 				}
@@ -82,14 +72,11 @@ case class ParserOrElseList[F[+_], In, Out](state: List[Either[Throwable, Parser
 				case Right(out) => Right(out) // end recursion with a result!
 			}
 			case Nil =>
-				if (built.isEmpty) {
-					F.raiseError(new IllegalStateException("ParserOrElseList finish with no inner parsers"))
-				} else {
-					// we can assume `built` is full of `Left(error)` since if any of the parsers got a successful result,
-					// we would have exited recursion and never made it to this point
-					val errors = built.collect { case Left(ex) => ex }
-					F.raiseError { new NoSuccessfulParsersException(errors) }
-				}
+				assert(built.nonEmpty, "Shouldn't be able to reach the end of the 'finish' recursion with an empty 'built' list")
+				// we can assume `built` is full of `Left(error)` since if any of the parsers got a successful result,
+				// we would have exited recursion and never made it to this point
+				val errors = built.collect { case Left(ex) => ex }
+				F.raiseError { new SpacException.FallbackChainFailure(NonEmptyList fromListUnsafe errors) }
 		}
 	}
 }
