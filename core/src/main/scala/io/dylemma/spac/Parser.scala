@@ -8,6 +8,7 @@ import io.dylemma.spac.types.Unconsable
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
+import scala.util.Try
 
 trait Parser[F[+_], -In, +Out] {
 	def step(in: In): F[Either[Out, Parser[F, In, Out]]]
@@ -16,6 +17,11 @@ trait Parser[F[+_], -In, +Out] {
 	def map[Out2](f: Out => Out2)(implicit F: Functor[F]): Parser[F, In, Out2] = new ParserMapped(this, f)
 
 	def orElse[In2 <: In, Out2 >: Out](fallback: Parser[F, In2, Out2])(implicit F: MonadError[F, Throwable]): Parser[F, In2, Out2] = ParserOrElseList(Right(this) :: Right(fallback) :: Nil)
+
+	def attempt[Err](implicit F: MonadError[F, Err]): Parser[F, In, Either[Err, Out]] = new ParserAttempt(this)
+
+	@deprecated("Use the more general-purpose `attempt` instead", since = "0.9")
+	def wrapSafe(implicit F: MonadError[F, Throwable]): Parser[F, In, Try[Out]] = attempt.map(_.toTry)
 
 	def withName(name: String)(implicit F: Functor[F]): Parser[F, In, Out] = new ParserNamed(name, this)
 

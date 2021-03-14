@@ -105,4 +105,35 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 			}
 		}
 	}
+
+	describe("Parser # attempt") {
+		val p1 = Parser[SyncIO].pure(42)
+		val p2 = Parser[SyncIO].first[String].map(_.toInt)
+		val err = new Exception("oh no")
+		val pErr = Parser.eval(SyncIO { throw err })
+
+		it ("should wrap a successful parser's result in a `Right`") {
+			forAll { (list: List[Int]) =>
+				p1.attempt.parseSeq(list).unsafeRunSync() shouldEqual Right(42)
+			}
+		}
+		it ("should catch an exception thrown by a failed parser if the Err type is Throwable") {
+			p2.attempt.parseSeq(Nil).unsafeRunSync() should matchPattern { case Left(e: MissingFirstException[_]) => }
+			p2.attempt.parseSeq(List("hi")).unsafeRunSync() should matchPattern { case Left(e: NumberFormatException) => }
+			p2.attempt.parseSeq(List("42")).unsafeRunSync() shouldEqual Right(42)
+			pErr.attempt.parseSeq(List("...")).unsafeRunSync() shouldEqual Left(err)
+		}
+		it ("should exit upon non-exception error conditions, depending on the MonadError for the effect type") {
+			import cats.instances.either._
+			val p3 = Parser[Either[String, +*], String].foldEval(0){ (sum, next) =>
+				if (next.forall(_.isDigit)) Right(sum + next.toInt)
+				else Left(s"'$next' is not a number")
+			}
+
+			p3.parseSeq(List("1", "2", "3")) shouldEqual Right(6)
+			p3.parseSeq(List("1", "2", "go")) shouldEqual Left("'go' is not a number")
+			p3.attempt.parseSeq(List("1", "2", "3")) shouldEqual Right(Right(6))
+			p3.attempt.parseSeq(List("1", "2", "go")) shouldEqual Right(Left("'go' is not a number"))
+		}
+	}
 }
