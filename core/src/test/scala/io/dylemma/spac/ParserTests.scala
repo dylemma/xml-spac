@@ -4,7 +4,8 @@ import cats.data.Chain
 import cats.effect.SyncIO
 import cats.implicits._
 import cats.{Applicative, Traverse}
-import io.dylemma.spac.impl.ParserCompoundN
+import io.dylemma.spac.impl.{ParserCompoundN, ParserOrElseList}
+import io.dylemma.spac.impl.ParserOrElseList.NoSuccessfulParsersException
 import org.scalacheck.Arbitrary
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
@@ -615,6 +616,61 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 				val pC = new impl.ParserNamed("test", pA)
 				val parser = (pA, pB, pC).tupled
 				parser.parseSeq(List(1, 2, 3)).unsafeRunSync() shouldEqual ((42, List(1, 2, 3), 42))
+			}
+		}
+	}
+
+	describe("Parser # orElse") {
+		val p1 = Parser[SyncIO, Int].firstOpt.map(_ => "firstOpt")
+		val p2 = Parser[SyncIO, Int].toList.map(_ => "toList")
+		val p3 = Parser[SyncIO, Int].fold("")(_ + _)
+		val err1 = new Exception("Error 1")
+		val err2 = new Exception("Error 2")
+		val pErr1 = Parser.eval { SyncIO.raiseError(err1) }
+		val pErr2 = Parser.eval { SyncIO.raiseError(err2) }
+
+		it ("should return the result from the earliest underlying parser that succeeds") {
+			forAll { (list: List[Int]) =>
+				whenever (list.nonEmpty) {
+					p1.orElse(p2).parse(list).unsafeRunSync() shouldEqual "firstOpt"
+					p2.orElse(p1).parse(list).unsafeRunSync() shouldEqual "firstOpt"
+				}
+			}
+		}
+		it ("should return the result whichever successful parser was earliest in the orElse chain") {
+			forAll { (list: List[Int]) =>
+				p2.orElse(p3).parse(list).unsafeRunSync() shouldEqual "toList"
+				p3.orElse(p2).parse(list).unsafeRunSync() shouldEqual list.mkString
+			}
+		}
+		it ("should discard errors from underlying parsers as long as at least one succeeds") {
+			forAll { (list: List[Int]) =>
+				p2.orElse(pErr1).parse(list).unsafeRunSync() shouldEqual "toList"
+				pErr1.orElse(p2).parse(list).unsafeRunSync() shouldEqual "toList"
+			}
+		}
+		it ("should raise a NoSuccessfulParsersException if all of the underlying parsers fail") {
+			forAll { (list: List[Int]) =>
+				val e = intercept[NoSuccessfulParsersException]{
+					pErr1.orElse(pErr2).parse(list).unsafeRunSync()
+				}
+				e.getSuppressed.toList shouldEqual List(err2, err1)
+			}
+		}
+		it ("should allow many parsers to be composed together into a single fallback chain") {
+			val parser = p2 orElse p3 orElse pErr1 orElse pErr2 orElse p1
+			forAll { (list: List[Int]) =>
+				// normally p1 will finish first because it finishes on the first step,
+				// but if the list is empty, everything finishes at once, so the tiebreaker is which one is earlier in the chain
+				parser.parse(list).unsafeRunSync() shouldEqual (if(list.isEmpty) "toList" else "firstOpt")
+			}
+			// making sure that repeatedly calling `orElse` will build up one big chain rather than a hierarchy of chains
+			parser should matchPattern {
+				// Scalac is being stupid and doesn't understand this line
+				// case ParserOrElseList(Right(`p2`) :: Right(`p3`) :: Right(`pErr1`) :: Right(`pErr2`) :: Right(`p1`) :: Nil) =>
+				// so I'm doing it this way instead >:(
+				case ParserOrElseList(Right(a) :: Right(b) :: Right(c) :: Right(d) :: Right(e) :: Nil)
+					if (a == p2) && (b == p3) && (c == pErr1) && (d == pErr2) && (e == p1) =>
 			}
 		}
 	}
