@@ -553,12 +553,12 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		describe("SemigroupalOps.tupled") {
 			def compound(arg: (Parser[SyncIO, Int, Any], List[Parser[SyncIO, Int, Any]])) = {
 				val (p, parsers) = arg
-				it ("should create a ParserCompositeN with underlying parsers in a similar order") {
+				it("should create a ParserCompositeN with underlying parsers in a similar order") {
 					val expected = parsers.view.map(Right(_)).toVector
 					inspectCompound(p) shouldEqual Some(expected)
 				}
 
-				it ("should yield the same product of results as if the underlying parsers were run separately and then combined") {
+				it("should yield the same product of results as if the underlying parsers were run separately and then combined") {
 					forAll { (list: List[Int]) =>
 						val compoundResults = p
 							.parseSeq(list)
@@ -575,10 +575,10 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 				}
 			}
 
-			describe ("(p1, p2)") {
+			describe("(p1, p2)") {
 				it should behave like compound { (p1, p2).tupled -> List(p1, p2) }
 			}
-			describe ("(pErr, p3)") {
+			describe("(pErr, p3)") {
 				it should behave like compound { (pErr, p3).tupled -> List(pErr, p3) }
 			}
 
@@ -608,6 +608,14 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 				it should behave like compound { (p1, (p2, p3).tupled, p4).tupled -> List(p1, p2, p3, p4) }
 			}
 
+			it("should be able to combine parsers with varying (but common) input types") {
+				// just making sure you can still call `tupled` when the types aren't super-explicit
+				val pA: Parser[SyncIO, Any, Int] = Parser[SyncIO].pure(42)
+				val pB: Parser[SyncIO, Int, List[Int]] = Parser[SyncIO].toList[Int]
+				val pC = new impl.ParserNamed("test", pA)
+				val parser = (pA, pB, pC).tupled
+				parser.parseSeq(List(1, 2, 3)).unsafeRunSync() shouldEqual ((42, List(1, 2, 3), 42))
+			}
 		}
 	}
 }

@@ -71,7 +71,7 @@ trait Parser[F[+_], -In, +Out] {
 class ParserApplyWithBoundEffect[F[+_]] {
 	def over[In]: ParserApplyBound[F, In] = new ParserApplyBound
 
-	def applicative[In](implicit F: Monad[F]): Applicative[Parser[F, In, *]] = Parser.parserApplicative
+	def app[In](implicit F: Monad[F]): Applicative[Parser[F, In, *]] = Parser.parserApplicative
 	def firstOpt[In](implicit F: Applicative[F]): Parser[F, In, Option[In]] = Parser.firstOpt
 	def firstOrError[In, Err](ifNone: Err)(implicit F: MonadError[F, Err]): Parser[F, In, In] = Parser.firstOrError(ifNone)
 	def first[In](implicit F: MonadError[F, Throwable], tag: ClassTag[In]): Parser[F, In, In] = Parser.first
@@ -87,7 +87,7 @@ class ParserApplyWithBoundEffect[F[+_]] {
 }
 
 class ParserApplyBound[F[+_], In] {
-	def applicative(implicit F: Monad[F]): Applicative[Parser[F, In, *]] = Parser.parserApplicative
+	def app(implicit F: Monad[F]): Applicative[Parser[F, In, *]] = Parser.parserApplicative
 	def firstOpt(implicit F: Applicative[F]): Parser[F, In, Option[In]] = Parser.firstOpt
 	def firstOrError[Err](ifNone: Err)(implicit F: MonadError[F, Err]): Parser[F, In, In] = Parser.firstOrError(ifNone)
 	def first(implicit F: MonadError[F, Throwable], tag: ClassTag[In]): Parser[F, In, In] = Parser.first
@@ -105,7 +105,7 @@ class ParserApplyBound[F[+_], In] {
 class ParserApplyWithBoundInput[In] {
 	def in[F[+_]]: ParserApplyBound[F, In] = new ParserApplyBound
 
-	def applicative[F[+_]: Monad]: Applicative[Parser[F, In, *]] = Parser.parserApplicative
+	def app[F[+_]: Monad]: Applicative[Parser[F, In, *]] = Parser.parserApplicative
 	def firstOpt[F[+_]: Applicative]: Parser[F, In, Option[In]] = Parser.firstOpt
 	def firstOrError[F[+_], Err](ifNone: Err)(implicit F: MonadError[F, Err]): Parser[F, In, In] = Parser.firstOrError(ifNone)
 	def first[F[+_]](implicit F: MonadError[F, Throwable], In: ClassTag[In]): Parser[F, In, In] = Parser.first
