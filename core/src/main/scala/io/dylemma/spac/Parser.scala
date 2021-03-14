@@ -69,6 +69,9 @@ trait Parser[F[+_], -In, +Out] {
 }
 
 class ParserApplyWithBoundEffect[F[+_]] {
+	def over[In]: ParserApplyBound[F, In] = new ParserApplyBound
+
+	def applicative[In](implicit F: Monad[F]): Applicative[Parser[F, In, *]] = Parser.parserApplicative
 	def firstOpt[In](implicit F: Applicative[F]): Parser[F, In, Option[In]] = Parser.firstOpt
 	def firstOrError[In, Err](ifNone: Err)(implicit F: MonadError[F, Err]): Parser[F, In, In] = Parser.firstOrError(ifNone)
 	def first[In](implicit F: MonadError[F, Throwable], tag: ClassTag[In]): Parser[F, In, In] = Parser.first
@@ -78,12 +81,13 @@ class ParserApplyWithBoundEffect[F[+_]] {
 	def foldEval[In, Out](init: Out)(op: (Out, In) => F[Out])(implicit F: Monad[F]): Parser[F, In, Out] = Parser.foldEval(init)(op)
 	def pure[Out](value: Out)(implicit F: Applicative[F]): Parser[F, Any, Out] = Parser.pure(value)
 	def eval[In, Out](fa: F[Parser[F, In, Out]])(implicit F: Monad[F]): Parser[F, In, Out] = Parser.eval(fa)
-	def toChain[In](implicit F: Applicative[F]): Parser[F, In, Chain[In]] = fold(Chain.empty[In])(_ :+ _)
-	def toList[In](implicit F: Applicative[F]): Parser[F, In, List[In]] = toChain[In].map(_.toList)
+	def toChain[In](implicit F: Applicative[F]): Parser[F, In, Chain[In]] = Parser.toChain
+	def toList[In](implicit F: Applicative[F]): Parser[F, In, List[In]] = Parser.toList
 	def impureBuild[In, Out](builder: => mutable.Builder[In, Out])(implicit fm: Monad[F], fd: Defer[F]): Parser[F, In, Out] = Parser.impureBuild(builder)
 }
 
 class ParserApplyBound[F[+_], In] {
+	def applicative(implicit F: Monad[F]): Applicative[Parser[F, In, *]] = Parser.parserApplicative
 	def firstOpt(implicit F: Applicative[F]): Parser[F, In, Option[In]] = Parser.firstOpt
 	def firstOrError[Err](ifNone: Err)(implicit F: MonadError[F, Err]): Parser[F, In, In] = Parser.firstOrError(ifNone)
 	def first(implicit F: MonadError[F, Throwable], tag: ClassTag[In]): Parser[F, In, In] = Parser.first
@@ -93,15 +97,34 @@ class ParserApplyBound[F[+_], In] {
 	def foldEval[Out](init: Out)(op: (Out, In) => F[Out])(implicit F: Monad[F]): Parser[F, In, Out] = Parser.foldEval(init)(op)
 	def pure[Out](value: Out)(implicit F: Applicative[F]): Parser[F, In, Out] = Parser.pure(value)
 	def eval[Out](fa: F[Parser[F, In, Out]])(implicit F: Monad[F]): Parser[F, In, Out] = Parser.eval(fa)
-	def toChain(implicit F: Applicative[F]): Parser[F, In, Chain[In]] = fold(Chain.empty[In])(_ :+ _)
-	def toList(implicit F: Applicative[F]): Parser[F, In, List[In]] = toChain.map(_.toList)
+	def toChain(implicit F: Applicative[F]): Parser[F, In, Chain[In]] = Parser.toChain
+	def toList(implicit F: Applicative[F]): Parser[F, In, List[In]] = Parser.toList
 	def impureBuild[Out](builder: => mutable.Builder[In, Out])(implicit fm: Monad[F], fd: Defer[F]): Parser[F, In, Out] = Parser.impureBuild(builder)
+}
+
+class ParserApplyWithBoundInput[In] {
+	def in[F[+_]]: ParserApplyBound[F, In] = new ParserApplyBound
+
+	def applicative[F[+_]: Monad]: Applicative[Parser[F, In, *]] = Parser.parserApplicative
+	def firstOpt[F[+_]: Applicative]: Parser[F, In, Option[In]] = Parser.firstOpt
+	def firstOrError[F[+_], Err](ifNone: Err)(implicit F: MonadError[F, Err]): Parser[F, In, In] = Parser.firstOrError(ifNone)
+	def first[F[+_]](implicit F: MonadError[F, Throwable], In: ClassTag[In]): Parser[F, In, In] = Parser.first
+	def find[F[+_]: Applicative](predicate: In => Boolean): Parser[F, In, Option[In]] = Parser.find(predicate)
+	def findEval[F[+_]: Monad](predicate: In => F[Boolean]): Parser[F, In, Option[In]] = Parser.findEval(predicate)
+	def fold[F[+_]: Applicative, Out](init: Out)(op: (Out, In) => Out): Parser[F, In, Out] = Parser.fold(init)(op)
+	def foldEval[F[+_]: Monad, Out](init: Out)(op: (Out, In) => F[Out]): Parser[F, In, Out] = Parser.foldEval(init)(op)
+	def pure[F[+_]: Applicative, Out](value: Out): Parser[F, In, Out] = Parser.pure(value)
+	def eval[F[+_]: Monad, Out](fa: F[Parser[F, In, Out]]): Parser[F, In, Out] = Parser.eval(fa)
+	def toChain[F[+_]: Applicative]: Parser[F, In, Chain[In]] = Parser.toChain
+	def toList[F[+_]: Applicative]: Parser[F, In, List[In]] = Parser.toList
+	def impureBuild[F[+_]: Monad : Defer, Out](builder: => mutable.Builder[In, Out]): Parser[F, In, Out] = Parser.impureBuild(builder)
 }
 
 object Parser {
 
 	def apply[F[+_]] = new ParserApplyWithBoundEffect[F]
 	def apply[F[+_], In] = new ParserApplyBound[F, In]
+	def over[In] = new ParserApplyWithBoundInput[In]
 
 	def firstOpt[F[+_] : Applicative, In]: Parser[F, In, Option[In]] = new ParseFirstOpt[F, In]
 	def firstOrError[F[+_], In, Err](ifNone: Err)(implicit F: MonadError[F, Err]): Parser[F, In, In] = firstOpt[F, In].errorIfNone(ifNone)

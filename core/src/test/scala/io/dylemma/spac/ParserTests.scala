@@ -42,6 +42,9 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		describe("Parser[F].firstOpt[A]") {
 			it should behave like firstOptParser(Parser[SyncIO].firstOpt[Int])
 		}
+		describe("Parser.over[A].firstOpt[F]") {
+			it should behave like firstOptParser(Parser.over[Int].firstOpt[SyncIO])
+		}
 	}
 
 	describe("Parser.firstOrError") {
@@ -68,13 +71,16 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		}
 
 		describe("Parser.firstOrError[F, In, Err]") {
-			it should behave like firstOrErrorParser(Parser.firstOrError[SyncIO, Int, Throwable](_))
+			it should behave like firstOrErrorParser(Parser.firstOrError[SyncIO, Int, Throwable])
 		}
 		describe("Parser[F, In].firstOrError[Err]") {
-			it should behave like firstOrErrorParser(Parser[SyncIO, Int].firstOrError[Throwable](_))
+			it should behave like firstOrErrorParser(Parser[SyncIO, Int].firstOrError[Throwable])
 		}
 		describe("Parser[F].firstOrError[In, Err]") {
-			it should behave like firstOrErrorParser(Parser[SyncIO].firstOrError[Int, Throwable](_))
+			it should behave like firstOrErrorParser(Parser[SyncIO].firstOrError[Int, Throwable])
+		}
+		describe("Parser.over[In].firstOrError[F, Err]") {
+			it should behave like firstOrErrorParser(Parser.over[Int].firstOrError[SyncIO, Throwable])
 		}
 	}
 
@@ -108,6 +114,9 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		}
 		describe("Parser[F, In].first") {
 			it should behave like firstParser(Parser[SyncIO, Int].first)
+		}
+		describe("Parser.over[In].first[F]") {
+			it should behave like firstParser(Parser.over[Int].first[SyncIO])
 		}
 	}
 
@@ -183,6 +192,9 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		describe("Parser[F, In].find") {
 			it should behave like findParser(Parser[SyncIO, Int].find)
 		}
+		describe("Parser.over[In].find[F]") {
+			it should behave like findParser(Parser.over[Int].find[SyncIO])
+		}
 		describe("Parser.findEval[F, In]") {
 			it should behave like findEvalParser(Parser.findEval[SyncIO, Int])
 		}
@@ -191,6 +203,9 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		}
 		describe("Parser[F, In].findEval") {
 			it should behave like findEvalParser(Parser[SyncIO, Int].findEval)
+		}
+		describe("Parser.over[In].findEval[F]") {
+			it should behave like findEvalParser(Parser.over[Int].findEval[SyncIO])
 		}
 	}
 
@@ -254,6 +269,9 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		describe("Parser[F, In].fold[Out]") {
 			it should behave like foldParser(Parser[SyncIO, Int].fold[String])
 		}
+		describe("Parser.over[In].fold[F, Out]") {
+			it should behave like foldParser(Parser.over[Int].fold[SyncIO, String])
+		}
 		describe("Parser.foldEval[F, In, Out]") {
 			it should behave like foldEvalParser(Parser.foldEval[SyncIO, Int, String])
 		}
@@ -262,6 +280,9 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		}
 		describe("Parser[F, In].foldEval[Out]") {
 			it should behave like foldEvalParser(Parser[SyncIO, Int].foldEval[String])
+		}
+		describe("Parser.over[In].foldEval[F, Out]") {
+			it should behave like foldEvalParser(Parser.over[Int].foldEval[SyncIO, String])
 		}
 	}
 
@@ -292,6 +313,9 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		}
 		describe("Parser[F, In].pure[Out]") {
 			it should behave like pureParser(Parser[SyncIO, Any].pure[Int])
+		}
+		describe("Parser.over[In].pure[F, Out]") {
+			it should behave like pureParser(Parser.over[Any].pure[SyncIO, Int])
 		}
 	}
 
@@ -326,6 +350,9 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		}
 		describe("Parser[F, In].eval[Out]") {
 			it should behave like evalParser(Parser[SyncIO, Int].eval[String])
+		}
+		describe("Parser.over[In].eval[F, Out]") {
+			it should behave like evalParser(Parser.over[Int].eval[SyncIO, String])
 		}
 	}
 
@@ -364,6 +391,9 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		describe("Parser[F, In].toList") {
 			it should behave like toListParser(Parser[SyncIO, Int].toList)
 		}
+		describe("Parser.over[In].toList[F]") {
+			it should behave like toListParser(Parser.over[Int].toList[SyncIO])
+		}
 		describe("Parser.toChain[F, In]") {
 			it should behave like toChainParser(Parser.toChain[SyncIO, Int])
 		}
@@ -372,6 +402,9 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		}
 		describe("Parser[F, In].toChain") {
 			it should behave like toChainParser(Parser[SyncIO, Int].toChain)
+		}
+		describe("Parser.over[In].toChain[F]") {
+			it should behave like toChainParser(Parser.over[Int].toChain[SyncIO])
 		}
 	}
 
@@ -412,6 +445,9 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		}
 		describe("Parser[F, In].impureBuild[Out]") {
 			it should behave like impureBuildParser(Parser[SyncIO, Int].impureBuild[List[Int]])
+		}
+		describe("Parser.over[In].impureBuild[F, Out]") {
+			it should behave like impureBuildParser(Parser.over[Int].impureBuild[SyncIO, List[Int]])
 		}
 	}
 
