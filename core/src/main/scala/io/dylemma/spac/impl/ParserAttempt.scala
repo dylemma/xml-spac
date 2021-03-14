@@ -1,9 +1,9 @@
 package io.dylemma.spac
 package impl
 
-import cats.MonadError
+import cats.ApplicativeError
 
-class ParserAttempt[F[+_], In, Out, Err](p: Parser[F, In, Out])(implicit F: MonadError[F, Err]) extends Parser[F, In, Either[Err, Out]]{
+class ParserAttempt[F[+_], In, Out, Err](p: Parser[F, In, Out])(implicit F: ApplicativeError[F, Err]) extends Parser[F, In, Either[Err, Out]]{
 	def step(in: In): F[Either[Either[Err, Out], Parser[F, In, Either[Err, Out]]]] = F.map(F.attempt(p step in)) {
 		case Left(err) => Left(Left(err)) // stop parser with an error result
 		case Right(Left(result)) => Left(Right(result)) // stop parser with a successful result

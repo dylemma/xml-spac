@@ -2,7 +2,7 @@ package io.dylemma.spac
 
 import cats.data.Chain
 import cats.effect.Bracket
-import cats.{Applicative, Defer, Functor, Monad, MonadError}
+import cats.{Applicative, ApplicativeError, Defer, Functor, Monad, MonadError}
 import io.dylemma.spac.impl._
 import io.dylemma.spac.types.Unconsable
 
@@ -18,9 +18,7 @@ trait Parser[F[+_], -In, +Out] {
 
 	def orElse[In2 <: In, Out2 >: Out](fallback: Parser[F, In2, Out2])(implicit F: MonadError[F, Throwable]): Parser[F, In2, Out2] = ParserOrElseList(Right(this) :: Right(fallback) :: Nil)
 
-	def attempt[Err](implicit F: MonadError[F, Err]): Parser[F, In, Either[Err, Out]] = new ParserAttempt(this)
-
-	@deprecated("Use the more general-purpose `attempt` instead", since = "0.9")
+	def attempt[Err](implicit F: ApplicativeError[F, Err]): Parser[F, In, Either[Err, Out]] = new ParserAttempt(this)
 	def wrapSafe(implicit F: MonadError[F, Throwable]): Parser[F, In, Try[Out]] = attempt.map(_.toTry)
 
 	def withName(name: String)(implicit F: Functor[F]): Parser[F, In, Out] = new ParserNamed(name, this)
@@ -154,6 +152,12 @@ object Parser {
 
 	implicit class OptionalParserOps[F[+_], -In, +Out](parser: Parser[F, In, Option[Out]]) {
 		def errorIfNone[E](err: E)(implicit F: MonadError[F, E]): Parser[F, In, Out] = new ParserOptOrElse(parser, F.raiseError(err))
+	}
+	implicit class AttemptParserOps[F[+_], -In, +Out, +Err](parser: Parser[F, In, Either[Err, Out]]) {
+		def rethrow[Err0 >: Err](implicit F: MonadError[F, Err0]): Parser[F, In, Out] = new ParserRethrow[F, In, Out, Err0](parser)
+	}
+	implicit class TryParserOps[F[+_], -In, +Out](parser: Parser[F, In, Try[Out]]) {
+		def unwrapSafe(implicit F: MonadError[F, Throwable]): Parser[F, In, Out] = parser.map(_.toEither).rethrow
 	}
 
 	implicit def parserApplicative[F[+_] : Monad, In]: Applicative[Parser[F, In, *]] = new Applicative[Parser[F, In, *]] {
