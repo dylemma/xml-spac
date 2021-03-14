@@ -54,4 +54,13 @@ trait SpacTestUtils {
 			}
 		}
 	}
+
+	def tryFlattenTuple(maybeTuple: Any): List[Any] = maybeTuple match {
+		case (a, b, c, d, e, f) => List(a, b, c, d, e, f).flatMap(tryFlattenTuple)
+		case (a, b, c, d, e) => List(a, b, c, d, e).flatMap(tryFlattenTuple)
+		case (a, b, c, d) => List(a, b, c, d).flatMap(tryFlattenTuple)
+		case (a, b, c) => List(a, b, c).flatMap(tryFlattenTuple)
+		case (a, b) => List(a, b).flatMap(tryFlattenTuple)
+		case a => a :: Nil
+	}
 }

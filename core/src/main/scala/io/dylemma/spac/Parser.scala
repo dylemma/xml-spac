@@ -14,6 +14,9 @@ trait Parser[F[+_], -In, +Out] {
 	def finish: F[Out]
 
 	def map[Out2](f: Out => Out2)(implicit F: Functor[F]): Parser[F, In, Out2] = new MappedParser(this, f)
+
+	def named(name: String)(implicit F: Functor[F]): Parser[F, In, Out] = new ParserNamed(name, this)
+
 	def asTransformer(implicit F: Functor[F]): Transformer[F, In, Out] = new ParserAsTransformer(this)
 
 	def stepMany[C[_], In2 <: In](inputs: C[In2])(implicit C: Unconsable[C], F: Monad[F]): F[Either[(Out, C[In2]), Parser[F, In, Out]]] = {
@@ -122,11 +125,25 @@ object Parser {
 		def errorIfNone[E](err: E)(implicit F: MonadError[F, E]): Parser[F, In, Out] = new ParserOptOrElse(parser, F.raiseError(err))
 	}
 
-	implicit def parserApplicative[F[+_] : Applicative, In]: Applicative[Parser[F, In, *]] = new Applicative[Parser[F, In, *]] {
+	implicit def parserApplicative[F[+_] : Monad, In]: Applicative[Parser[F, In, *]] = new Applicative[Parser[F, In, *]] {
 		def pure[A](x: A) = new ParserPure(x)
 		def ap[A, B](ff: Parser[F, In, A => B])(fa: Parser[F, In, A]) = product(ff, fa).map { case (f, a) => f(a) }
 		override def product[A, B](fa: Parser[F, In, A], fb: Parser[F, In, B]) = {
-			new ParserTupled(Right(fa), Right(fb))
+			(fa, fb) match {
+				case (faCompound: ParserCompoundN[F, In, A], fbCompound: ParserCompoundN[F, In, B]) =>
+					fbCompound.compoundProductWithLhs(faCompound)
+				case (fa, fbCompound: ParserCompoundN[F, In, B]) =>
+					fbCompound.productWithLhs(fa)
+				case (faCompound: ParserCompoundN[F, In, A], fb) =>
+					faCompound.productWithRhs(fb)
+				case (fa, fb) =>
+					new ParserCompoundN(
+						List(1 -> fa, 0 -> fb),
+						Map.empty,
+						results => (results(1).asInstanceOf[A], results(0).asInstanceOf[B])
+					)
+			}
 		}
+		override def map[A, B](fa: Parser[F, In, A])(f: A => B): Parser[F, In, B] = fa.map(f)
 	}
 }

@@ -2,6 +2,9 @@ package io.dylemma.spac
 
 import cats.data.Chain
 import cats.effect.SyncIO
+import cats.implicits._
+import cats.{Applicative, Traverse}
+import io.dylemma.spac.impl.ParserCompoundN
 import org.scalacheck.Arbitrary
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
@@ -451,6 +454,124 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 					countPullsIn(list) { errorProneParser.parse(_).attempt.unsafeRunSync() } shouldEqual (list.size + 1)
 				}
 			}
+		}
+	}
+
+	describe("Applicative[Parser]") {
+		val F = Applicative[Parser[SyncIO, Int, *]]
+
+		val p1 = Parser[SyncIO, Int].toList.named("P1")
+		val p2 = Parser[SyncIO, Int].firstOpt.named("P2")
+		val p3 = Parser[SyncIO, Int].fold("")(_ + _).named("P3")
+		val p4 = Parser[SyncIO, Int].pure("hello").named("P4")
+
+		val dummyException = new Exception("oh no")
+		val dummyException2 = new Exception("oh yeah!")
+		val pErr = Parser[SyncIO, Int].eval { SyncIO.raiseError(dummyException) }
+		val pConditionalError = Parser[SyncIO, Int].fold("") {
+			case (_, 0) => throw dummyException2
+			case (accum, next) => accum + next
+		}
+
+		def inspectCompound[F[+_], In, Out](parser: Parser[F, In, Out]) = parser match {
+			case compound: ParserCompoundN[F, In, Out] => Some(compound.inspect)
+			case _ => None
+		}
+
+		describe(".product") {
+			it("should result in a ParserCompoundN with two underlying parsers") {
+				val pN = F.product(p1, p2)
+				inspectCompound(pN) shouldEqual Some {
+					Vector(Right(p1), Right(p2))
+				}
+			}
+			it("should combine the output from the underlying parsers") {
+				val pN = F.product(p1, p2)
+				pN.parseSeq(List(1, 2, 3)).unsafeRunSync() shouldEqual {
+					List(1, 2, 3) -> Some(1)
+				}
+			}
+			it("should only pull each event from the source once") {
+				val pN = F.product(p1, p3)
+				forAll { (list: List[Int]) =>
+					countPullsIn(list) { pN.parseSeq(_).unsafeRunSync() } shouldEqual (list.size + 1)
+				}
+			}
+			it("should catch and raise errors from the underlying parsers") {
+				val pN = F.product(p2, pErr)
+				forAll { (list: List[Int]) =>
+					pN.parse(list).attempt.unsafeRunSync() shouldEqual Left(dummyException)
+				}
+			}
+			it("should abort execution upon encountering an error from an underlying parser") {
+				countPullsIn[Int] { F.product(p2, pErr).parseSeq(_).attempt.unsafeRunSync() } shouldEqual 1
+				forAll { (list: List[Int]) =>
+					val indexOf0 = list.indexOf(0)
+					val numPullsExpected = if (indexOf0 < 0) list.size + 1 else indexOf0 + 1
+					val pN = F.product(p1, pConditionalError)
+					countPullsIn(list) { pN.parseSeq(_).attempt.unsafeRunSync() } shouldEqual numPullsExpected
+				}
+			}
+		}
+
+		describe("SemigroupalOps.tupled") {
+			def compound(arg: (Parser[SyncIO, Int, Any], List[Parser[SyncIO, Int, Any]])) = {
+				val (p, parsers) = arg
+				it ("should create a ParserCompositeN with underlying parsers in a similar order") {
+					val expected = parsers.view.map(Right(_)).toVector
+					inspectCompound(p) shouldEqual Some(expected)
+				}
+
+				it ("should yield the same product of results as if the underlying parsers were run separately and then combined") {
+					forAll { (list: List[Int]) =>
+						val compoundResults = p
+							.parseSeq(list)
+							.attempt
+							.unsafeRunSync()
+							.asInstanceOf[Either[Throwable, Product]]
+							.map(tryFlattenTuple)
+						val expectedResults = Traverse[List]
+							.sequence(parsers.map(_.parseSeq(list)))
+							.attempt
+							.unsafeRunSync()
+						compoundResults shouldEqual expectedResults
+					}
+				}
+			}
+
+			describe ("(p1, p2)") {
+				it should behave like compound { (p1, p2).tupled -> List(p1, p2) }
+			}
+			describe ("(pErr, p3)") {
+				it should behave like compound { (pErr, p3).tupled -> List(pErr, p3) }
+			}
+
+			describe("(p1, p2, p3)") {
+				it should behave like compound { (p1, p2, p3).tupled -> List(p1, p2, p3) }
+			}
+			describe("((p1, p2), p3)") {
+				it should behave like compound { ((p1, p2).tupled, p3).tupled -> List(p1, p2, p3) }
+			}
+			describe("(p1, (p2, p3))") {
+				it should behave like compound { (p1, (p2, p3).tupled).tupled -> List(p1, p2, p3) }
+			}
+
+			describe("(p1, p2, p3, p4)") {
+				it should behave like compound { (p1, p2, p3, p4).tupled -> List(p1, p2, p3, p4) }
+			}
+			describe("(p1, (p2, p3, p4))") {
+				it should behave like compound { (p1, (p2, p3, p4).tupled).tupled -> List(p1, p2, p3, p4) }
+			}
+			describe("((p1, p2, p3), p4)") {
+				it should behave like compound { ((p1, p2, p3).tupled, p4).tupled -> List(p1, p2, p3, p4) }
+			}
+			describe("((p1, p2), (p3, p4))") {
+				it should behave like compound { ((p1, p2).tupled, (p3, p4).tupled).tupled -> List(p1, p2, p3, p4) }
+			}
+			describe("(p1, (p2, p3), p4)") {
+				it should behave like compound { (p1, (p2, p3).tupled, p4).tupled -> List(p1, p2, p3, p4) }
+			}
+
 		}
 	}
 }
