@@ -15,7 +15,7 @@ trait Parser[F[+_], -In, +Out] {
 
 	def map[Out2](f: Out => Out2)(implicit F: Functor[F]): Parser[F, In, Out2] = new MappedParser(this, f)
 
-	def named(name: String)(implicit F: Functor[F]): Parser[F, In, Out] = new ParserNamed(name, this)
+	def withName(name: String)(implicit F: Functor[F]): Parser[F, In, Out] = new ParserNamed(name, this)
 
 	def asTransformer(implicit F: Functor[F]): Transformer[F, In, Out] = new ParserAsTransformer(this)
 
