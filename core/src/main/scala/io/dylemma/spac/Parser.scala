@@ -11,7 +11,8 @@ import scala.collection.mutable
 import scala.reflect.ClassTag
 import scala.util.Try
 
-trait Parser[F[+_], -In, +Out] {
+trait Parser[F[+_], -In, +Out] { self =>
+
 	def step(in: In): F[Either[Out, Parser[F, In, Out]]]
 	def finish: F[Out]
 
@@ -25,11 +26,10 @@ trait Parser[F[+_], -In, +Out] {
 	def expectInputs[I2 <: In](expectations: List[(String, I2 => Boolean)])(implicit F: MonadError[F, Throwable]): Parser[F, I2, Out] = new ParserExpectInputs(this, expectations)
 
 	def interruptedBy[I2 <: In](interrupter: Parser[F, I2, Any])(implicit F: Monad[F]): Parser[F, I2, Out] = new ParserInterruptedBy(this, interrupter)
-	def beforeContext[I2 <: In, StackElem](matcher: ContextMatcher[StackElem, Any])(implicit stackable: Stackable2[F, I2, StackElem], F: Monad[F]): Parser[F, I2, Out] = {
+	def beforeContext[I2 <: In, StackElem](matcher: ContextMatcher[StackElem, Any])(implicit stackable: Stackable2[I2, StackElem], F: Monad[F]): Parser[F, I2, Out] = {
 		// use ContextMatchSplitter to drive the stackable+matcher together, and pipe it into a parser that returns when a ContextPush is interpreted,
 		// i.e. the `interrupter` will yield a result upon entering a context matched by the `matcher`
-		val interrupter = new ContextMatchSplitter[F, I2, StackElem, Any](matcher).addBoundaries.collect { case Left(ContextPush(_, _)) => () } :> Parser.firstOpt
-		interruptedBy(interrupter)
+		interruptedBy { Splitter[F, I2](matcher).addBoundaries.collect { case Left(ContextPush(_, _)) => () } :> Parser.firstOpt }
 	}
 
 	def withName(name: String)(implicit F: Functor[F]): Parser[F, In, Out] = new ParserNamed(name, this)
@@ -122,19 +122,19 @@ class ParserApplyBound[F[+_], In] {
 class ParserApplyWithBoundInput[In] {
 	def in[F[+_]]: ParserApplyBound[F, In] = new ParserApplyBound
 
-	def app[F[+_]: Monad]: Applicative[Parser[F, In, *]] = Parser.parserApplicative
-	def firstOpt[F[+_]: Applicative]: Parser[F, In, Option[In]] = Parser.firstOpt
+	def app[F[+_] : Monad]: Applicative[Parser[F, In, *]] = Parser.parserApplicative
+	def firstOpt[F[+_] : Applicative]: Parser[F, In, Option[In]] = Parser.firstOpt
 	def firstOrError[F[+_], Err](ifNone: Err)(implicit F: MonadError[F, Err]): Parser[F, In, In] = Parser.firstOrError(ifNone)
 	def first[F[+_]](implicit F: MonadError[F, Throwable], In: ClassTag[In]): Parser[F, In, In] = Parser.first
-	def find[F[+_]: Applicative](predicate: In => Boolean): Parser[F, In, Option[In]] = Parser.find(predicate)
-	def findEval[F[+_]: Monad](predicate: In => F[Boolean]): Parser[F, In, Option[In]] = Parser.findEval(predicate)
-	def fold[F[+_]: Applicative, Out](init: Out)(op: (Out, In) => Out): Parser[F, In, Out] = Parser.fold(init)(op)
-	def foldEval[F[+_]: Monad, Out](init: Out)(op: (Out, In) => F[Out]): Parser[F, In, Out] = Parser.foldEval(init)(op)
-	def pure[F[+_]: Applicative, Out](value: Out): Parser[F, In, Out] = Parser.pure(value)
-	def eval[F[+_]: Monad, Out](fa: F[Parser[F, In, Out]]): Parser[F, In, Out] = Parser.eval(fa)
-	def toChain[F[+_]: Applicative]: Parser[F, In, Chain[In]] = Parser.toChain
-	def toList[F[+_]: Applicative]: Parser[F, In, List[In]] = Parser.toList
-	def impureBuild[F[+_]: Monad : Defer, Out](builder: => mutable.Builder[In, Out]): Parser[F, In, Out] = Parser.impureBuild(builder)
+	def find[F[+_] : Applicative](predicate: In => Boolean): Parser[F, In, Option[In]] = Parser.find(predicate)
+	def findEval[F[+_] : Monad](predicate: In => F[Boolean]): Parser[F, In, Option[In]] = Parser.findEval(predicate)
+	def fold[F[+_] : Applicative, Out](init: Out)(op: (Out, In) => Out): Parser[F, In, Out] = Parser.fold(init)(op)
+	def foldEval[F[+_] : Monad, Out](init: Out)(op: (Out, In) => F[Out]): Parser[F, In, Out] = Parser.foldEval(init)(op)
+	def pure[F[+_] : Applicative, Out](value: Out): Parser[F, In, Out] = Parser.pure(value)
+	def eval[F[+_] : Monad, Out](fa: F[Parser[F, In, Out]]): Parser[F, In, Out] = Parser.eval(fa)
+	def toChain[F[+_] : Applicative]: Parser[F, In, Chain[In]] = Parser.toChain
+	def toList[F[+_] : Applicative]: Parser[F, In, List[In]] = Parser.toList
+	def impureBuild[F[+_] : Monad : Defer, Out](builder: => mutable.Builder[In, Out]): Parser[F, In, Out] = Parser.impureBuild(builder)
 }
 
 object Parser {
@@ -170,6 +170,18 @@ object Parser {
 	implicit class TryParserOps[F[+_], -In, +Out](parser: Parser[F, In, Try[Out]]) {
 		def unwrapSafe(implicit F: MonadError[F, Throwable]): Parser[F, In, Out] = parser.map(_.toEither).rethrow
 	}
+	implicit class ParserFollowedByOps[F[+_], In, A](parser: Parser[F, In, A])(implicit F: Monad[F]) {
+		def followedBy: FollowedBy[In, A, Parser[F, In, +*]] = new FollowedBy[In, A, Parser[F, In, +*]] {
+			def apply[Out](followUp: A => Parser[F, In, Out])(implicit S: Stackable2[In, Any]): Parser[F, In, Out] = {
+				new ParserFollowedByParser(parser, followUp, Nil, S)
+			}
+		}
+		def followedByStream: FollowedBy[In, A, Transformer[F, In, +*]] = new FollowedBy[In, A, Transformer[F, In, +*]] {
+			def apply[Out](followUp: A => Transformer[F, In, Out])(implicit S: Stackable2[In, Any]): Transformer[F, In, Out] = {
+				new ParserFollowedByTransformer(parser, followUp, Nil, S)
+			}
+		}
+	}
 
 	implicit def parserApplicative[F[+_] : Monad, In]: Applicative[Parser[F, In, *]] = new Applicative[Parser[F, In, *]] {
 		def pure[A](x: A) = new ParserPure(x)
@@ -191,5 +203,15 @@ object Parser {
 			}
 		}
 		override def map[A, B](fa: Parser[F, In, A])(f: A => B): Parser[F, In, B] = fa.map(f)
+	}
+
+	trait FollowedBy[In, +A, M[+_]] { self =>
+		def apply[Out](followUp: A => M[Out])(implicit S: Stackable2[In, Any]): M[Out]
+
+		def flatMap[Out](followUp: A => M[Out])(implicit S: Stackable2[In, Any]): M[Out] = apply(followUp)
+
+		def map[B](f: A => B)(implicit S: Stackable2[In, Any]): FollowedBy[In, B, M] = new FollowedBy[In, B, M] {
+			def apply[Out](followUp: B => M[Out])(implicit S: Stackable2[In, Any]) = self { a => followUp(f(a)) }
+		}
 	}
 }

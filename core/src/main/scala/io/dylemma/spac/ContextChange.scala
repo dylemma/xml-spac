@@ -8,6 +8,9 @@ package io.dylemma.spac
   * @tparam In The value type of the elements in the stream being inspected
   * @tparam C The type of the matched context
   */
-sealed trait ContextChange[+In, +C]
+sealed trait ContextChange[+In, +C] {
+	def beforeInput: StackInterpretation[In, C] = StackInterpretation.ChangedBeforeInput(this)
+	def afterInput: StackInterpretation[In, C] = StackInterpretation.ChangedAfterInput(this)
+}
 case class ContextPush[+In, +C](location: ContextTrace[In], context: C) extends ContextChange[In, C]
 case object ContextPop extends ContextChange[Nothing, Nothing]

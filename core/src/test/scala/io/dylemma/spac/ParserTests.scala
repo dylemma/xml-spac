@@ -245,12 +245,10 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 
 	describe("Parser # beforeContext") {
 		type In = (Int, String)
-		implicit val DemoStackable: Stackable2[SyncIO, In, String] = new Stackable2[SyncIO, In, String] {
-			def interpret = Transformer[SyncIO, In].op {
-				case e@(i, s) if i > 0 => Emit(Right(e), Left(ContextPush(ContextTrace(Chain.nil), s)))
-				case e@(i, s) if i < 0 => Emit(Left(ContextPop), Right(e))
-				case e => Emit.one(Right(e))
-			}
+		implicit val DemoStackable: Stackable2[In, String] = {
+			case e@(i, s) if i > 0 => ContextPush(ContextTrace(Chain.nil), s).afterInput
+			case e@(i, _) if i < 0 => ContextPop.beforeInput
+			case e => StackInterpretation.NoChange
 		}
 		val matcher = new SingleItemContextMatcher.Predicate[String](_ == "one") \ new SingleItemContextMatcher.Predicate[String](_ == "two")
 
@@ -280,5 +278,117 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 				0 -> "end"
 			)).unsafeRunSync() shouldEqual List("A", "one")
 		}
+	}
+
+	describe("Parser # followedBy / followedByStream") {
+
+		// shared Stackable instances for the tests
+		val NoStackChanges: Stackable2[Int, Nothing] = _ => StackInterpretation.NoChange
+		val StackOnTens: Stackable2[Int, Int] = { i =>
+			if (i % 10 == 0) {
+				if (i > 0) ContextPush(ContextTrace(Chain.nil), i).afterInput
+				else if (i < 0) ContextPop.beforeInput
+				else StackInterpretation.NoChange
+			} else StackInterpretation.NoChange
+		}
+
+		it ("should start the follow-up parser as soon as the base parser returns a result") {
+			implicit val testStackable: Stackable2[Int, Nothing] = NoStackChanges
+			val base = Parser[SyncIO, Int].first
+
+			val parser = base.followedBy { i => Transformer[SyncIO, Int].map(_ * i) :> Parser.toList }
+			parser.parseSeq(List(1, 2, 3, 4)).unsafeRunSync() shouldEqual List(2, 3, 4)
+			parser.parseSeq(List(2, 3, 4, 5)).unsafeRunSync() shouldEqual List(6, 8, 10)
+
+			val transformer = base.followedByStream { i => Transformer[SyncIO, Int].map(_ * i) }
+			(transformer :> Parser.toList).parseSeq(List(1, 2, 3, 4)).unsafeRunSync() shouldEqual List(2, 3, 4)
+			(transformer :> Parser.toList).parseSeq(List(2, 3, 4, 5)).unsafeRunSync() shouldEqual List(6, 8, 10)
+		}
+
+		it ("should feed the stack-accumulating events to the follow-up parser before continuing") {
+			implicit val testStackable: Stackable2[Int, Int] = StackOnTens
+
+			val match10 = new SingleItemContextMatcher.Predicate[Int](_ == 10)
+			val base = Splitter[SyncIO, Int](match10).first.into(_ => Transformer[SyncIO, Int].take(3) :> Parser.toList)
+			val input = List(
+				1, 2, 3, 4, // all of this should end up ignored by the `base`
+				10, // context push to start the base off, plus the follow-up should see this during the reply
+				5, 6, 7, // first 3 in the context should be captured by the base
+				9, 8, 7, // these should be sent to the follow-up after replaying the 10
+			)
+
+			val parser = base.followedBy(initialList => Parser[SyncIO, Int].toList.map(initialList -> _))
+			parser.parseSeq(input).unsafeRunSync() shouldEqual {
+				List(5, 6, 7) -> List(10, 9, 8, 7)
+			}
+
+			val transformer = base.followedByStream(initialList => Transformer[SyncIO, Int].map(initialList -> _))
+			(transformer :> Parser.toList).parseSeq(input).unsafeRunSync() shouldEqual List(
+				List(5, 6, 7) -> 10,
+				List(5, 6, 7) -> 9,
+				List(5, 6, 7) -> 8,
+				List(5, 6, 7) -> 7
+			)
+		}
+
+		it ("should properly accumulate the stack for replaying to the follow-up") {
+			implicit val testStackable: Stackable2[Int, Int] = StackOnTens
+
+			val base = Transformer[SyncIO, Int].filter(_ == 42) :> Parser.first
+			val input = List(
+				10, 20, -20, -10, // at this point the stack should go back to Nil
+				10, 11, 20, 21, 30, 31, // the 10, 20, and 30 should be saved on the stack and get replayed to the follow-up
+				40, -40, // just some extra push+pop of the stack
+				42, // finish the base parser
+				1, 2, 3, // some junk for the follow-up to grab
+			)
+
+			val parser = base.followedBy(_ => Parser.toList)
+			parser.parseSeq(input).unsafeRunSync() shouldEqual {
+				List(10, 20, 30, 1, 2, 3)
+			}
+
+			val transformer = base.followedByStream(i => Transformer[SyncIO, Int].map(i - _))
+			(transformer :> Parser.toList).parseSeq(input).unsafeRunSync() shouldEqual {
+				List(32, 22, 12, 41, 40, 39)
+			}
+		}
+
+		it ("should be able to end the follow-up parser if that parser would finish during the stack replay") {
+			implicit val testStackable: Stackable2[Int, Int] = StackOnTens
+
+			val base = Transformer[SyncIO, Int].filter(_ == 42) :> Parser.firstOpt
+
+			val parser = base.followedBy(_ => Parser.firstOpt)
+			parser.parseSeq(List(10, 42, 11)).unsafeRunSync() shouldEqual Some(10)
+			parser.parseSeq(List(42, 11)).unsafeRunSync() shouldEqual Some(11)
+		}
+
+		it ("should `finish` the follow-up parser immediately if the base parser consumes the whole input and there is no stack") {
+			implicit val testStackable: Stackable2[Int, Int] = StackOnTens
+
+			val base = Transformer[SyncIO, Int].filter(_ == 42) :> Parser.firstOpt
+			val parser = base.followedBy(_ => Parser.firstOpt)
+
+			parser.parseSeq(List(1, 2, 3, 42)).unsafeRunSync() shouldEqual None
+		}
+
+		it ("should allow chaining of the followedBy relationship") {
+			implicit val testStackable: Stackable2[Int, Int] = NoStackChanges
+			val find42 = Transformer[SyncIO, Int].filter(_ == 42) :> Parser.firstOpt
+			val find69 = Transformer[SyncIO, Int].filter(_ == 69) :> Parser.firstOpt
+			val getFirst = Parser[SyncIO].firstOpt[Int]
+
+			val parser = find42.followedBy(_42 => find69.followedBy(_69 => getFirst))
+			val parserAltSyntax = for {
+				_42 <- find42.followedBy
+				_96 <- find69.followedBy
+				firstOpt <- getFirst
+			} yield firstOpt
+			val input = List(1, 2, 3, 42, 5, 69, 7)
+			parser.parse(input).unsafeRunSync() shouldEqual Some(7)
+			parserAltSyntax.parse(input).unsafeRunSync() shouldEqual Some(7)
+		}
+
 	}
 }

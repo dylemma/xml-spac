@@ -1,7 +1,16 @@
-package io.dylemma.spac.types
+package io.dylemma.spac
+package types
 
-import io.dylemma.spac.{ContextChange, Transformer}
+import cats.Applicative
 
-trait Stackable2[F[+_], In, +Elem] {
-	def interpret: Transformer[F, In, Either[ContextChange[In, Elem], In]]
+trait Stackable2[In, +Elem] {
+	def interpretOne(input: In): StackInterpretation[In, Elem]
+
+	def interpret[F[+_]: Applicative]: Transformer[F, In, Either[ContextChange[In, Elem], In]] = Transformer[F, In].op { in =>
+		interpretOne(in) match {
+			case StackInterpretation.NoChange => Emit.one(Right(in))
+			case StackInterpretation.ChangedAfterInput(change) => Emit(Right(in), Left(change))
+			case StackInterpretation.ChangedBeforeInput(change) => Emit(Left(change), Right(in))
+		}
+	}
 }

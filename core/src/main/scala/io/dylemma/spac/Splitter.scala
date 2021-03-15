@@ -24,14 +24,21 @@ trait Splitter[F[+_], In, C] {
 	def asList(implicit F: Monad[F]) = new SplitterConsumerOps(this, ConsumerK.toList[F])
 }
 object Splitter {
+	def apply[F[+_], C] = new SplitterApplyBound[F, C]
 	implicit def consume[F[+_], In, C](splitter: Splitter[F, In, C]) = new SplitterConsumerOps(splitter, ConsumerK.identity[F])
+
+	def fromMatcher[F[+_], In, Elem, C](matcher: ContextMatcher[Elem, C])(implicit F: Monad[F], S: Stackable2[In, Elem]): Splitter[F, In, C] = new ContextMatchSplitter(matcher)
+}
+
+class SplitterApplyBound[F[+_], In] {
+	def apply[Elem, C](matcher: ContextMatcher[Elem, C])(implicit F: Monad[F], S: Stackable2[In, Elem]): Splitter[F, In, C] = Splitter.fromMatcher(matcher)
 }
 
 class ContextMatchSplitter[F[+_], In, Elem, C]
 	(matcher: ContextMatcher[Elem, C])
-	(implicit inAsStack: Stackable2[F, In, Elem], F: Monad[F])
+	(implicit inAsStack: Stackable2[In, Elem], F: Monad[F])
 extends Splitter[F, In, C] {
-	def addBoundaries: Transformer[F, In, Either[ContextChange[In, C], In]] = inAsStack.interpret >> StackMatchSplitter(matcher)
+	def addBoundaries: Transformer[F, In, Either[ContextChange[In, C], In]] = inAsStack.interpret[F] >> StackMatchSplitter(matcher)
 }
 
 class SplitterConsumerOps[F[+_], In, P[_[_], _, _], Ev[_], C](

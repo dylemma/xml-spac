@@ -141,28 +141,15 @@ object XmlEvent {
 	/** Interpreter that decides how to treat XmlEvents as ContextPush and ContextPop,
 	  * and in what order the context changes should occur relative to their trigger events.
 	  */
-	implicit def xmlEventStackable[F[+_]: Applicative]: Stackable2[F, XmlEvent, ElemStart] = new Stackable2[F, XmlEvent, ElemStart] {
-		def interpret = new XmlStackTransformer[F]
-	}
+	implicit val xmlEventStackable: Stackable2[XmlEvent, ElemStart] = {
+		case start: ElemStart =>
+			// ElemStart pushes a context BEFORE being processed
+			ContextPush(ContextTrace(Chain.one(start.location -> start)), start).beforeInput
 
-	class XmlStackTransformer[F[+_]](implicit F: Applicative[F]) extends Transformer[F, XmlEvent, Either[ContextChange[XmlEvent, ElemStart], XmlEvent]] {
-		def step(in: XmlEvent): F[(Emit[Either[ContextChange[XmlEvent, ElemStart], XmlEvent]], Option[Transformer[F, XmlEvent, Either[ContextChange[XmlEvent, ElemStart], XmlEvent]]])] = {
-			in match {
-				// ElemStart pushes a context BEFORE being processed
-				case start: ElemStart =>
-					val push = ContextPush(ContextTrace(Chain.one(in.location -> in)), start)
-					val toEmit = Chain(Left(push), Right(in))
-					F.pure(toEmit -> Some(this))
+		case _: ElemEnd =>
+			// ElemEnd pops from the context AFTER being processed
+			ContextPop.afterInput
 
-				// ElemEnd pops from the context AFTER being processed
-				case _: ElemEnd =>
-					val toEmit = Chain(Right(in), Left(ContextPop))
-					F.pure(toEmit -> Some(this))
-
-				case in =>
-					F.pure(Chain.one(Right(in)) -> Some(this))
-			}
-		}
-		def finish: F[Emit[Either[ContextChange[XmlEvent, ElemStart], XmlEvent]]] = F.pure(Chain.nil)
+		case _ => StackInterpretation.NoChange
 	}
 }
