@@ -11,4 +11,4 @@ jobs:
       - name: Setup Scala
         uses: olafurpg/setup-scala@v10
       - name: Build and Test
-        runs: sbt -v +test
+        run: sbt -v +test
