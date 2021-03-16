@@ -3,9 +3,10 @@ package io.dylemma.spac.xml
 import io.dylemma.spac.old.xml._
 import io.dylemma.spac.xml.TestUtils.mockElem
 import javax.xml.namespace.QName
-import org.scalatest.{FunSpec, Matchers}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
-class ContextMatcherTests extends FunSpec with Matchers {
+class ContextMatcherTests extends AnyFunSpec with Matchers {
 
 	private val _isDefined = Symbol("isDefined")
 	private val _isEmpty = Symbol("isEmpty")

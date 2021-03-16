@@ -4,11 +4,12 @@ import io.dylemma.spac.old._
 import io.dylemma.spac.old.xml._
 import javax.xml.stream.XMLStreamException
 import javax.xml.stream.events.XMLEvent
-import org.scalatest.{FunSpec, Matchers}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.util.{Failure, Success}
 
-class ParserTests extends FunSpec with Matchers {
+class ParserTests extends AnyFunSpec with Matchers {
 
 	protected def testParserResult[R](rawXml: String, parser: XMLParser[R], expected: R) = {
 		val result = parser parse rawXml

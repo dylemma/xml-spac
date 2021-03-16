@@ -3,11 +3,12 @@ package io.dylemma.spac.xml
 import java.io.{ByteArrayInputStream, Reader, StringReader}
 
 import io.dylemma.spac.old.xml._
-import org.scalatest.{FunSpec, Matchers}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.io.{BufferedSource, Source}
 
-class XMLResourceTests extends FunSpec with Matchers {
+class XMLResourceTests extends AnyFunSpec with Matchers {
 	describe("XMLResource") {
 		it("should be available for File") {
 			"implicitly[XMLResource[java.io.File]]" should compile

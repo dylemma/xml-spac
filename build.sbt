@@ -1,10 +1,14 @@
 lazy val commonSettings = Seq(
 	version := "0.8",
 	scalaVersion := "2.13.0",
-	crossScalaVersions := Seq("2.10.6", "2.11.11", "2.12.2", "2.13.0"),
+	crossScalaVersions := Seq("2.12.10", "2.13.5"),
 	scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-language:higherKinds"),
+	scalacOptions ++= (scalaBinaryVersion.value match {
+		case "2.12" => Seq("-Ypartial-unification")
+		case _ => Nil
+	}),
 	organization := "io.dylemma",
-	addCompilerPlugin("org.typelevel" % "kind-projector" % "0.11.0" cross CrossVersion.full),
+	addCompilerPlugin("org.typelevel" % "kind-projector" % "0.11.3" cross CrossVersion.full),
 )
 
 lazy val catsCore = "org.typelevel" %% "cats-core" % "2.1.0"

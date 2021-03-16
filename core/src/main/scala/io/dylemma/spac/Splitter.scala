@@ -41,7 +41,7 @@ extends Splitter[F, In, C] {
 	def addBoundaries: Transformer[F, In, Either[ContextChange[In, C], In]] = inAsStack.interpret[F] >> StackMatchSplitter(matcher)
 }
 
-class SplitterConsumerOps[F[+_], In, P[_[_], _, _], Ev[_], C](
+class SplitterConsumerOps[F[+_], In, P[_[+_], _, _], Ev[_], C](
 	val self: Splitter[F, In, C],
 	val consumerK: ConsumerK[F, P, Ev]
 ) {

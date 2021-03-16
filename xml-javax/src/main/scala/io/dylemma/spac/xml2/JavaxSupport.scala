@@ -18,9 +18,10 @@ import javax.xml.stream.XMLInputFactory
 object JavaxSupport {
 	implicit def xmlStreamReadableAsImpureXmlPull[F[+_], R](implicit F: Sync[F], intoXmlStreamReader: IntoXmlStreamReader[F, R], factory: XMLInputFactory = defaultFactory): ToPullable[F, R, XmlEvent] = new ToPullable[F, R, XmlEvent] {
 		def apply(source: R): Resource[F, Pullable[F, XmlEvent]] = {
-			val readerResource: Resource[F, WrappedStreamReader] = intoXmlStreamReader(factory, source).flatMap { streamReader =>
-				Resource.fromAutoCloseable(F.delay {new WrappedStreamReader(streamReader)})
-			}
+			val readerResource: Resource[F, WrappedStreamReader] = intoXmlStreamReader(factory, source)
+				.flatMap[F[*], WrappedStreamReader] { streamReader => // the explicit type hint seems to be necessary on scala 2.12
+					Resource.fromAutoCloseable(F.delay {new WrappedStreamReader(streamReader)})
+				}
 			WrappedStreamReader.resourceAsXmlPull(readerResource)
 		}
 	}

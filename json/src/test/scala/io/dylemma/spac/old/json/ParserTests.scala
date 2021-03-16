@@ -1,9 +1,10 @@
 package io.dylemma.spac.old.json
 
 import io.dylemma.spac.old.Parser
-import org.scalatest.{FunSpec, Matchers}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
-class ParserTests extends FunSpec with Matchers {
+class ParserTests extends AnyFunSpec with Matchers {
 
 	def basicParser[A](successType: String, parser: JsonParser[A], successInput: String, expected: A): Unit = {
 		val failInputs = List(

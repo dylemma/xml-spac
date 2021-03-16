@@ -1,9 +1,10 @@
 package io.dylemma.spac.xml
 
 import io.dylemma.spac.old.xml._
-import org.scalatest.{FunSpec, Matchers}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
-class XmlTransformerTests extends FunSpec with Matchers {
+class XmlTransformerTests extends AnyFunSpec with Matchers {
 	describe("Transformer.transform"){
 		it("should work with arbitrary XML transforms from splitters"){
 			val raw = "<a><b>hello</b><b>goodbye</b><b>so long...</b></a>"

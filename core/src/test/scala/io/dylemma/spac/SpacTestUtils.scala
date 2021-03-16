@@ -29,28 +29,32 @@ trait SpacTestUtils {
 		}
 	}
 
-	def countPullsIn[C[_]: Unconsable, A](seq: C[A])(sideEffect: UnconsCountingWrappedSequence[C, A] => Unit): Int = {
-		val wrappedSeq = new UnconsCountingWrappedSequence(seq)
+	def countPullsIn[C[_]: Unconsable, A](seq: C[A])(sideEffect: UnconsCountingWrappedSequence[A] => Unit): Int = {
+		val wrappedSeq = new UnconsCountingWrappedSequence.Instance(seq)
 		sideEffect(wrappedSeq)
 		wrappedSeq.unconsCount
 	}
-	case class UnconsCountingWrappedSequence[C[_]: Unconsable, A](original: C[A]) {
-		private var _unconsCounter = 0
-		private var _current: Option[C[A]] = Some(original)
-		def unconsCount = _unconsCounter
-		def doUncons() = {
-			_unconsCounter += 1
-			_current.flatMap { seq =>
-				val innerUncons = Unconsable[C].uncons(seq)
-				_current = innerUncons.map(_._2)
-				innerUncons map { _._1 -> this }
-			}
-		}
+	trait UnconsCountingWrappedSequence[A] {
+		def unconsCount: Int
+		def doUncons(): Option[(A, UnconsCountingWrappedSequence[A])]
 	}
 	object UnconsCountingWrappedSequence {
-		implicit def asUnconsable[C[_]: Unconsable]: Unconsable[UnconsCountingWrappedSequence[C, *]] = {
-			new Unconsable[UnconsCountingWrappedSequence[C, *]] {
-				def uncons[A](coll: UnconsCountingWrappedSequence[C, A]) = coll.doUncons()
+		implicit def asUnconsable: Unconsable[UnconsCountingWrappedSequence] = {
+			new Unconsable[UnconsCountingWrappedSequence] {
+				def uncons[A](coll: UnconsCountingWrappedSequence[A]) = coll.doUncons()
+			}
+		}
+		class Instance[C[_], A](original: C[A])(implicit C: Unconsable[C]) extends UnconsCountingWrappedSequence[A] {
+			private var _unconsCounter = 0
+			private var _current: Option[C[A]] = Some(original)
+			def unconsCount = _unconsCounter
+			def doUncons() = {
+				_unconsCounter += 1
+				_current.flatMap { seq =>
+					val innerUncons = Unconsable[C].uncons(seq)
+					_current = innerUncons.map(_._2)
+					innerUncons map { _._1 -> this }
+				}
 			}
 		}
 	}

@@ -1,7 +1,6 @@
-package io.dylemma.spac
+package io.dylemma.spac.old
 
 import io.dylemma.spac.old.handlers.ManualFinish
-import io.dylemma.spac.old.{Handler, Parser, Splitter, Transformer}
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 

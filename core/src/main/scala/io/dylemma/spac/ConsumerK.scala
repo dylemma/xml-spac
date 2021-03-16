@@ -5,7 +5,7 @@ import cats.{Monad, NotNull}
 import scala.reflect.ClassTag
 
 
-trait ConsumerK[F[+_], P[_[_], _, _], Ev[_]] {
+trait ConsumerK[F[+_], P[_[+_], _, _], Ev[_]] {
 	def apply[In, A: Ev](transformer: Transformer[F, In, A]): P[F, In, A]
 }
 

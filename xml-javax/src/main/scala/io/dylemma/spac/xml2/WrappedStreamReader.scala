@@ -6,14 +6,15 @@ import javax.xml.namespace.QName
 import javax.xml.stream.{Location, XMLStreamReader}
 
 object WrappedStreamReader {
-	def resourceAsXmlPull[F[+_]](resource: Resource[F, WrappedStreamReader])(implicit F: Sync[F]): Resource[F, Pullable[F, XmlEvent]] = resource.map { reader =>
-		new Pullable[F, XmlEvent] { self =>
-			def uncons: F[Option[(XmlEvent, Pullable[F, XmlEvent])]] = F.delay {
-				if(reader.hasNext) Some(reader.next() -> self)
-				else None
+	def resourceAsXmlPull[F[+_]](resource: Resource[F, WrappedStreamReader])(implicit F: Sync[F]): Resource[F, Pullable[F, XmlEvent]] = resource
+		.map[F[*], Pullable[F, XmlEvent]] { reader => // the type hint on `.map` seems to be necessary in scala 2.12
+			new Pullable[F, XmlEvent] { self =>
+				def uncons: F[Option[(XmlEvent, Pullable[F, XmlEvent])]] = F.delay {
+					if(reader.hasNext) Some(reader.next() -> self)
+					else None
+				}
 			}
 		}
-	}
 }
 
 class WrappedStreamReader(reader: XMLStreamReader) extends Iterator[XmlEvent] with AutoCloseable {

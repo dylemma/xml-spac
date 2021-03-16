@@ -1,12 +1,13 @@
 package io.dylemma.spac.old.json
 
-import java.io.{ByteArrayInputStream, Reader, StringReader}
+import java.io.{ByteArrayInputStream, StringReader}
 
-import org.scalatest.{FunSpec, Matchers}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.io.{BufferedSource, Source}
 
-class JsonResourceTests extends FunSpec with Matchers {
+class JsonResourceTests extends AnyFunSpec with Matchers {
 	describe("JsonResource") {
 		it("should be available for File") {
 			"implicitly[JsonResource[java.io.File]]" should compile
