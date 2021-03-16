@@ -1,0 +1,14 @@
+name: CI
+on:
+  pull_request:
+  push:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+      - name: Setup Scala
+        uses: olafurpg/setup-scala@v10
+      - name: Build and Test
+        runs: sbt -v +test
