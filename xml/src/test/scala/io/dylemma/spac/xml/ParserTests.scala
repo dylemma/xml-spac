@@ -150,18 +150,24 @@ class ParserTests extends AnyFunSpec with Matchers {
 	describe("Parser.and") {
 		it("should combine successful results of the combined parsers"){
 			val rawXml = """<foo a="123">hello world</foo>"""
+			/*
 			val preCombined = XMLParser.forMandatoryAttribute("a") and XMLParser.forText
 
 			testParserResult(rawXml, preCombined.asTuple, "123" -> "hello world")
 			testParserResult(rawXml, preCombined.as(_ + _), "123hello world")
+			*/
+			pending
 		}
 
 		it("should result in an Error when any of the combined parsers does"){
+			/*
 			val parser = (XMLParser.forMandatoryAttribute("a").map(_.toInt) and XMLParser.forText).asTuple
 			val xml = """<foo a="abc">hello world</foo>"""
 			an[Exception] should be thrownBy {
 				parser parse xml
 			}
+			*/
+			pending
 		}
 
 		it("should pass the same context value to its inner parsers if it requires a context"){
@@ -170,6 +176,7 @@ class ParserTests extends AnyFunSpec with Matchers {
 			val splitter: XMLSplitter[A] = XMLSplitter(attr("a").map(_ => new A))
 			val rawXml = """<foo a="123"><x>Hello</x><y>Goodbye</y></foo>"""
 			// the two inner parsers should receive the same 'A' instance passed to this parser from a splitter
+			/*
 			def parseAText(context: A, elem: String) = {
 				(Parser.constant(context) and XMLSplitter(* \ elem).first.asText).as(AText)
 			}
@@ -179,6 +186,8 @@ class ParserTests extends AnyFunSpec with Matchers {
 			testParserResultLike(rawXml, splitter.first(combinedContextualParser)){
 				case (x, y) => x.a === y.a
 			}
+			*/
+			pending
 		}
 	}
 
@@ -186,9 +195,12 @@ class ParserTests extends AnyFunSpec with Matchers {
 		it("should combine results of the combined consumers"){
 			val c1 = Parser.first[Int].map(_ * 2)
 			val c2 = Parser.first[Int].map(_ * 3)
+			/*
 			val cc = (c1 and c2).asTuple
 
 			cc.parse(List(2)) should be(4 -> 6)
+			*/
+			pending
 		}
 	}
 

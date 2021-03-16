@@ -1,14 +1,15 @@
+ThisBuild / organization := "io.dylemma"
+ThisBuild / version := "0.8"
+ThisBuild / scalaVersion := "2.13.0"
+ThisBuild / crossScalaVersions := Seq("2.12.10", "2.13.5")
+
 lazy val commonSettings = Seq(
-	version := "0.8",
-	scalaVersion := "2.13.0",
-	crossScalaVersions := Seq("2.12.10", "2.13.5"),
-	scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-language:higherKinds"),
-	scalacOptions ++= (scalaBinaryVersion.value match {
+	ThisBuild / scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-language:higherKinds"),
+	ThisBuild / scalacOptions ++= (scalaBinaryVersion.value match {
 		case "2.12" => Seq("-Ypartial-unification")
 		case _ => Nil
 	}),
-	organization := "io.dylemma",
-	addCompilerPlugin("org.typelevel" % "kind-projector" % "0.11.3" cross CrossVersion.full),
+	addCompilerPlugin("org.typelevel" % "kind-projector" % "0.11.3" cross CrossVersion.full)
 )
 
 lazy val catsCore = "org.typelevel" %% "cats-core" % "2.1.0"
@@ -27,7 +28,6 @@ lazy val testSettings = Seq(
 )
 
 lazy val core = (project in file("core"))
-	.enablePlugins(spray.boilerplate.BoilerplatePlugin)
 	.settings(name := "spac-core")
 	.settings(commonSettings: _*)
 	.settings(testSettings: _*)
@@ -35,7 +35,7 @@ lazy val core = (project in file("core"))
 	.settings(publishingSettings: _*)
 	.settings(
 		libraryDependencies += catsCore,
-		libraryDependencies += catsEffect, // maybe only necessary for representing streams?
+		libraryDependencies += catsEffect,
 	)
 
 lazy val coreFs2 = (project in file("core-fs2"))
@@ -86,7 +86,7 @@ lazy val examples = (project in file("examples"))
 	.dependsOn(core, coreFs2, xml, xmlJavax)
 
 lazy val root = (project in file("."))
-	.aggregate(core, xml, json, xmlJavax)
+	.aggregate(core, coreFs2, xml, json, xmlJavax)
 	.settings(
 		publish := {},
 		publishArtifact := false

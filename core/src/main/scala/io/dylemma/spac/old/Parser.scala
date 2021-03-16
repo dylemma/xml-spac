@@ -89,7 +89,7 @@ trait Parser[-In, +Out] extends (Any => Parser[In, Out]) { self =>
 	  * @tparam O2 The output type of the other Parser
 	  * @return An intermediate oject with `as` and `asTuple` methods that finish the combination
 	  */
-	def and[I2 <: In, O2](other: Parser[I2, O2]): ParserCombination[I2]#Combined2[Out, O2] = new ParserCombination[I2]().combine(self, other)
+	//def and[I2 <: In, O2](other: Parser[I2, O2]): ParserCombination[I2]#Combined2[Out, O2] = new ParserCombination[I2]().combine(self, other)
 
 	/** Operator version of `and`
 	  *
@@ -98,7 +98,7 @@ trait Parser[-In, +Out] extends (Any => Parser[In, Out]) { self =>
 	  * @tparam O2
 	  * @return
 	  */
-	def ~[I2 <: In, O2](other: Parser[I2, O2]): ParserCombination[I2]#Combined2[Out, O2] = new ParserCombination[I2]().combine(self, other)
+	//def ~[I2 <: In, O2](other: Parser[I2, O2]): ParserCombination[I2]#Combined2[Out, O2] = new ParserCombination[I2]().combine(self, other)
 
 	/** Creates a sequence handler by combining this one and a `getNext` function such that when this
 	  * handler finishes, a second handler is created by passing its result ot `getNext`.
