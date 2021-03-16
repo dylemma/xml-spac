@@ -8,7 +8,7 @@ import cats.implicits._
 case class ParserOrElseList[F[+_], In, Out](state: List[Either[Throwable, Parser[F, In, Out]]])(implicit F: MonadError[F, Throwable]) extends Parser[F, In, Out] {
 
 	def step(in: In): F[Either[Out, Parser[F, In, Out]]] = {
-		F.tailRecM(RecState(state, Nil))(_.stepForTailRecM(in)).map(_.map(new ParserOrElseList(_)))
+		F.tailRecM(RecState(state, Nil))(_.stepForTailRecM(in)).map(_.map(ParserOrElseList(_)))
 	}
 	def finish: F[Out] = {
 		F.tailRecM(RecState(state, Nil))(_.finishForTailRecM)

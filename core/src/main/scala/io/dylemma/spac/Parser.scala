@@ -13,7 +13,30 @@ import scala.util.Try
 
 trait Parser[F[+_], -In, +Out] { self =>
 
+	/** Advance the state of this parser by accepting a single input of type `In`.
+	  * If doing so would cause this parser to complete, return a `Left` containing the output.
+	  * Otherwise, return a `Right` containing the next parser state.
+	  *
+	  * Note that while the return type of this method is wrapped in the `F` effect type,
+	  * the actual work of this method need not necessarily happen as an "effect" within the F context.
+	  * It is acceptable to perform computations and then simply return `F.pure(result)`.
+	  * The expectation is that this method will only be called while already inside the F context,
+	  * e.g. via `stepMany`, which uses `F.tailRecM`, or via the `parse` methods, which also use `F.tailRecM`.
+	  * This is a slight concession in order to discourage Parser implementations from doing things like
+	  * `F.pure(in).map { /* actual work here */ }`
+	  *
+	  * @param in
+	  * @return either the final result of the parser, or the parser's next state
+	  */
 	def step(in: In): F[Either[Out, Parser[F, In, Out]]]
+
+	/** Finish this parser by accepting an "end of stream" signal.
+	  * All parsers *must* produce a value of type `Out` with this method, or else raise an error in the F context.
+	  *
+	  * As with `step`, the actual work of this method need not necessarily happen within the F context.
+	  *
+	  * @return the final result of this parser
+	  */
 	def finish: F[Out]
 
 	def map[Out2](f: Out => Out2)(implicit F: Functor[F]): Parser[F, In, Out2] = new ParserMapped(this, f)

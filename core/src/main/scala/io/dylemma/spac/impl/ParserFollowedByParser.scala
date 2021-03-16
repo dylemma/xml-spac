@@ -12,7 +12,7 @@ class ParserFollowedByParser[F[+_], In, A, S, Out](
 	stacking: Stackable2[In, Any]
 )(implicit F: Monad[F]) extends Parser[F, In, Out] {
 
-	def step(_in: In): F[Either[Out, Parser[F, In, Out]]] = F.pure(_in).flatMap { in =>
+	def step(in: In): F[Either[Out, Parser[F, In, Out]]] = {
 		// first, determine if we need to push or pop a value from the `stackEvents
 		val nextStackEvents = stacking.interpretOne(in) match {
 			case StackInterpretation.AnyChange(change) =>
