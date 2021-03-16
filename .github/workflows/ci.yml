@@ -9,6 +9,8 @@ jobs:
         uses: actions/checkout@v1
       - name: Setup Scala
         uses: olafurpg/setup-scala@v10
+      - name: Coursier cache
+        uses: coursier/cache-action@v5
       - name: Build and Test
         run: |
           sbt -v +test
