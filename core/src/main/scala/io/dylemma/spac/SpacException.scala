@@ -1,14 +1,13 @@
 package io.dylemma.spac
 
 import cats.data.NonEmptyList
-
-import scala.reflect.ClassTag
+import org.tpolecat.typename._
 
 trait SpacException extends Exception
 
 object SpacException {
-	class MissingFirstException[Out: ClassTag]
-		extends NoSuchElementException(s"No ${ implicitly[ClassTag[Out]] } was encountered before the end of its input.")
+	class MissingFirstException[Out: TypeName]
+		extends NoSuchElementException(s"No ${ typeName[Out] } was encountered before the end of its input.")
 			with SpacException
 
 	class UnexpectedInputException[A](val input: A, val expectations: NonEmptyList[String])

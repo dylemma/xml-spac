@@ -5,10 +5,10 @@ import cats.effect.Bracket
 import cats.{Applicative, ApplicativeError, Defer, Functor, Monad, MonadError}
 import io.dylemma.spac.impl._
 import io.dylemma.spac.types.Unconsable
+import org.tpolecat.typename.TypeName
 import types.Stackable2
 
 import scala.collection.mutable
-import scala.reflect.ClassTag
 import scala.util.Try
 
 trait Parser[F[+_], -In, +Out] { self =>
@@ -77,6 +77,13 @@ trait Parser[F[+_], -In, +Out] { self =>
 		}
 	}
 
+	def parseSeq[C[_], In2 <: In](source: C[In2])(implicit srcAsSeq: Unconsable[C], F: Monad[F]): F[Out] = {
+		F.flatMap(stepMany(source)) {
+			case Left((out, leftovers)) => F.pure(out)
+			case Right(cont) => cont.finish
+		}
+	}
+
 	def parse[Src](source: Src)(implicit srcToPullable: ToPullable[F, Src, In], F: Monad[F], Fb: Bracket[F, Throwable]): F[Out] = {
 		srcToPullable(source).use { srcPullable =>
 			F.tailRecM(srcPullable -> this) { case (inputs, parser) =>
@@ -93,19 +100,7 @@ trait Parser[F[+_], -In, +Out] { self =>
 		}
 	}
 
-	def parseSeq[C[_], In2 <: In](source: C[In2])(implicit srcAsSeq: Unconsable[C], F: Monad[F]): F[Out] = {
-		F.tailRecM(source -> this) { case (inputs, parser) =>
-			srcAsSeq.uncons(inputs) match {
-				case Some((in, nextInputs)) =>
-					F.map(parser.step(in)) {
-						case Left(result) => Right(result)
-						case Right(nextParser) => Left(nextInputs -> nextParser)
-					}
-				case None =>
-					F.map(parser.finish)(Right(_))
-			}
-		}
-	}
+
 }
 
 class ParserApplyWithBoundEffect[F[+_]] {
@@ -114,7 +109,7 @@ class ParserApplyWithBoundEffect[F[+_]] {
 	def app[In](implicit F: Monad[F]): Applicative[Parser[F, In, *]] = Parser.parserApplicative
 	def firstOpt[In](implicit F: Applicative[F]): Parser[F, In, Option[In]] = Parser.firstOpt
 	def firstOrError[In, Err](ifNone: Err)(implicit F: MonadError[F, Err]): Parser[F, In, In] = Parser.firstOrError(ifNone)
-	def first[In](implicit F: MonadError[F, Throwable], tag: ClassTag[In]): Parser[F, In, In] = Parser.first
+	def first[In](implicit F: MonadError[F, Throwable], In: TypeName[In]): Parser[F, In, In] = Parser.first
 	def find[In](predicate: In => Boolean)(implicit F: Applicative[F]): Parser[F, In, Option[In]] = Parser.find(predicate)
 	def findEval[In](predicate: In => F[Boolean])(implicit F: Monad[F]): Parser[F, In, Option[In]] = Parser.findEval(predicate)
 	def fold[In, Out](init: Out)(op: (Out, In) => Out)(implicit F: Applicative[F]): Parser[F, In, Out] = Parser.fold(init)(op)
@@ -130,7 +125,7 @@ class ParserApplyBound[F[+_], In] {
 	def app(implicit F: Monad[F]): Applicative[Parser[F, In, *]] = Parser.parserApplicative
 	def firstOpt(implicit F: Applicative[F]): Parser[F, In, Option[In]] = Parser.firstOpt
 	def firstOrError[Err](ifNone: Err)(implicit F: MonadError[F, Err]): Parser[F, In, In] = Parser.firstOrError(ifNone)
-	def first(implicit F: MonadError[F, Throwable], tag: ClassTag[In]): Parser[F, In, In] = Parser.first
+	def first(implicit F: MonadError[F, Throwable], In: TypeName[In]): Parser[F, In, In] = Parser.first
 	def find(predicate: In => Boolean)(implicit F: Applicative[F]): Parser[F, In, Option[In]] = Parser.find(predicate)
 	def findEval(predicate: In => F[Boolean])(implicit F: Monad[F]): Parser[F, In, Option[In]] = Parser.findEval(predicate)
 	def fold[Out](init: Out)(op: (Out, In) => Out)(implicit F: Applicative[F]): Parser[F, In, Out] = Parser.fold(init)(op)
@@ -148,7 +143,7 @@ class ParserApplyWithBoundInput[In] {
 	def app[F[+_] : Monad]: Applicative[Parser[F, In, *]] = Parser.parserApplicative
 	def firstOpt[F[+_] : Applicative]: Parser[F, In, Option[In]] = Parser.firstOpt
 	def firstOrError[F[+_], Err](ifNone: Err)(implicit F: MonadError[F, Err]): Parser[F, In, In] = Parser.firstOrError(ifNone)
-	def first[F[+_]](implicit F: MonadError[F, Throwable], In: ClassTag[In]): Parser[F, In, In] = Parser.first
+	def first[F[+_]](implicit F: MonadError[F, Throwable], In: TypeName[In]): Parser[F, In, In] = Parser.first
 	def find[F[+_] : Applicative](predicate: In => Boolean): Parser[F, In, Option[In]] = Parser.find(predicate)
 	def findEval[F[+_] : Monad](predicate: In => F[Boolean]): Parser[F, In, Option[In]] = Parser.findEval(predicate)
 	def fold[F[+_] : Applicative, Out](init: Out)(op: (Out, In) => Out): Parser[F, In, Out] = Parser.fold(init)(op)
@@ -168,7 +163,7 @@ object Parser {
 
 	def firstOpt[F[+_] : Applicative, In]: Parser[F, In, Option[In]] = new ParseFirstOpt[F, In]
 	def firstOrError[F[+_], In, Err](ifNone: Err)(implicit F: MonadError[F, Err]): Parser[F, In, In] = firstOpt[F, In].errorIfNone(ifNone)
-	def first[F[+_], In](implicit F: MonadError[F, Throwable], tag: ClassTag[In]): Parser[F, In, In] = firstOpt[F, In].errorIfNone[Throwable](new SpacException.MissingFirstException[In])
+	def first[F[+_], In](implicit F: MonadError[F, Throwable], In: TypeName[In]): Parser[F, In, In] = firstOpt[F, In].errorIfNone[Throwable](new SpacException.MissingFirstException[In])
 	def find[F[+_] : Applicative, In](predicate: In => Boolean): Parser[F, In, Option[In]] = new ParserFind(predicate)
 	def findEval[F[+_] : Monad, In](predicate: In => F[Boolean]): Parser[F, In, Option[In]] = new ParserFindEval(predicate)
 	def fold[F[+_] : Applicative, In, Out](init: Out)(op: (Out, In) => Out): Parser[F, In, Out] = new ParserFold(init, op)
@@ -219,7 +214,7 @@ object Parser {
 					faCompound.productWithRhs(fb)
 				case (fa, fb) =>
 					new ParserCompoundN(
-						List(1 -> fa, 0 -> fb),
+						Chain(1 -> fa, 0 -> fb),
 						Map.empty,
 						results => (results(1).asInstanceOf[A], results(0).asInstanceOf[B])
 					)

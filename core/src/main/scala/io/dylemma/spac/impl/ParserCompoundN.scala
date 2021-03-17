@@ -1,11 +1,12 @@
 package io.dylemma.spac
 package impl
 
+import cats.data.Chain
 import cats.implicits._
 import cats.{Functor, Monad}
 
 class ParserCompoundN[F[+_] : Monad, In, Out](
-	private val unfinished: List[(Int, Parser[F, In, Any])],
+	private val unfinished: Chain[(Int, Parser[F, In, Any])],
 	private val finished: Map[Int, Any],
 	private val assemble: (Int => Any) => Out
 ) extends Parser[F, In, Out] {
@@ -22,10 +23,10 @@ class ParserCompoundN[F[+_] : Monad, In, Out](
 	  * index corresponding to that parser's position in the source that constructed this parser.
 	  */
 	def inspect: IndexedSeq[Any Either Parser[F, In, Any]] = {
-		val size = unfinished.size + finished.size
+		val size = unfinished.iterator.size + finished.size
 		val out = new Array[Any Either Parser[F, In, Any]](size)
-		for ((i, p) <- unfinished) out(size - i - 1) = Right(p)
-		for ((i, a) <- finished) out(size - i - 1) = Left(a)
+		for ((i, p) <- unfinished.iterator) out(size - i - 1) = Right(p)
+		for ((i, a) <- finished.iterator) out(size - i - 1) = Left(a)
 		out.toVector
 	}
 
@@ -57,10 +58,10 @@ class ParserCompoundN[F[+_] : Monad, In, Out](
 	  * Since Map's `++` operator seems to be O(N+M),
 	  * we avoid the cost of re-building an identical copy of either m1 or m2
 	  */
-	@inline def lazyConcatMap[A, B](m1: Map[A, B], m2: List[(A, B)]): Map[A, B] = {
+	@inline def lazyConcatMap[A, B](m1: Map[A, B], m2: Chain[(A, B)]): Map[A, B] = {
 		if (m2.isEmpty) m1
-		else if (m1.isEmpty) m2.toMap
-		else m1 ++ m2
+		else if (m1.isEmpty) m2.iterator.toMap
+		else m1 ++ m2.iterator
 	}
 
 	/** Optimization related to Parser's `Applicative`.
@@ -71,7 +72,7 @@ class ParserCompoundN[F[+_] : Monad, In, Out](
 	  * so we end up having fewer instantiations while the parser is running.
 	  */
 	def compoundProductWithLhs[A](fa: ParserCompoundN[F, In, A]): ParserCompoundN[F, In, (A, Out)] = {
-		val offset = unfinished.size + finished.size
+		val offset = unfinished.iterator.size + finished.size
 		val faUnfinished = fa.unfinished.map { case (i, p) => (i + offset, p) }
 		val faFinished = fa.finished.map { case (i, r) => (i + offset, r) }
 		val combinedAssemble = (get: Int => Any) => {
@@ -89,9 +90,9 @@ class ParserCompoundN[F[+_] : Monad, In, Out](
 	  * so we end up having fewer instantiations while the parser is running.
 	  */
 	def productWithLhs[A](fa: Parser[F, In, A]): ParserCompoundN[F, In, (A, Out)] = {
-		val i = unfinished.size + finished.size
+		val i = unfinished.iterator.size + finished.size
 		new ParserCompoundN(
-			(i -> fa) :: unfinished,
+			(i -> fa) +: unfinished,
 			finished,
 			(get: Int => Any) => (get(i).asInstanceOf[A], assemble(get))
 		)
@@ -113,7 +114,7 @@ class ParserCompoundN[F[+_] : Monad, In, Out](
 			out -> a
 		}
 		new ParserCompoundN(
-			(0 -> fa) :: _unfinished,
+			(0 -> fa) +: _unfinished,
 			_finished,
 			_assemble
 		)

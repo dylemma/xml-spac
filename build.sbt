@@ -17,6 +17,7 @@ lazy val catsEffect = "org.typelevel" %% "cats-effect" % "2.1.0"
 lazy val fs2Core = "co.fs2" %% "fs2-core" % "2.2.1"
 lazy val jacksonCore = "com.fasterxml.jackson.core" % "jackson-core" % "2.10.0"
 lazy val jodaTime = "joda-time" % "joda-time" % "2.9.4"
+lazy val typeName = "org.tpolecat" %% "typename" % "0.1.5"
 
 lazy val testSettings = Seq(
 	libraryDependencies ++= Seq(
@@ -33,10 +34,7 @@ lazy val core = (project in file("core"))
 	.settings(testSettings: _*)
 	.settings(apiDocSettings: _*)
 	.settings(publishingSettings: _*)
-	.settings(
-		libraryDependencies += catsCore,
-		libraryDependencies += catsEffect,
-	)
+	.settings(libraryDependencies ++= Seq(catsCore, catsEffect, typeName))
 
 lazy val coreFs2 = (project in file("core-fs2"))
 	.settings(name := "spac-fs2")

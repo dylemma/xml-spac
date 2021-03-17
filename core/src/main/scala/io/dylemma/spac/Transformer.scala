@@ -52,6 +52,7 @@ object Transformer {
 	def filter[F[+_]: Applicative, In](f: In => Boolean): Transformer[F, In, In] = op { in => if (f(in)) Emit.one(in) else Emit.nil }
 
 	def take[F[+_]: Applicative, In](n: Int): Transformer[F, In, In] = new TransformerTake(n)
+	def takeWhile[F[+_]: Applicative, In](f: In => Boolean): Transformer[F, In, In] = new TransformerTakeWhile(f)
 
 	type IntoParser[F[+_], In, R[_]] = FunctionK[Transformer[F, In, *], Lambda[A => Parser[F, In, R[A]]]]
 	def intoListParser[F[+_], In]: IntoParser[F, In, List] = new IntoParser[F, In, List] {
@@ -64,6 +65,7 @@ class TransformerApplyBound[F[+_], In] {
 	def map[Out](f: In => Out)(implicit F: Applicative[F]): Transformer[F, In, Out] = Transformer.map(f)
 	def filter(f: In => Boolean)(implicit F: Applicative[F]): Transformer[F, In, In] = Transformer.filter(f)
 	def take(n: Int)(implicit F: Applicative[F]): Transformer[F, In, In] = Transformer.take(n)
+	def takeWhile(f: In => Boolean)(implicit F: Applicative[F]): Transformer[F, In, In] = Transformer.takeWhile(f)
 }
 
 class TransformerApplyWithBoundEffect[F[+_]] {
@@ -71,4 +73,5 @@ class TransformerApplyWithBoundEffect[F[+_]] {
 	def map[In, Out](f: In => Out)(implicit F: Applicative[F]): Transformer[F, In, Out] = Transformer.map(f)
 	def filter[In](f: In => Boolean)(implicit F: Applicative[F]): Transformer[F, In, In] = Transformer.filter(f)
 	def take[In](n: Int)(implicit F: Applicative[F]): Transformer[F, In, In] = Transformer.take(n)
+	def takeWhile[In](f: In => Boolean)(implicit F: Applicative[F]): Transformer[F, In, In] = Transformer.takeWhile(f)
 }
