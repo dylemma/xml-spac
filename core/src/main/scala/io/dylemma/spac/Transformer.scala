@@ -2,7 +2,7 @@ package io.dylemma.spac
 
 import cats.arrow.FunctionK
 import cats.data.Chain
-import cats.{Applicative, Functor, Monad}
+import cats.{Applicative, Apply, Functor, Monad}
 import io.dylemma.spac.impl._
 import io.dylemma.spac.types.Unconsable
 
@@ -15,10 +15,12 @@ trait Transformer[F[+_], -In, +Out] {
 	def filter(predicate: Out => Boolean)(implicit F: Functor[F]): Transformer[F, In, Out] = mapBatch(_.filter(predicate))
 	def collect[Out2](pf: PartialFunction[Out, Out2])(implicit F: Functor[F]): Transformer[F, In, Out2] = mapBatch(_.collect(pf))
 
-	def through[Out2](next: Transformer[F, Out, Out2])(implicit F: Monad[F]): Transformer[F, In, Out2] = new TransformerPipe(this, next)
+	def mergeEither[In2 <: In, Out2](right: Transformer[F, In2, Out2])(implicit F: Apply[F]): Transformer[F, In2, Either[Out, Out2]] = new TransformerMergeEither(this, right)
+
+	def through[Out2](next: Transformer[F, Out, Out2])(implicit F: Monad[F]): Transformer[F, In, Out2] = new TransformerThrough(this, next)
 	def >>[Out2](next: Transformer[F, Out, Out2])(implicit F: Monad[F]): Transformer[F, In, Out2] = through(next)
 
-	def into[Out2](parser: Parser[F, Out, Out2])(implicit F: Monad[F]): Parser[F, In, Out2] = new TransformedParser(this, parser)
+	def into[Out2](parser: Parser[F, Out, Out2])(implicit F: Monad[F]): Parser[F, In, Out2] = new TransformerInto(this, parser)
 	def :>[Out2](parser: Parser[F, Out, Out2])(implicit F: Monad[F]): Parser[F, In, Out2] = into(parser)
 
 	def stepMany[C[_], In2 <: In](_ins: C[In2])(implicit C: Unconsable[C], F: Monad[F]): F[(Emit[Out], Either[C[In2], Transformer[F, In, Out]])] = {
