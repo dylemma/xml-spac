@@ -2,7 +2,6 @@ package io.dylemma.spac.old
 
 import io.dylemma.spac.ContextMatcher
 import io.dylemma.spac.old.handlers._
-import io.dylemma.spac.types.Stackable
 
 import scala.language.higherKinds
 
@@ -89,7 +88,7 @@ trait Splitter[In, +Context] { self =>
 class ContextStackSplitter[In, StackElem, +Context](
 	matcher: ContextMatcher[StackElem, Context]
 )(
-	implicit stackable: Stackable.Aux[In, StackElem]
+	implicit stackable: OldStackable.Aux[In, StackElem]
 ) extends Splitter[In, Context] { self =>
 
 	def makeHandler[Out](downstream: ContextSensitiveHandler[In, Context, Out]): Handler[In, Out] = {

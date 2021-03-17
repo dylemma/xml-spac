@@ -1,8 +1,7 @@
 package io.dylemma.spac.old.xml.syntax
 
-import io.dylemma.spac.old._
+import io.dylemma.spac.old.{OldStackable, _}
 import io.dylemma.spac.old.xml._
-import io.dylemma.spac.types.Stackable
 import javax.xml.stream.events.{StartElement, XMLEvent}
 
 /** Defines XML-specific instances for the core spac typeclasses. */
@@ -11,7 +10,7 @@ trait Implicits {
 	/** A `io.dylemma.spac.types.Stackable` instance for XML, using `XMLEvent`
 	  * as the input type, and `StartElement` as the context stack element type.
 	  */
-	implicit val xmlStackable: Stackable.Aux[XMLEvent, StartElement] = new Stackable[XMLEvent] {
+	implicit val xmlStackable: OldStackable.Aux[XMLEvent, StartElement] = new OldStackable[XMLEvent] {
 		type StackElem = StartElement
 		def isPush(elem: XMLEvent) = elem.isStartElement
 		def isPop(elem: XMLEvent) = elem.isEndElement

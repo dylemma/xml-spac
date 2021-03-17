@@ -6,7 +6,6 @@ import cats.{Applicative, ApplicativeError, Defer, Functor, Monad, MonadError}
 import io.dylemma.spac.impl._
 import io.dylemma.spac.types.Unconsable
 import org.tpolecat.typename.TypeName
-import types.Stackable2
 
 import scala.collection.mutable
 import scala.util.Try
@@ -49,7 +48,7 @@ trait Parser[F[+_], -In, +Out] { self =>
 	def expectInputs[I2 <: In](expectations: List[(String, I2 => Boolean)])(implicit F: MonadError[F, Throwable]): Parser[F, I2, Out] = new ParserExpectInputs(this, expectations)
 
 	def interruptedBy[I2 <: In](interrupter: Parser[F, I2, Any])(implicit F: Monad[F]): Parser[F, I2, Out] = new ParserInterruptedBy(this, interrupter)
-	def beforeContext[I2 <: In, StackElem](matcher: ContextMatcher[StackElem, Any])(implicit stackable: Stackable2[I2, StackElem], F: Monad[F]): Parser[F, I2, Out] = {
+	def beforeContext[I2 <: In, StackElem](matcher: ContextMatcher[StackElem, Any])(implicit stackable: StackLike[I2, StackElem], F: Monad[F]): Parser[F, I2, Out] = {
 		// use ContextMatchSplitter to drive the stackable+matcher together, and pipe it into a parser that returns when a ContextPush is interpreted,
 		// i.e. the `interrupter` will yield a result upon entering a context matched by the `matcher`
 		interruptedBy { Splitter[F, I2](matcher).addBoundaries.collect { case Left(ContextPush(_, _)) => () } :> Parser.firstOpt }
@@ -190,12 +189,12 @@ object Parser {
 	}
 	implicit class ParserFollowedByOps[F[+_], In, A](parser: Parser[F, In, A])(implicit F: Monad[F]) {
 		def followedBy: FollowedBy[In, A, Parser[F, In, +*]] = new FollowedBy[In, A, Parser[F, In, +*]] {
-			def apply[Out](followUp: A => Parser[F, In, Out])(implicit S: Stackable2[In, Any]): Parser[F, In, Out] = {
+			def apply[Out](followUp: A => Parser[F, In, Out])(implicit S: StackLike[In, Any]): Parser[F, In, Out] = {
 				new ParserFollowedByParser(parser, followUp, Nil, S)
 			}
 		}
 		def followedByStream: FollowedBy[In, A, Transformer[F, In, +*]] = new FollowedBy[In, A, Transformer[F, In, +*]] {
-			def apply[Out](followUp: A => Transformer[F, In, Out])(implicit S: Stackable2[In, Any]): Transformer[F, In, Out] = {
+			def apply[Out](followUp: A => Transformer[F, In, Out])(implicit S: StackLike[In, Any]): Transformer[F, In, Out] = {
 				new ParserFollowedByTransformer(parser, followUp, Nil, S)
 			}
 		}
@@ -224,12 +223,12 @@ object Parser {
 	}
 
 	trait FollowedBy[In, +A, M[+_]] { self =>
-		def apply[Out](followUp: A => M[Out])(implicit S: Stackable2[In, Any]): M[Out]
+		def apply[Out](followUp: A => M[Out])(implicit S: StackLike[In, Any]): M[Out]
 
-		def flatMap[Out](followUp: A => M[Out])(implicit S: Stackable2[In, Any]): M[Out] = apply(followUp)
+		def flatMap[Out](followUp: A => M[Out])(implicit S: StackLike[In, Any]): M[Out] = apply(followUp)
 
-		def map[B](f: A => B)(implicit S: Stackable2[In, Any]): FollowedBy[In, B, M] = new FollowedBy[In, B, M] {
-			def apply[Out](followUp: B => M[Out])(implicit S: Stackable2[In, Any]) = self { a => followUp(f(a)) }
+		def map[B](f: A => B)(implicit S: StackLike[In, Any]): FollowedBy[In, B, M] = new FollowedBy[In, B, M] {
+			def apply[Out](followUp: B => M[Out])(implicit S: StackLike[In, Any]) = self { a => followUp(f(a)) }
 		}
 	}
 }

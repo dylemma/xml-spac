@@ -3,7 +3,6 @@ package io.dylemma.spac
 import cats.data.Chain
 import cats.effect.SyncIO
 import io.dylemma.spac.impl.{ParserInterruptedBy, ParserOrElseList}
-import io.dylemma.spac.types.Stackable2
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -245,7 +244,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 
 	describe("Parser # beforeContext") {
 		type In = (Int, String)
-		implicit val DemoStackable: Stackable2[In, String] = {
+		implicit val DemoStackable: StackLike[In, String] = {
 			case e@(i, s) if i > 0 => ContextPush(ContextTrace(Chain.nil), s).afterInput
 			case e@(i, _) if i < 0 => ContextPop.beforeInput
 			case e => StackInterpretation.NoChange
@@ -283,8 +282,8 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 	describe("Parser # followedBy / followedByStream") {
 
 		// shared Stackable instances for the tests
-		val NoStackChanges: Stackable2[Int, Nothing] = _ => StackInterpretation.NoChange
-		val StackOnTens: Stackable2[Int, Int] = { i =>
+		val NoStackChanges: StackLike[Int, Nothing] = _ => StackInterpretation.NoChange
+		val StackOnTens: StackLike[Int, Int] = { i =>
 			if (i % 10 == 0) {
 				if (i > 0) ContextPush(ContextTrace(Chain.nil), i).afterInput
 				else if (i < 0) ContextPop.beforeInput
@@ -293,7 +292,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		}
 
 		it ("should start the follow-up parser as soon as the base parser returns a result") {
-			implicit val testStackable: Stackable2[Int, Nothing] = NoStackChanges
+			implicit val testStackable: StackLike[Int, Nothing] = NoStackChanges
 			val base = Parser[SyncIO, Int].first
 
 			val parser = base.followedBy { i => Transformer[SyncIO, Int].map(_ * i) :> Parser.toList }
@@ -306,7 +305,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		}
 
 		it ("should feed the stack-accumulating events to the follow-up parser before continuing") {
-			implicit val testStackable: Stackable2[Int, Int] = StackOnTens
+			implicit val testStackable: StackLike[Int, Int] = StackOnTens
 
 			val match10 = new SingleItemContextMatcher.Predicate[Int](_ == 10)
 			val base = Splitter[SyncIO, Int](match10).first.into(_ => Transformer[SyncIO, Int].take(3) :> Parser.toList)
@@ -332,7 +331,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		}
 
 		it ("should properly accumulate the stack for replaying to the follow-up") {
-			implicit val testStackable: Stackable2[Int, Int] = StackOnTens
+			implicit val testStackable: StackLike[Int, Int] = StackOnTens
 
 			val base = Transformer[SyncIO, Int].filter(_ == 42) :> Parser.first
 			val input = List(
@@ -355,7 +354,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		}
 
 		it ("should be able to end the follow-up parser if that parser would finish during the stack replay") {
-			implicit val testStackable: Stackable2[Int, Int] = StackOnTens
+			implicit val testStackable: StackLike[Int, Int] = StackOnTens
 
 			val base = Transformer[SyncIO, Int].filter(_ == 42) :> Parser.firstOpt
 
@@ -365,7 +364,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		}
 
 		it ("should `finish` the follow-up parser immediately if the base parser consumes the whole input and there is no stack") {
-			implicit val testStackable: Stackable2[Int, Int] = StackOnTens
+			implicit val testStackable: StackLike[Int, Int] = StackOnTens
 
 			val base = Transformer[SyncIO, Int].filter(_ == 42) :> Parser.firstOpt
 			val parser = base.followedBy(_ => Parser.firstOpt)
@@ -374,7 +373,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		}
 
 		it ("should allow chaining of the followedBy relationship") {
-			implicit val testStackable: Stackable2[Int, Int] = NoStackChanges
+			implicit val testStackable: StackLike[Int, Int] = NoStackChanges
 			val find42 = Transformer[SyncIO, Int].filter(_ == 42) :> Parser.firstOpt
 			val find69 = Transformer[SyncIO, Int].filter(_ == 69) :> Parser.firstOpt
 			val getFirst = Parser[SyncIO].firstOpt[Int]

@@ -1,10 +1,9 @@
 package io.dylemma.spac.xml2
 
+import cats.Show
 import cats.data.Chain
-import cats.{Applicative, Show}
 import cats.implicits._
 import io.dylemma.spac._
-import io.dylemma.spac.types.Stackable2
 
 sealed trait XmlEvent {
 	import XmlEvent._
@@ -141,7 +140,7 @@ object XmlEvent {
 	/** Interpreter that decides how to treat XmlEvents as ContextPush and ContextPop,
 	  * and in what order the context changes should occur relative to their trigger events.
 	  */
-	implicit val xmlEventStackable: Stackable2[XmlEvent, ElemStart] = {
+	implicit val xmlEventStackable: StackLike[XmlEvent, ElemStart] = {
 		case start: ElemStart =>
 			// ElemStart pushes a context BEFORE being processed
 			ContextPush(ContextTrace(Chain.one(start.location -> start)), start).beforeInput

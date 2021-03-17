@@ -1,7 +1,6 @@
 package io.dylemma.spac.old.handlers
 
-import io.dylemma.spac.old.{ContextSensitiveHandler, Handler, debug}
-import io.dylemma.spac.types.Stackable
+import io.dylemma.spac.old.{ContextSensitiveHandler, Handler, OldStackable, debug}
 import io.dylemma.spac.ContextMatcher
 
 import scala.collection.mutable.ArrayBuffer
@@ -21,7 +20,7 @@ class ContextStackSplitterHandler[In, StackElem, Context, Out](
 	matcher: ContextMatcher[StackElem, Context],
 	downstream: ContextSensitiveHandler[In, Context, Out]
 )(
-	implicit stackable: Stackable.Aux[In, StackElem]
+	implicit stackable: OldStackable.Aux[In, StackElem]
 ) extends Handler[In, Out] {
 
 	protected def debugName = s"Splitter($matcher) >> $downstream"

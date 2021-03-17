@@ -3,13 +3,12 @@ package impl
 
 import cats.Monad
 import cats.syntax.all._
-import io.dylemma.spac.types.Stackable2
 
 class ParserFollowedByParser[F[+_], In, A, S, Out](
 	base: Parser[F, In, A],
 	followUp: A => Parser[F, In, Out],
 	stackEvents: List[In],
-	stacking: Stackable2[In, Any]
+	stacking: StackLike[In, Any]
 )(implicit F: Monad[F]) extends Parser[F, In, Out] {
 
 	def step(in: In): F[Either[Out, Parser[F, In, Out]]] = {

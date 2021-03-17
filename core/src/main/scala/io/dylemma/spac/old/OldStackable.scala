@@ -1,10 +1,10 @@
-package io.dylemma.spac.types
+package io.dylemma.spac.old
 
 /** Generalization for event types that can be interpreted as a "push" or "pop" to a stack.
   * For example, `XMLEvent` has `StartElement` and `EndElement` subclasses which can be
   * treated as "push" and "pop" respectively.
   */
-trait Stackable[-E] {
+trait OldStackable[-E] {
 
 	/** The type of elements in a context stack that will be affected by events. */
 	type StackElem
@@ -49,6 +49,6 @@ trait Stackable[-E] {
 	def asPush(event: E): Option[StackElem]
 }
 
-object Stackable {
-	type Aux[T, S] = Stackable[T] { type StackElem = S }
+object OldStackable {
+	type Aux[T, S] = OldStackable[T] { type StackElem = S }
 }

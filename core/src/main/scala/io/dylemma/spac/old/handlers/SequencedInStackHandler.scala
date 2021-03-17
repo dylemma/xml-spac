@@ -1,7 +1,6 @@
 package io.dylemma.spac.old.handlers
 
-import io.dylemma.spac.old.Handler
-import io.dylemma.spac.types.Stackable
+import io.dylemma.spac.old.{Handler, OldStackable}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -27,8 +26,8 @@ import scala.collection.mutable.ArrayBuffer
   * @tparam T1 The first handler's result type
   * @tparam T2 The second handler's result type
   */
-class SequencedInStackHandler[In: Stackable, T1, T2](handler1: Handler[In, T1], getHandler2: T1 => Handler[In, T2]) extends Handler[In, T2] {
-	private val stackable = implicitly[Stackable[In]]
+class SequencedInStackHandler[In: OldStackable, T1, T2](handler1: Handler[In, T1], getHandler2: T1 => Handler[In, T2]) extends Handler[In, T2] {
+	private val stackable = implicitly[OldStackable[In]]
 	private val stack = new ArrayBuffer[In]
 	private var handler2Opt: Option[Handler[In, T2]] = None
 

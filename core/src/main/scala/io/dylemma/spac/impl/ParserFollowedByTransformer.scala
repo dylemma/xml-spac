@@ -3,13 +3,12 @@ package impl
 
 import cats.Monad
 import cats.syntax.all._
-import io.dylemma.spac.types.Stackable2
 
 class ParserFollowedByTransformer[F[+_], In, A, S, Out](
 	base: Parser[F, In, A],
 	followUp: A => Transformer[F, In, Out],
 	stackEvents: List[In],
-	stacking: Stackable2[In, Any]
+	stacking: StackLike[In, Any]
 )(implicit F: Monad[F]) extends Transformer[F, In, Out] {
 	def step(in: In): F[(Emit[Out], Option[Transformer[F, In, Out]])] = {
 		// first, determine if we need to push or pop a value from the `stackEvents

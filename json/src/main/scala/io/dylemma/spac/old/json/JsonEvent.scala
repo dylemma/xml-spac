@@ -1,6 +1,6 @@
 package io.dylemma.spac.old.json
 
-import io.dylemma.spac.types.Stackable
+import io.dylemma.spac.old.OldStackable
 
 /** ADT for tokens in a JSON stream.
   */
@@ -19,7 +19,7 @@ sealed abstract class JsonValueEvent(_toString: => String) extends JsonEvent {
 
 object JsonEvent {
 
-	implicit val stackable: Stackable.Aux[JsonEvent, JsonStackElem] = new Stackable[JsonEvent] {
+	implicit val stackable: OldStackable.Aux[JsonEvent, JsonStackElem] = new OldStackable[JsonEvent] {
 		type StackElem = JsonStackElem
 		def isPush(elem: JsonEvent) = elem.isInstanceOf[JsonStackElem]
 		def isPop(elem: JsonEvent) = elem.isInstanceOf[JsonStackPop]

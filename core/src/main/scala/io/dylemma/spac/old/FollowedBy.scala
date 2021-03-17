@@ -1,7 +1,5 @@
 package io.dylemma.spac.old
 
-import io.dylemma.spac.types.Stackable
-
 /** An intermediate object for creating sequence-based combination methods for a Parser or Consumer.
   *
   * @tparam M   Type constructor for the parser/consumer of a given output type
@@ -18,7 +16,7 @@ trait FollowedBy[-In, +Out, M[- _, + _]] { ts =>
 	  * @tparam T2 The output type of the second handler
 	  * @return The combined handler
 	  */
-	def apply[I2 <: In, T2](getNext: Out => M[I2, T2])(implicit stackable: Stackable[I2]): M[I2, T2]
+	def apply[I2 <: In, T2](getNext: Out => M[I2, T2])(implicit stackable: OldStackable[I2]): M[I2, T2]
 
 	/** Alias for `apply`, to help use this object in for-comprehensions.
 	  *
@@ -29,13 +27,13 @@ trait FollowedBy[-In, +Out, M[- _, + _]] { ts =>
 	  * @tparam T2 The output type of the second handler
 	  * @return The combined handler
 	  */
-	def flatMap[I2 <: In, T2](getNext: Out => M[I2, T2])(implicit stackable: Stackable[I2]): M[I2, T2] = apply(getNext)
+	def flatMap[I2 <: In, T2](getNext: Out => M[I2, T2])(implicit stackable: OldStackable[I2]): M[I2, T2] = apply(getNext)
 
 	/** Convenience for using this object in for-comprehensions; wraps this `ToSequence`
 	  * by calling `f` on the first handler's result and passing that into the `getNext` function.
 	  * You probably don't want to call this directly
 	  */
-	def map[I2 <: In, T2](f: Out => T2)(implicit stackable: Stackable[I2]): FollowedBy[In, T2, M] = new FollowedBy[In, T2, M] {
-		def apply[I2 <: In, T3](getNext: T2 => M[I2, T3])(implicit stackable: Stackable[I2]): M[I2, T3] = ts { n => getNext(f(n)) }
+	def map[I2 <: In, T2](f: Out => T2)(implicit stackable: OldStackable[I2]): FollowedBy[In, T2, M] = new FollowedBy[In, T2, M] {
+		def apply[I2 <: In, T3](getNext: T2 => M[I2, T3])(implicit stackable: OldStackable[I2]): M[I2, T3] = ts { n => getNext(f(n)) }
 	}
 }

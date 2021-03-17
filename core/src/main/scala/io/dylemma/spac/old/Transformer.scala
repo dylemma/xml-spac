@@ -4,7 +4,6 @@ import java.io.Closeable
 import java.util
 
 import io.dylemma.spac.old.handlers._
-import io.dylemma.spac.types.Stackable
 
 import scala.language.higherKinds
 import scala.util.{Failure, Success, Try}
@@ -260,7 +259,7 @@ object Transformer {
 		override def toString = s"SideEffect($effect)"
 	}
 
-	def sequenced[In: Stackable, T1, T2](consumer: Parser[In, T1], getTransformer: T1 => Transformer[In, T2]): Transformer[In, T2] = new Transformer[In, T2] {
+	def sequenced[In: OldStackable, T1, T2](consumer: Parser[In, T1], getTransformer: T1 => Transformer[In, T2]): Transformer[In, T2] = new Transformer[In, T2] {
 		def makeHandler[Out](next: Handler[T2, Out]): Handler[In, Out] = {
 			val handler1 = consumer.makeHandler()
 

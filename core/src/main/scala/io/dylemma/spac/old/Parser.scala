@@ -1,6 +1,5 @@
 package io.dylemma.spac.old
 
-import io.dylemma.spac.types.Stackable
 import handlers._
 import io.dylemma.spac.ContextMatcher
 
@@ -136,7 +135,7 @@ trait Parser[-In, +Out] extends (Any => Parser[In, Out]) { self =>
 	  * must be `followedBy` some other parser.
 	  */
 	def followedBy: FollowedBy[In, Out, Parser] = new FollowedBy[In, Out, Parser] {
-		def apply[I2 <: In, T2](getNext: Out => Parser[I2, T2])(implicit stackable: Stackable[I2]): Parser[I2, T2] = new Parser[I2, T2] {
+		def apply[I2 <: In, T2](getNext: Out => Parser[I2, T2])(implicit stackable: OldStackable[I2]): Parser[I2, T2] = new Parser[I2, T2] {
 			override def toString = s"$self.followedBy($getNext)"
 			def makeHandler(): Handler[I2, T2] = {
 				new SequencedInStackHandler[I2, Out, T2](self.makeHandler(), r1 => getNext(r1).makeHandler())
@@ -174,7 +173,7 @@ trait Parser[-In, +Out] extends (Any => Parser[In, Out]) { self =>
 		  * @tparam T2 The output type of the second handler
 		  * @return The combined handler
 		  */
-		def apply[I2 <: In, T2](getTransformer: Out => Transformer[I2, T2])(implicit stackable: Stackable[I2]): Transformer[I2, T2] = new Transformer[I2, T2] {
+		def apply[I2 <: In, T2](getTransformer: Out => Transformer[I2, T2])(implicit stackable: OldStackable[I2]): Transformer[I2, T2] = new Transformer[I2, T2] {
 			override def toString = s"$self.followedByStream($getTransformer)"
 			def makeHandler[End](next: Handler[T2, End]): Handler[I2, End] = {
 				val handler1 = self.makeHandler()
@@ -228,7 +227,7 @@ trait Parser[-In, +Out] extends (Any => Parser[In, Out]) { self =>
 	  * @param matcher
 	  * @return
 	  */
-	def beforeContext[I2 <: In, StackElem](matcher: ContextMatcher[StackElem, Any])(implicit stackable: Stackable.Aux[I2, StackElem]): Parser[I2, Out] = {
+	def beforeContext[I2 <: In, StackElem](matcher: ContextMatcher[StackElem, Any])(implicit stackable: OldStackable.Aux[I2, StackElem]): Parser[I2, Out] = {
 		val interrupter = new ContextStackSplitter[I2, StackElem, Any](matcher).map(Parser.constant(true)).parseFirst
 		self.interruptedBy(interrupter)
 	}
