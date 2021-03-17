@@ -2,7 +2,7 @@ package io.dylemma.spac
 
 import cats.arrow.FunctionK
 import cats.{Monad, MonadError}
-import io.dylemma.spac.impl.{SplitterJoiner, StackMatchSplitter}
+import io.dylemma.spac.impl.{SplitterJoiner, SplitterByContextMatch}
 import org.tpolecat.typename.TypeName
 
 import scala.language.implicitConversions
@@ -54,5 +54,5 @@ class ContextMatchSplitter[F[+_], In, Elem, C]
 	(matcher: ContextMatcher[Elem, C])
 	(implicit inAsStack: StackLike[In, Elem], F: Monad[F])
 extends Splitter[F, In, C] {
-	def addBoundaries: Transformer[F, In, Either[ContextChange[In, C], In]] = inAsStack.interpret[F] >> StackMatchSplitter(matcher)
+	def addBoundaries: Transformer[F, In, Either[ContextChange[In, C], In]] = inAsStack.interpret[F] >> SplitterByContextMatch(matcher)
 }
