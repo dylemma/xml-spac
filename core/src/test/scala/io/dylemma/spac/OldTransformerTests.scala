@@ -7,7 +7,7 @@ import org.scalatest.matchers.should.Matchers
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
-class TransformerTests extends AnyFunSpec with Matchers {
+class OldTransformerTests extends AnyFunSpec with Matchers {
 
 	protected def runTransformer[T, U](inputs: List[T])(transformer: Transformer[T, U]): List[U] = {
 		transformer >> Parser.toList[U] parse inputs

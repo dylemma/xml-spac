@@ -3,7 +3,7 @@ package io.dylemma.spac
 import cats.data.{Chain, NonEmptyChain}
 import cats.effect.Resource
 import cats.implicits._
-import cats.{Applicative, Functor, Monad}
+import cats.{Applicative, Monad}
 import io.dylemma.spac.types.Unconsable
 
 trait ToPullable[F[+_], S, +A] {

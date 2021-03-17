@@ -52,14 +52,8 @@ object Transformer {
 	def op[F[+_]: Applicative, In, Out](f: In => Emit[Out]): Transformer[F, In, Out] = new TransformerOp(f)
 	def map[F[+_]: Applicative, In, Out](f: In => Out): Transformer[F, In, Out] = op { in => Emit.one(f(in)) }
 	def filter[F[+_]: Applicative, In](f: In => Boolean): Transformer[F, In, In] = op { in => if (f(in)) Emit.one(in) else Emit.nil }
-
 	def take[F[+_]: Applicative, In](n: Int): Transformer[F, In, In] = new TransformerTake(n)
 	def takeWhile[F[+_]: Applicative, In](f: In => Boolean): Transformer[F, In, In] = new TransformerTakeWhile(f)
-
-	type IntoParser[F[+_], In, R[_]] = FunctionK[Transformer[F, In, *], Lambda[A => Parser[F, In, R[A]]]]
-	def intoListParser[F[+_], In]: IntoParser[F, In, List] = new IntoParser[F, In, List] {
-		def apply[A](fa: Transformer[F, In, A]): Parser[F, In, List[A]] = ???
-	}
 }
 
 class TransformerApplyBound[F[+_], In] {
