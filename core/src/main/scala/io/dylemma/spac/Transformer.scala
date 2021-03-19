@@ -1,6 +1,5 @@
 package io.dylemma.spac
 
-import cats.arrow.FunctionK
 import cats.data.Chain
 import cats.{Applicative, Apply, Functor, Monad}
 import io.dylemma.spac.impl._
@@ -49,6 +48,7 @@ object Transformer {
 	def apply[F[+_], In] = new TransformerApplyBound[F, In]
 	def apply[F[+_]] = new TransformerApplyWithBoundEffect[F]
 
+	def identity[F[+_]: Applicative, In]: Transformer[F, In, In] = new TransformerIdentity
 	def op[F[+_]: Applicative, In, Out](f: In => Emit[Out]): Transformer[F, In, Out] = new TransformerOp(f)
 	def map[F[+_]: Applicative, In, Out](f: In => Out): Transformer[F, In, Out] = op { in => Emit.one(f(in)) }
 	def filter[F[+_]: Applicative, In](f: In => Boolean): Transformer[F, In, In] = op { in => if (f(in)) Emit.one(in) else Emit.nil }
@@ -57,6 +57,7 @@ object Transformer {
 }
 
 class TransformerApplyBound[F[+_], In] {
+	def identity(implicit F: Applicative[F]): Transformer[F, In, In] = new TransformerIdentity
 	def op[Out](f: In => Emit[Out])(implicit F: Applicative[F]): Transformer[F, In, Out] = Transformer.op(f)
 	def map[Out](f: In => Out)(implicit F: Applicative[F]): Transformer[F, In, Out] = Transformer.map(f)
 	def filter(f: In => Boolean)(implicit F: Applicative[F]): Transformer[F, In, In] = Transformer.filter(f)
@@ -65,6 +66,7 @@ class TransformerApplyBound[F[+_], In] {
 }
 
 class TransformerApplyWithBoundEffect[F[+_]] {
+	def identity[In](implicit F: Applicative[F]): Transformer[F, In, In] = new TransformerIdentity
 	def op[In, Out](f: In => Emit[Out])(implicit F: Applicative[F]): Transformer[F, In, Out] = Transformer.op(f)
 	def map[In, Out](f: In => Out)(implicit F: Applicative[F]): Transformer[F, In, Out] = Transformer.map(f)
 	def filter[In](f: In => Boolean)(implicit F: Applicative[F]): Transformer[F, In, In] = Transformer.filter(f)

@@ -5,6 +5,7 @@ import cats.data.Chain
 import cats.implicits._
 import io.dylemma.spac._
 
+/** @group event */
 sealed trait XmlEvent {
 	import XmlEvent._
 	def asElemStart: Option[ElemStart] = None
@@ -13,22 +14,28 @@ sealed trait XmlEvent {
 	def location: ContextLocation
 }
 
+/** @group event */
 trait AsXmlEvent[-E] {
 	def unapply(event: E): Option[XmlEvent]
 }
+
+/** @group event */
 object AsXmlEvent {
 	implicit val identity: AsXmlEvent[XmlEvent] = new AsXmlEvent[XmlEvent] {
 		def unapply(event: XmlEvent): Option[XmlEvent] = Some(event)
 	}
 }
 
-/** Adapter for various representations of QName */
+/** Adapter for various representations of QName
+  * @group event
+  */
 trait AsQName[N] {
 	def name(n: N): String
 	def namespaceUri(n: N): Option[String]
 	def convert[N2: AsQName](from: N2): N
 	def equals[N2: AsQName](l: N, r: N2): Boolean
 }
+/** @group event */
 object AsQName {
 	def apply[N](implicit instance: AsQName[N]): AsQName[N] = instance
 
@@ -40,6 +47,7 @@ object AsQName {
 	}
 }
 
+/** @group event */
 object XmlEvent {
 
 	// ------------------------------------------------

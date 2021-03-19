@@ -1,4 +1,5 @@
-package io.dylemma.spac.xml2.impl
+package io.dylemma.spac.xml2
+package impl
 
 import cats.MonadError
 import cats.implicits._
@@ -11,11 +12,14 @@ class MandatoryAttributeParser[F[+_], N, A](attributeName: N)(implicit F: MonadE
 		case None => F.pure(Right(this)) // continue searching
 		case Some(elem) => elem.attr(attributeName) match {
 			case Some(value) => F.pure(Left(value)) // successful result
-			case None => F.raiseError(new MissingMandatoryAttributeException(AsQName[ShowableQName].convert(attributeName), Some(elem))) // attribute missing from element
+			case None => F.raiseError {
+				// attribute missing from element
+				new XmlSpacException.MissingMandatoryAttributeException(AsQName[ShowableQName].convert(attributeName), Some(elem))
+			}
 		}
 	}
 	def finish: F[String] = F.raiseError {
-		new MissingMandatoryAttributeException(AsQName[ShowableQName].convert(attributeName), None)
+		new XmlSpacException.MissingMandatoryAttributeException(AsQName[ShowableQName].convert(attributeName), None)
 	}
 }
 

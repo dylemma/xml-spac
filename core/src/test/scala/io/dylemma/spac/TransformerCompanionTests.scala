@@ -7,6 +7,38 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class TransformerCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks {
 
+	describe("Transformer.identity") {
+		def identityTransformer(makeTransformer: => Transformer[SyncIO, Int, Int]) = {
+			val t = makeTransformer
+
+			it ("should emit each input") {
+				forAll { (list: List[Int]) =>
+					t.stepMany(list).unsafeRunSync()._1 shouldEqual Emit.fromSeq(list)
+				}
+			}
+			it ("should be stateless") {
+				forAll { (list: List[Int]) =>
+					forAll { (list: List[Int]) =>
+						t.stepMany(list).unsafeRunSync()._2 shouldEqual Right(t)
+					}
+				}
+			}
+			it ("should emit nothing in response to the end of the input") {
+				t.finish.unsafeRunSync() shouldEqual Emit.nil
+			}
+		}
+
+		describe("Transformer.identity[F, In]") {
+			it should behave like identityTransformer(Transformer.identity[SyncIO, Int])
+		}
+		describe("Transformer[F].identity[In]") {
+			it should behave like identityTransformer(Transformer[SyncIO].identity[Int])
+		}
+		describe("Transformer[F, In].identity") {
+			it should behave like identityTransformer(Transformer[SyncIO, Int].identity)
+		}
+	}
+
 	describe("Transformer.op") {
 		def opTransformer(makeTransformer: (Int => Emit[Int]) => Transformer[SyncIO, Int, Int]) = {
 			val t0 = makeTransformer(_ => Emit.nil)

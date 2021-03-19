@@ -51,7 +51,7 @@ trait Parser[F[+_], -In, +Out] { self =>
 	def beforeContext[I2 <: In, StackElem](matcher: ContextMatcher[StackElem, Any])(implicit stackable: StackLike[I2, StackElem], F: Monad[F]): Parser[F, I2, Out] = {
 		// use ContextMatchSplitter to drive the stackable+matcher together, and pipe it into a parser that returns when a ContextPush is interpreted,
 		// i.e. the `interrupter` will yield a result upon entering a context matched by the `matcher`
-		interruptedBy { Splitter[F, I2](matcher).addBoundaries.collect { case Left(ContextPush(_, _)) => () } :> Parser.firstOpt }
+		interruptedBy { Splitter[F, I2].fromMatcher(matcher).addBoundaries.collect { case Left(ContextPush(_, _)) => () } :> Parser.firstOpt }
 	}
 
 	def withName(name: String)(implicit F: Functor[F]): Parser[F, In, Out] = new ParserNamed(name, this)
@@ -137,7 +137,7 @@ class ParserApplyBound[F[+_], In] {
 }
 
 class ParserApplyWithBoundInput[In] {
-	def in[F[+_]]: ParserApplyBound[F, In] = new ParserApplyBound
+	def apply[F[+_]]: ParserApplyBound[F, In] = new ParserApplyBound
 
 	def app[F[+_] : Monad]: Applicative[Parser[F, In, *]] = Parser.parserApplicative
 	def firstOpt[F[+_] : Applicative]: Parser[F, In, Option[In]] = Parser.firstOpt

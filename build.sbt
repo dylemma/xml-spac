@@ -24,7 +24,6 @@ lazy val testSettings = Seq(
 		"org.scalatest" %% "scalatest" % "3.2.6" % Test,
 		"org.scalacheck" %% "scalacheck" % "1.15.3" % Test,
 		"org.scalatestplus" %% "scalacheck-1-15" % "3.2.6.0" % Test,
-
 	)
 )
 
@@ -53,6 +52,7 @@ lazy val xml = (project in file("xml"))
 	.settings(testSettings: _*)
 	.settings(apiDocSettings: _*)
 	.settings(publishingSettings: _*)
+	.settings(libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2")
 	.dependsOn(core)
 
 lazy val xmlJavax = (project in file("xml-javax"))
@@ -112,7 +112,8 @@ lazy val apiDocSettings = Seq(
 			else version
 		val sourceUrl = "https://github.com/dylemma/xml-spac/tree/" + sourceTree + "\u20ac{FILE_PATH}.scala"
 		Seq(
-			"-implicits",
+			"-groups",
+			// "-implicits",
 			"-sourcepath", sourcePath,
 			"-doc-source-url", sourceUrl
 		)

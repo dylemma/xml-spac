@@ -1,11 +1,13 @@
 package io.dylemma.spac.xml
 
+import cats.effect.SyncIO
 import io.dylemma.spac.old._
 import io.dylemma.spac.old.xml._
 import javax.xml.stream.XMLStreamException
 import javax.xml.stream.events.XMLEvent
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
+import TestXml._
 
 import scala.util.{Failure, Success}
 
@@ -25,50 +27,53 @@ class ParserTests extends AnyFunSpec with Matchers {
 	protected def runTransformer[Out](xml: String, t: Transformer[XMLEvent, Out]): List[Out] = t.parseToList.parse(xml)
 
 	describe("Parser.forText") {
+		import io.dylemma.spac.xml2._
+		val textParser = XmlParser.forText[SyncIO]
+
 		it("should concatenate text events") {
-			testParserResult(
-				"<foo>Hello<bar>World</bar><bar>Floopy</bar>Doop</foo>",
-				XMLParser.forText,
-				"HelloWorldFloopyDoop"
-			)
+			textParser
+				.parse { testxml"<foo>Hello<bar>World</bar><bar>Floopy</bar>Doop</foo>" }
+				.unsafeRunSync()
+				.shouldEqual { "HelloWorldFloopyDoop" }
 		}
 
 		it("should preserve whitespace") {
-			testParserResult(
-				"<foo>\n\tHello\n</foo>",
-				XMLParser.forText,
-				"\n\tHello\n"
-			)
+			textParser
+				.parse { testxml"<foo>\n\tHello\n</foo>" }
+				.unsafeRunSync()
+				.shouldEqual { "\n\tHello\n" }
 		}
 	}
 
 	describe("Parser.forMandatoryAttribute") {
+		import io.dylemma.spac.xml2._
+		val attrParser = XmlParser[SyncIO].forMandatoryAttribute("a")
 		it("should return the attribute from the first encountered element") {
-			testParserResult(
-				"""<foo a="123"/>""",
-				XMLParser.forMandatoryAttribute("a"),
-				"123"
-			)
+			attrParser
+				.parse { testxml"""<foo a="123"/>""" }
+				.unsafeRunSync()
+				.shouldEqual { "123" }
 		}
 
 		it("should return an error if the attribute is missing from the first encountered element") {
-			an[Exception] should be thrownBy {
-				XMLParser.forMandatoryAttribute("a") parse "<foo/>"
+			an[XmlSpacException.MissingMandatoryAttributeException] should be thrownBy {
+				attrParser
+					.parse { testxml"<foo/>" }
+					.unsafeRunSync()
 			}
 		}
 
 		it("should not return the attribute from an inner element") {
-			an[Exception] should be thrownBy {
-				XMLParser.forMandatoryAttribute("a") parse {
-					"""<foo><bar a="123"/></foo>"""
-				}
+			an[XmlSpacException.MissingMandatoryAttributeException] should be thrownBy {
+				attrParser
+					.parse { testxml"""<foo><bar a="123"/></foo>""" }
+					.unsafeRunSync()
 			}
 
-			testParserResult(
-				"""<foo a="123"><bar a="456"/></foo>""",
-				XMLParser.forMandatoryAttribute("a"),
-				"123"
-			)
+			attrParser
+				.parse { testxml"""<foo a="123"><bar a="456"/></foo>""" }
+				.unsafeRunSync()
+				.shouldEqual { "123" }
 		}
 	}
 

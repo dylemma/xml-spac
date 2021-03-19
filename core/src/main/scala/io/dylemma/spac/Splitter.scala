@@ -1,12 +1,10 @@
 package io.dylemma.spac
 
-import cats.arrow.FunctionK
 import cats.{Monad, MonadError}
-import io.dylemma.spac.impl.{SplitterJoiner, SplitterByContextMatch}
+import io.dylemma.spac.impl.{SplitterByContextMatch, SplitterJoiner}
 import org.tpolecat.typename.TypeName
 
 import scala.language.implicitConversions
-import scala.reflect.ClassTag
 
 trait Splitter[F[+_], In, +C] {
 	def addBoundaries: Transformer[F, In, Either[ContextChange[In, C], In]]
@@ -22,7 +20,8 @@ trait Splitter[F[+_], In, +C] {
 	def as[Out](implicit parser: Parser[F, In, Out], F: MonadError[F, Throwable]) = map(_ => parser)
 }
 object Splitter {
-	def apply[F[+_], C] = new SplitterApplyBound[F, C]
+	def apply[F[+_], In] = new SplitterApplyBound[F, In]
+	def over[In] = new SplitterApplyWithBoundInput[In]
 
 	def fromMatcher[F[+_], In, Elem, C](matcher: ContextMatcher[Elem, C])(implicit F: Monad[F], S: StackLike[In, Elem]): Splitter[F, In, C] = new ContextMatchSplitter(matcher)
 
@@ -47,7 +46,15 @@ object Splitter {
 }
 
 class SplitterApplyBound[F[+_], In] {
-	def apply[Elem, C](matcher: ContextMatcher[Elem, C])(implicit F: Monad[F], S: StackLike[In, Elem]): Splitter[F, In, C] = Splitter.fromMatcher(matcher)
+	def fromMatcher[Elem, C](matcher: ContextMatcher[Elem, C])(implicit F: Monad[F], S: StackLike[In, Elem]): Splitter[F, In, C] = Splitter.fromMatcher(matcher)
+}
+class SplitterApplyWithBoundEffect[F[+_]] {
+	def apply[In] = new SplitterApplyBound[F, In]
+
+	def fromMatcher[In, Elem, C](matcher: ContextMatcher[Elem, C])(implicit F: Monad[F], S: StackLike[In, Elem]): Splitter[F, In, C] = Splitter.fromMatcher(matcher)
+}
+class SplitterApplyWithBoundInput[In] {
+	def apply[F[+_]] = new SplitterApplyBound[F, In]
 }
 
 class ContextMatchSplitter[F[+_], In, Elem, C]
