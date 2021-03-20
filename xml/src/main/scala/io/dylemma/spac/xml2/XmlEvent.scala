@@ -141,6 +141,12 @@ object XmlEvent {
 				val ellipsis = if(chars.length < e.value.length) " [...]" else ""
 				s"Text($chars$ellipsis)"
 			}
+
+		case _ =>
+			// there are only the three main subclasses of XmlEvent, but the compiler is saying
+			// the match will fail on ElemEnd(), ElemStart(), Text(), which makes no sense,
+			// so this is here just to silence that warning
+			""
 	}
 
 	// ------------------------------------------------

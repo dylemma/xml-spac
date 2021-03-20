@@ -6,60 +6,29 @@ import org.tpolecat.typename.TypeName
 
 import scala.language.implicitConversions
 
-trait Splitter[F[+_], In, +C] {
-	def addBoundaries: Transformer[F, In, Either[ContextChange[In, C], In]]
+trait Splitter[In, +C] {
 
-	def flatMap[Out](transformMatches: ContextPush[In, C] => Transformer[F, In, Out])(implicit F: MonadError[F, Throwable]): Transformer[F, In, Out] = {
-		addBoundaries >> SplitterJoiner(transformMatches)
-	}
+	def addBoundaries: Transformer[In, Either[ContextChange[In, C], In]]
 
-	def map[Out](parseMatches: ContextPush[In, C] => Parser[F, In, Out])(implicit F: MonadError[F, Throwable]): Transformer[F, In, Out] = {
-		flatMap(parseMatches(_).asTransformer)
-	}
-
-	def as[Out](implicit parser: Parser[F, In, Out], F: MonadError[F, Throwable]) = map(_ => parser)
+	def flatMap[Out](transformMatches: ContextPush[In, C] => Transformer[In, Out]): Transformer[In, Out] = addBoundaries >> SplitterJoiner(transformMatches)
+	def mapTraced[Out](parseMatches: ContextPush[In, C] => Parser[In, Out]): Transformer[In, Out] = flatMap(parseMatches(_).asTransformer)
+	def map[Out](parseMatches: C => Parser[In, Out]): Transformer[In, Out] = mapTraced(push => parseMatches(push.context))
+	def joinBy[Out](parser: Parser[In, Out]): Transformer[In, Out] = map(_ => parser)
+	def as[Out](implicit parser: Parser[In, Out]) = map(_ => parser)
 }
 object Splitter {
-	def apply[F[+_], In] = new SplitterApplyBound[F, In]
-	def over[In] = new SplitterApplyWithBoundInput[In]
+	def apply[In] = new SplitterApplyWithBoundInput[In]
 
-	def fromMatcher[F[+_], In, Elem, C](matcher: ContextMatcher[Elem, C])(implicit F: Monad[F], S: StackLike[In, Elem]): Splitter[F, In, C] = new ContextMatchSplitter(matcher)
-
-	implicit class SplitterConvenienceWords[F[+_], In, C](splitter: Splitter[F, In, C])(implicit F: MonadError[F, Throwable]) {
-		def first: SplitterWordFirst[F, In, C] = new SplitterWordFirst(splitter)
-		def firstOpt: SplitterWordFirstOpt[F, In, C] = new SplitterWordFirstOpt(splitter)
-		def asList: SplitterWordAsList[F, In, C] = new SplitterWordAsList(splitter)
-	}
-
-	class SplitterWordFirst[F[+_], In, +C](splitter: Splitter[F, In, C])(implicit F: MonadError[F, Throwable]) {
-		def apply[Out](implicit parser: Parser[F, In, Out], Out: TypeName[Out]): Parser[F, In, Out] = splitter.map(_ => parser) :> Parser.first
-		def into[Out](getParser: ContextPush[In, C] => Parser[F, In, Out])(implicit Out: TypeName[Out]): Parser[F, In, Out] = splitter.map(getParser) :> Parser.first
-	}
-	class SplitterWordFirstOpt[F[+_], In, +C](splitter: Splitter[F, In, C])(implicit F: MonadError[F, Throwable]) {
-		def apply[Out](implicit parser: Parser[F, In, Out]): Parser[F, In, Option[Out]] = splitter.map(_ => parser) :> Parser.firstOpt
-		def into[Out](getParser: ContextPush[In, C] => Parser[F, In, Out]): Parser[F, In, Option[Out]] = splitter.map(getParser) :> Parser.firstOpt
-	}
-	class SplitterWordAsList[F[+_], In, +C](splitter: Splitter[F, In, C])(implicit F: MonadError[F, Throwable]) {
-		def apply[Out](implicit parser: Parser[F, In, Out]): Parser[F, In, List[Out]] = splitter.map(_ => parser) :> Parser.toList
-		def into[Out](getParser: ContextPush[In, C] => Parser[F, In, Out]): Parser[F, In, List[Out]] = splitter.map(getParser) :> Parser.toList
-	}
+	def fromMatcher[In, Elem, C](matcher: ContextMatcher[Elem, C])(implicit S: StackLike[In, Elem]): Splitter[In, C] = new ContextMatchSplitter(matcher)
 }
 
-class SplitterApplyBound[F[+_], In] {
-	def fromMatcher[Elem, C](matcher: ContextMatcher[Elem, C])(implicit F: Monad[F], S: StackLike[In, Elem]): Splitter[F, In, C] = Splitter.fromMatcher(matcher)
-}
-class SplitterApplyWithBoundEffect[F[+_]] {
-	def apply[In] = new SplitterApplyBound[F, In]
-
-	def fromMatcher[In, Elem, C](matcher: ContextMatcher[Elem, C])(implicit F: Monad[F], S: StackLike[In, Elem]): Splitter[F, In, C] = Splitter.fromMatcher(matcher)
-}
 class SplitterApplyWithBoundInput[In] {
-	def apply[F[+_]] = new SplitterApplyBound[F, In]
+	def fromMatcher[Elem, C](matcher: ContextMatcher[Elem, C])(implicit S: StackLike[In, Elem]): Splitter[In, C] = Splitter.fromMatcher(matcher)
 }
 
-class ContextMatchSplitter[F[+_], In, Elem, C]
+class ContextMatchSplitter[In, Elem, C]
 	(matcher: ContextMatcher[Elem, C])
-	(implicit inAsStack: StackLike[In, Elem], F: Monad[F])
-extends Splitter[F, In, C] {
-	def addBoundaries: Transformer[F, In, Either[ContextChange[In, C], In]] = inAsStack.interpret[F] >> SplitterByContextMatch(matcher)
+	(implicit inAsStack: StackLike[In, Elem])
+extends Splitter[In, C] {
+	def addBoundaries: Transformer[In, Either[ContextChange[In, C], In]] = inAsStack.interpret >> SplitterByContextMatch(matcher)
 }

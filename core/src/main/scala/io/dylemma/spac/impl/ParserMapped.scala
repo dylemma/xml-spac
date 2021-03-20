@@ -1,13 +1,24 @@
 package io.dylemma.spac
 package impl
 
-import cats.Functor
+class ParserMapped[In, A, B](self: Parser[In, A], f: A => B) extends Parser[In, B] {
+	def newHandler = new ParserMapped.Handler(self.newHandler, f)
 
-class ParserMapped[F[+_], In, Out, Out2](inner: Parser[F, In, Out], f: Out => Out2)(implicit F: Functor[F]) extends Parser[F, In, Out2] {
-	def step(in: In): F[Either[Out2, Parser[F, In, Out2]]] = F.map(inner.step(in)) {
-		case Left(out) => Left(f(out))
-		case Right(`inner`) => Right(this)
-		case Right(nextInner) => Right(new ParserMapped(nextInner, f))
+	override def map[Out2](g: B => Out2) = new ParserMapped[In, A, Out2](self, a => g(f(a)))
+}
+
+object ParserMapped {
+	class Handler[In, Out, Out2](
+		private var inner: Parser.Handler[In, Out],
+		f: Out => Out2
+	) extends Parser.Handler[In, Out2]
+	{
+		def step(in: In) = inner.step(in) match {
+			case Left(out) => Left(f(out))
+			case Right(cont) =>
+				inner = cont
+				Right(this)
+		}
+		def finish() = f(inner.finish())
 	}
-	def finish: F[Out2] = F.map(inner.finish)(f)
 }

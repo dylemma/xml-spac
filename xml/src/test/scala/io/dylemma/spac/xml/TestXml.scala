@@ -12,20 +12,23 @@ import scala.util.parsing.combinator.RegexParsers
   *
   * E.g.
   * {{{
-  *    testxml"<foo>Hello</foo>"
+  *    testXml"<foo>Hello</foo>"
   * }}}
   */
 object TestXml {
 
 	implicit class TestXmlStringContext(sc: StringContext) {
-		def testxml(args: Any*): List[XmlEvent] = {
-			if (args.nonEmpty) throw new IllegalArgumentException("testxml interpolator doesn't support args")
-			val raw = StringContext.processEscapes(sc.parts.mkString)
+		def testXml(): List[XmlEvent] = {
+			val raw = StringContext.processEscapes(sc.parts.mkString.stripMargin)
 			Parsing.parseAll(Parsing.root, raw) getOrElse {
 				throw new IllegalArgumentException("couldn't parse the string as xml")
 			}
 		}
 	}
+
+	def testElem(name: String, attrs: (String, String)*): XmlEvent.ElemStart = TestStartElem(name, attrs.toList)
+	def testQName(localPart: String): XmlEvent.ShowableQName = XmlEvent.ShowableQName(None, localPart)
+
 
 	case class TestStartElem(_name: String, _attrs: List[(String, String)]) extends XmlEvent.ElemStart {
 		def qName[N](implicit N: AsQName[N]): N = N.convert(_name)

@@ -1,234 +1,240 @@
 package io.dylemma.spac
 
 import cats.data.Chain
-import cats.effect.Bracket
-import cats.{Applicative, ApplicativeError, Defer, Functor, Monad, MonadError}
+import cats.effect.{Bracket, SyncIO}
+import cats.{Applicative, Monad}
 import io.dylemma.spac.impl._
 import io.dylemma.spac.types.Unconsable
 import org.tpolecat.typename.TypeName
 
-import scala.collection.mutable
+import scala.annotation.tailrec
 import scala.util.Try
 
-trait Parser[F[+_], -In, +Out] { self =>
+trait Parser[-In, +Out] { self =>
 
-	/** Advance the state of this parser by accepting a single input of type `In`.
-	  * If doing so would cause this parser to complete, return a `Left` containing the output.
-	  * Otherwise, return a `Right` containing the next parser state.
-	  *
-	  * Note that while the return type of this method is wrapped in the `F` effect type,
-	  * the actual work of this method need not necessarily happen as an "effect" within the F context.
-	  * It is acceptable to perform computations and then simply return `F.pure(result)`.
-	  * The expectation is that this method will only be called while already inside the F context,
-	  * e.g. via `stepMany`, which uses `F.tailRecM`, or via the `parse` methods, which also use `F.tailRecM`.
-	  * This is a slight concession in order to discourage Parser implementations from doing things like
-	  * `F.pure(in).map { /* actual work here */ }`
-	  *
-	  * @param in
-	  * @return either the final result of the parser, or the parser's next state
-	  */
-	def step(in: In): F[Either[Out, Parser[F, In, Out]]]
+	def newHandler: Parser.Handler[In, Out]
 
-	/** Finish this parser by accepting an "end of stream" signal.
-	  * All parsers *must* produce a value of type `Out` with this method, or else raise an error in the F context.
-	  *
-	  * As with `step`, the actual work of this method need not necessarily happen within the F context.
-	  *
-	  * @return the final result of this parser
-	  */
-	def finish: F[Out]
+//	/** Advance the state of this parser by accepting a single input of type `In`.
+//	  * If doing so would cause this parser to complete, return a `Left` containing the output.
+//	  * Otherwise, return a `Right` containing the next parser state.
+//	  *
+//	  * Note that while the return type of this method is wrapped in the `F` effect type,
+//	  * the actual work of this method need not necessarily happen as an "effect" within the F context.
+//	  * It is acceptable to perform computations and then simply return `F.pure(result)`.
+//	  * The expectation is that this method will only be called while already inside the F context,
+//	  * e.g. via `stepMany`, which uses `F.tailRecM`, or via the `parse` methods, which also use `F.tailRecM`.
+//	  * This is a slight concession in order to discourage Parser implementations from doing things like
+//	  * `F.pure(in).map { /* actual work here */ }`
+//	  *
+//	  * @param in
+//	  * @return either the final result of the parser, or the parser's next state
+//	  */
+//	def step(in: In): Either[Out, Parser[In, Out]]
 
-	def map[Out2](f: Out => Out2)(implicit F: Functor[F]): Parser[F, In, Out2] = new ParserMapped(this, f)
 
-	def orElse[In2 <: In, Out2 >: Out](fallback: Parser[F, In2, Out2])(implicit F: MonadError[F, Throwable]): Parser[F, In2, Out2] = ParserOrElseList(Right(this) :: Right(fallback) :: Nil)
+//	/** Finish this parser by accepting an "end of stream" signal.
+//	  * All parsers *must* produce a value of type `Out` with this method, or else raise an error in the F context.
+//	  *
+//	  * As with `step`, the actual work of this method need not necessarily happen within the F context.
+//	  *
+//	  * @return the final result of this parser
+//	  */
+//	def finish(): Out
 
-	def attempt[Err](implicit F: ApplicativeError[F, Err]): Parser[F, In, Either[Err, Out]] = new ParserAttempt(this)
-	def wrapSafe(implicit F: MonadError[F, Throwable]): Parser[F, In, Try[Out]] = attempt.map(_.toTry)
+//	/** Make a copy of this Parser with its current state.
+//	  * For "pure" parsers, it's acceptable to return `this`.
+//	  * For "impure" parsers, any internally-mutable state, including references to other parsers, should be cloned to construct a new Parser of the same type.
+//	  */
+//	def cloneState: Parser[In, Out]
+	def withName(name: String): Parser[In, Out] = new ParserNamed(this, name)
 
-	def expectInputs[I2 <: In](expectations: List[(String, I2 => Boolean)])(implicit F: MonadError[F, Throwable]): Parser[F, I2, Out] = new ParserExpectInputs(this, expectations)
+	def map[Out2](f: Out => Out2): Parser[In, Out2] = new ParserMapped(this, f)
 
-	def interruptedBy[I2 <: In](interrupter: Parser[F, I2, Any])(implicit F: Monad[F]): Parser[F, I2, Out] = new ParserInterruptedBy(this, interrupter)
-	def beforeContext[I2 <: In, StackElem](matcher: ContextMatcher[StackElem, Any])(implicit stackable: StackLike[I2, StackElem], F: Monad[F]): Parser[F, I2, Out] = {
+	def orElse[In2 <: In, Out2 >: Out](fallback: Parser[In2, Out2]): Parser[In2, Out2] = ParserOrElseChain[In2, Out2](Chain(this, fallback))
+
+	def wrapSafe: Parser[In, Try[Out]] = new ParserTry(this)
+	def attempt: Parser[In, Either[Throwable, Out]] = wrapSafe.map(_.toEither)
+
+	def expectInputs[I2 <: In](expectations: List[(String, I2 => Boolean)]): Parser[I2, Out] = new ParserExpectInputs(this, expectations)
+
+	def interruptedBy[I2 <: In](interrupter: Parser[I2, Any]): Parser[I2, Out] = new ParserInterruptedBy(this, interrupter)
+	def beforeContext[I2 <: In, StackElem](matcher: ContextMatcher[StackElem, Any])(implicit stackable: StackLike[I2, StackElem]): Parser[I2, Out] = {
 		// use ContextMatchSplitter to drive the stackable+matcher together, and pipe it into a parser that returns when a ContextPush is interpreted,
 		// i.e. the `interrupter` will yield a result upon entering a context matched by the `matcher`
-		interruptedBy { Splitter[F, I2].fromMatcher(matcher).addBoundaries.collect { case Left(ContextPush(_, _)) => () } :> Parser.firstOpt }
+		interruptedBy { Splitter[I2].fromMatcher(matcher).addBoundaries.collect { case Left(ContextPush(_, _)) => () } :> Parser.firstOpt }
 	}
+	def upcast[Out2](implicit ev: Out <:< Out2): Parser[In, Out2] = this.asInstanceOf[Parser[In, Out2]]
 
-	def withName(name: String)(implicit F: Functor[F]): Parser[F, In, Out] = new ParserNamed(name, this)
+	def asTransformer: Transformer[In, Out] = new ParserAsTransformer(this)
 
-	def asTransformer(implicit F: Functor[F]): Transformer[F, In, Out] = new ParserAsTransformer(this)
-
-	def stepMany[C[_], In2 <: In](inputs: C[In2])(implicit C: Unconsable[C], F: Monad[F]): F[Either[(Out, C[In2]), Parser[F, In, Out]]] = {
-		F.tailRecM((inputs, this)) { case (pendingInputs, parser) =>
-			C.uncons(pendingInputs) match {
-				// end of the `inputs`, exit recursion with the current parser state
-				case None => F.pure(Right(Right(parser)))
-
-				// next input, step the parser
-				case Some((head, tail)) =>
-					F.map(parser.step(head)) {
-						// parser finished with a result; return it along with the leftover inputs
-						case Left(out) => Right(Left(out -> tail))
-						// continue with an updated parser state
-						case Right(nextParser) => Left(tail -> nextParser)
-					}
-			}
+	def parseSeq[C[_], In2 <: In](source: C[In2])(implicit srcAsSeq: Unconsable[C]): Out = {
+		newHandler.stepMany(source) match {
+			case Left((out, _)) => out
+			case Right(cont) => cont.finish()
 		}
 	}
 
-	def parseSeq[C[_], In2 <: In](source: C[In2])(implicit srcAsSeq: Unconsable[C], F: Monad[F]): F[Out] = {
-		F.flatMap(stepMany(source)) {
-			case Left((out, leftovers)) => F.pure(out)
-			case Right(cont) => cont.finish
-		}
+	def parse[Src](source: Src)(implicit srcToPullable: ToPullable[SyncIO, Src, In]): Out = {
+		parseF[SyncIO, Src](source).unsafeRunSync()
 	}
 
-	def parse[Src](source: Src)(implicit srcToPullable: ToPullable[F, Src, In], F: Monad[F], Fb: Bracket[F, Throwable]): F[Out] = {
-		srcToPullable(source).use { srcPullable =>
-			F.tailRecM(srcPullable -> this) { case (inputs, parser) =>
-				F.flatMap(inputs.uncons) {
+	def parseF[F[+_], Src](source: Src)(implicit srcToPullable: ToPullable[F, Src, In], F: Monad[F], Fb: Bracket[F, Throwable]): F[Out] = {
+		srcToPullable(source).use[F[+*], Out] { srcPullable =>
+			F.tailRecM(srcPullable -> newHandler) { case (inputs, handler) =>
+				F.map(inputs.uncons) {
 					case Some((in, nextInputs)) =>
-						F.map(parser.step(in)) {
+						handler.step(in) match {
 							case Left(result) => Right(result)
-							case Right(nextParser) => Left(nextInputs -> nextParser)
+							case Right(cont) => Left(nextInputs -> cont)
 						}
 					case None =>
-						F.map(parser.finish)(Right(_))
+						Right(handler.finish())
 				}
 			}
 		}
 	}
-
-
-}
-
-class ParserApplyWithBoundEffect[F[+_]] {
-	def over[In]: ParserApplyBound[F, In] = new ParserApplyBound
-
-	def app[In](implicit F: Monad[F]): Applicative[Parser[F, In, *]] = Parser.parserApplicative
-	def firstOpt[In](implicit F: Applicative[F]): Parser[F, In, Option[In]] = Parser.firstOpt
-	def firstOrError[In, Err](ifNone: Err)(implicit F: MonadError[F, Err]): Parser[F, In, In] = Parser.firstOrError(ifNone)
-	def first[In](implicit F: MonadError[F, Throwable], In: TypeName[In]): Parser[F, In, In] = Parser.first
-	def find[In](predicate: In => Boolean)(implicit F: Applicative[F]): Parser[F, In, Option[In]] = Parser.find(predicate)
-	def findEval[In](predicate: In => F[Boolean])(implicit F: Monad[F]): Parser[F, In, Option[In]] = Parser.findEval(predicate)
-	def fold[In, Out](init: Out)(op: (Out, In) => Out)(implicit F: Applicative[F]): Parser[F, In, Out] = Parser.fold(init)(op)
-	def foldEval[In, Out](init: Out)(op: (Out, In) => F[Out])(implicit F: Monad[F]): Parser[F, In, Out] = Parser.foldEval(init)(op)
-	def pure[Out](value: Out)(implicit F: Applicative[F]): Parser[F, Any, Out] = Parser.pure(value)
-	def eval[In, Out](fa: F[Parser[F, In, Out]])(implicit F: Monad[F]): Parser[F, In, Out] = Parser.eval(fa)
-	def toChain[In](implicit F: Applicative[F]): Parser[F, In, Chain[In]] = Parser.toChain
-	def toList[In](implicit F: Applicative[F]): Parser[F, In, List[In]] = Parser.toList
-	def impureBuild[In, Out](builder: => mutable.Builder[In, Out])(implicit fm: Monad[F], fd: Defer[F]): Parser[F, In, Out] = Parser.impureBuild(builder)
-}
-
-class ParserApplyBound[F[+_], In] {
-	def app(implicit F: Monad[F]): Applicative[Parser[F, In, *]] = Parser.parserApplicative
-	def firstOpt(implicit F: Applicative[F]): Parser[F, In, Option[In]] = Parser.firstOpt
-	def firstOrError[Err](ifNone: Err)(implicit F: MonadError[F, Err]): Parser[F, In, In] = Parser.firstOrError(ifNone)
-	def first(implicit F: MonadError[F, Throwable], In: TypeName[In]): Parser[F, In, In] = Parser.first
-	def find(predicate: In => Boolean)(implicit F: Applicative[F]): Parser[F, In, Option[In]] = Parser.find(predicate)
-	def findEval(predicate: In => F[Boolean])(implicit F: Monad[F]): Parser[F, In, Option[In]] = Parser.findEval(predicate)
-	def fold[Out](init: Out)(op: (Out, In) => Out)(implicit F: Applicative[F]): Parser[F, In, Out] = Parser.fold(init)(op)
-	def foldEval[Out](init: Out)(op: (Out, In) => F[Out])(implicit F: Monad[F]): Parser[F, In, Out] = Parser.foldEval(init)(op)
-	def pure[Out](value: Out)(implicit F: Applicative[F]): Parser[F, In, Out] = Parser.pure(value)
-	def eval[Out](fa: F[Parser[F, In, Out]])(implicit F: Monad[F]): Parser[F, In, Out] = Parser.eval(fa)
-	def toChain(implicit F: Applicative[F]): Parser[F, In, Chain[In]] = Parser.toChain
-	def toList(implicit F: Applicative[F]): Parser[F, In, List[In]] = Parser.toList
-	def impureBuild[Out](builder: => mutable.Builder[In, Out])(implicit fm: Monad[F], fd: Defer[F]): Parser[F, In, Out] = Parser.impureBuild(builder)
 }
 
 class ParserApplyWithBoundInput[In] {
-	def apply[F[+_]]: ParserApplyBound[F, In] = new ParserApplyBound
+	def app: Applicative[Parser[In, *]] = Parser.parserApplicative
 
-	def app[F[+_] : Monad]: Applicative[Parser[F, In, *]] = Parser.parserApplicative
-	def firstOpt[F[+_] : Applicative]: Parser[F, In, Option[In]] = Parser.firstOpt
-	def firstOrError[F[+_], Err](ifNone: Err)(implicit F: MonadError[F, Err]): Parser[F, In, In] = Parser.firstOrError(ifNone)
-	def first[F[+_]](implicit F: MonadError[F, Throwable], In: TypeName[In]): Parser[F, In, In] = Parser.first
-	def find[F[+_] : Applicative](predicate: In => Boolean): Parser[F, In, Option[In]] = Parser.find(predicate)
-	def findEval[F[+_] : Monad](predicate: In => F[Boolean]): Parser[F, In, Option[In]] = Parser.findEval(predicate)
-	def fold[F[+_] : Applicative, Out](init: Out)(op: (Out, In) => Out): Parser[F, In, Out] = Parser.fold(init)(op)
-	def foldEval[F[+_] : Monad, Out](init: Out)(op: (Out, In) => F[Out]): Parser[F, In, Out] = Parser.foldEval(init)(op)
-	def pure[F[+_] : Applicative, Out](value: Out): Parser[F, In, Out] = Parser.pure(value)
-	def eval[F[+_] : Monad, Out](fa: F[Parser[F, In, Out]]): Parser[F, In, Out] = Parser.eval(fa)
-	def toChain[F[+_] : Applicative]: Parser[F, In, Chain[In]] = Parser.toChain
-	def toList[F[+_] : Applicative]: Parser[F, In, List[In]] = Parser.toList
-	def impureBuild[F[+_] : Monad : Defer, Out](builder: => mutable.Builder[In, Out]): Parser[F, In, Out] = Parser.impureBuild(builder)
+	def firstOpt: Parser[In, Option[In]] = Parser.firstOpt
+	def first(implicit In: TypeName[In]): Parser[In, In] = Parser.first
+	def find(predicate: In => Boolean): Parser[In, Option[In]] = Parser.find(predicate)
+	def fold[Out](init: Out)(op: (Out, In) => Out): Parser[In, Out] = Parser.fold(init)(op)
+	def pure[Out](value: Out): Parser[In, Out] = Parser.pure(value)
+	def delay[Out](value: => Out): Parser[In, Out] = Parser.delay(value)
+	def defer[Out](p: => Parser[In, Out]): Parser[In, Out] = Parser.defer(p)
+	def deferHandler[Out](h: => Parser.Handler[In, Out]): Parser[In, Out] = Parser.deferHandler(h)
+	def fromBuilder[Out](b: => collection.mutable.Builder[In, Out]): Parser[In, Out] = Parser.fromBuilder(b)
+	def toList: Parser[In, List[In]] = Parser.toList
+	def toChain: Parser[In, Chain[In]] = Parser.toChain
 }
 
 object Parser {
-
-	def apply[F[+_]] = new ParserApplyWithBoundEffect[F]
-	def apply[F[+_], In] = new ParserApplyBound[F, In]
-	def over[In] = new ParserApplyWithBoundInput[In]
-
-	def firstOpt[F[+_] : Applicative, In]: Parser[F, In, Option[In]] = new ParseFirstOpt[F, In]
-	def firstOrError[F[+_], In, Err](ifNone: Err)(implicit F: MonadError[F, Err]): Parser[F, In, In] = firstOpt[F, In].errorIfNone(ifNone)
-	def first[F[+_], In](implicit F: MonadError[F, Throwable], In: TypeName[In]): Parser[F, In, In] = firstOpt[F, In].errorIfNone[Throwable](new SpacException.MissingFirstException[In])
-	def find[F[+_] : Applicative, In](predicate: In => Boolean): Parser[F, In, Option[In]] = new ParserFind(predicate)
-	def findEval[F[+_] : Monad, In](predicate: In => F[Boolean]): Parser[F, In, Option[In]] = new ParserFindEval(predicate)
-	def fold[F[+_] : Applicative, In, Out](init: Out)(op: (Out, In) => Out): Parser[F, In, Out] = new ParserFold(init, op)
-	def foldEval[F[+_] : Monad, In, Out](init: Out)(op: (Out, In) => F[Out]): Parser[F, In, Out] = new ParserFoldEval(init, op)
-
-	def pure[F[+_] : Applicative, Out](value: Out): Parser[F, Any, Out] = new ParserPure(value)
-	def eval[F[+_] : Monad, In, Out](fa: F[Parser[F, In, Out]]): Parser[F, In, Out] = new ParserEval(fa)
-
-	def toChain[F[+_] : Applicative, In]: Parser[F, In, Chain[In]] = fold(Chain.empty[In])(_ :+ _)
-	def toList[F[+_] : Applicative, In]: Parser[F, In, List[In]] = toChain[F, In].map(_.toList)
-
-	def impureBuild[F[+_] : Monad : Defer, In, Out](builder: => mutable.Builder[In, Out]): Parser[F, In, Out] = {
-		eval(Defer[F].defer { Monad[F].pure(new ParserImpureBuilder(builder)) })
+	trait Stateless[-In, +Out] extends Parser[In, Out] with Handler[In, Out] {
+		def newHandler: this.type = this
 	}
+	trait Handler[-In, +Out] {
+		def step(in: In): Either[Out, Handler[In, Out]]
+		def finish(): Out
 
-	implicit class OptionalParserOps[F[+_], -In, +Out](parser: Parser[F, In, Option[Out]]) {
-		def errorIfNone[E](err: E)(implicit F: MonadError[F, E]): Parser[F, In, Out] = new ParserOptOrElse(parser, F.raiseError(err))
-	}
-	implicit class AttemptParserOps[F[+_], -In, +Out, +Err](parser: Parser[F, In, Either[Err, Out]]) {
-		def rethrow[Err0 >: Err](implicit F: MonadError[F, Err0]): Parser[F, In, Out] = new ParserRethrow[F, In, Out, Err0](parser)
-	}
-	implicit class TryParserOps[F[+_], -In, +Out](parser: Parser[F, In, Try[Out]]) {
-		def unwrapSafe(implicit F: MonadError[F, Throwable]): Parser[F, In, Out] = parser.map(_.toEither).rethrow
-	}
-	implicit class ParserFollowedByOps[F[+_], In, A](parser: Parser[F, In, A])(implicit F: Monad[F]) {
-		def followedBy: FollowedBy[In, A, Parser[F, In, +*]] = new FollowedBy[In, A, Parser[F, In, +*]] {
-			def apply[Out](followUp: A => Parser[F, In, Out])(implicit S: StackLike[In, Any]): Parser[F, In, Out] = {
-				new ParserFollowedByParser(parser, followUp, Nil, S)
+		def stepMany[C[_], In2 <: In](inputs: C[In2])(implicit C: Unconsable[C]): Either[(Out, C[In2]), Handler[In, Out]] = {
+			@tailrec def loop(current: Handler[In, Out], remaining: C[In2]): Either[(Out, C[In2]), Handler[In, Out]] = {
+				C.uncons(remaining) match {
+					case Some((head, tail)) =>
+						current.step(head) match {
+							case Right(cont) => loop(cont, tail)
+							case Left(out) => Left(out -> tail)
+						}
+					case None =>
+						Right(current)
+				}
 			}
-		}
-		def followedByStream: FollowedBy[In, A, Transformer[F, In, +*]] = new FollowedBy[In, A, Transformer[F, In, +*]] {
-			def apply[Out](followUp: A => Transformer[F, In, Out])(implicit S: StackLike[In, Any]): Transformer[F, In, Out] = {
-				new ParserFollowedByTransformer(parser, followUp, Nil, S)
-			}
+			loop(this, inputs)
 		}
 	}
 
-	implicit def parserApplicative[F[+_] : Monad, In]: Applicative[Parser[F, In, *]] = new Applicative[Parser[F, In, *]] {
+
+	def apply[In] = new ParserApplyWithBoundInput[In]
+
+	def firstOpt[In]: Parser[In, Option[In]] = new ParserFirstOpt[In]
+	def first[In: TypeName]: Parser[In, In] = new ParserFirst[In]
+	def find[In](predicate: In => Boolean): Parser[In, Option[In]] = new ParserFind(predicate)
+	def fold[In, Out](init: Out)(op: (Out, In) => Out): Parser[In, Out] = new ParserFold(init, op)
+	def pure[Out](value: Out): Parser[Any, Out] = new ParserPure(value)
+	def delay[Out](value: => Out): Parser[Any, Out] = new ParserDelay(() => value)
+	def defer[In, Out](p: => Parser[In, Out]): Parser[In, Out] = new ParserDefer(() => p)
+	def deferHandler[In, Out](h: => Parser.Handler[In, Out]): Parser[In, Out] = new ParserDeferHandler(() => h)
+	def fromBuilder[In, Out](b: => collection.mutable.Builder[In, Out]): Parser[In, Out] = deferHandler { new ParserHandlerForBuilder(b) }
+	def toList[In]: Parser[In, List[In]] = fromBuilder { List.newBuilder }
+	def toChain[In]: Parser[In, Chain[In]] = fold(Chain.empty[In])(_ :+ _)
+	def toMap[K, V]: Parser[(K, V), Map[K, V]] = fromBuilder { Map.newBuilder[K, V] }
+	def tap[In](f: In => Unit): Parser[In, Unit] = new ParserTap(f)
+
+	implicit class TryParserOps[-In, +Out](parser: Parser[In, Try[Out]]) {
+		def unwrapSafe: Parser[In, Out] = new ParserRethrow(parser)
+	}
+	implicit class ParserFollowedByOps[In, A](parser: Parser[In, A]) {
+		def followedByParser = followedBy
+		def followedBy: FollowedBy[In, A, Parser] = new FollowedBy[In, A, Parser] {
+			def apply[Out](followUp: A => Parser[In, Out])(implicit S: StackLike[In, Any]): Parser[In, Out] = {
+				new ParserFollowedByParser(parser, followUp)
+			}
+		}
+		def followedByStream: FollowedBy[In, A, Transformer] = new FollowedBy[In, A, Transformer] {
+			def apply[Out](followUp: A => Transformer[In, Out])(implicit S: StackLike[In, Any]): Transformer[In, Out] = {
+				new ParserFollowedByTransformer(parser, followUp)
+			}
+		}
+	}
+
+	implicit def parserApplicative[In]: Applicative[Parser[In, *]] = new Applicative[Parser[In, *]] {
 		def pure[A](x: A) = new ParserPure(x)
-		def ap[A, B](ff: Parser[F, In, A => B])(fa: Parser[F, In, A]) = product(ff, fa).map { case (f, a) => f(a) }
-		override def product[A, B](fa: Parser[F, In, A], fb: Parser[F, In, B]) = {
+		def ap[A, B](ff: Parser[In, A => B])(fa: Parser[In, A]) = product(fa, ff).map { case (a, f) => f(a) }
+		override def product[A, B](fa: Parser[In, A], fb: Parser[In, B]) = {
 			(fa, fb) match {
-				case (faCompound: ParserCompoundN[F, In, A], fbCompound: ParserCompoundN[F, In, B]) =>
-					fbCompound.compoundProductWithLhs(faCompound)
-				case (fa, fbCompound: ParserCompoundN[F, In, B]) =>
-					fbCompound.productWithLhs(fa)
-				case (faCompound: ParserCompoundN[F, In, A], fb) =>
-					faCompound.productWithRhs(fb)
+				case (faCompound: ParserCompoundN[In, A], fbCompound: ParserCompoundN[In, B]) =>
+					val offset = faCompound.members.size.toInt
+					new ParserCompoundN(
+						faCompound.members ++ fbCompound.members,
+						get => faCompound.assemble(get) -> fbCompound.assemble(OffsetGet(offset, get))
+					)
+//					fbCompound.compoundProductWithLhs(faCompound)
+				case (fa, fbCompound: ParserCompoundN[In, B]) =>
+					new ParserCompoundN(
+						fa +: fbCompound.members,
+						get => get(0).asInstanceOf[A] -> fbCompound.assemble(OffsetGet(1, get))
+					)
+//					fbCompound.productWithLhs(fa)
+				case (faCompound: ParserCompoundN[In, A], fb) =>
+					val offset = faCompound.members.size.toInt
+					new ParserCompoundN(
+						faCompound.members :+ fb,
+						get => faCompound.assemble(get) -> get(offset).asInstanceOf[B]
+					)
+//					faCompound.productWithRhs(fb)
 				case (fa, fb) =>
 					new ParserCompoundN(
-						Chain(1 -> fa, 0 -> fb),
-						Map.empty,
-						results => (results(1).asInstanceOf[A], results(0).asInstanceOf[B])
+						Chain(fa, fb),
+						results => (results(0).asInstanceOf[A], results(1).asInstanceOf[B])
 					)
 			}
 		}
-		override def map[A, B](fa: Parser[F, In, A])(f: A => B): Parser[F, In, B] = fa.map(f)
+		override def map[A, B](fa: Parser[In, A])(f: A => B): Parser[In, B] = fa.map(f)
+
+		private case class OffsetGet private(offset: Int, get: Int => Any) extends (Int => Any) {
+			def apply(i: Int) = get(i + offset)
+		}
+		private object OffsetGet {
+			def apply(offset: Int, get: Int => Any) = get match {
+				case OffsetGet(n, g) => new OffsetGet(n + offset, g)
+				case g => new OffsetGet(offset, g)
+			}
+		}
+
 	}
 
-	trait FollowedBy[In, +A, M[+_]] { self =>
-		def apply[Out](followUp: A => M[Out])(implicit S: StackLike[In, Any]): M[Out]
+//	class ParserWordFollowed[In, +A](self: Parser[In, A]) {
+//		def by: FollowedBy[In, A, Parser[In, +*]] = new FollowedBy[In, A, Parser[In, +*]] {
+//			def apply[Out](followUp: A => Parser[In, Out])(implicit S: StackLike[In, Any]): Parser[In, Out] = {
+//				new ParserFollowedByParser(self, followUp)
+//			}
+//		}
+//		def byStream: FollowedBy[In, A, Transformer[In, +*]] = new FollowedBy[In, A, Transformer[In, +*]] {
+//			def apply[Out](followUp: A => Transformer[In, Out])(implicit S: StackLike[In, Any]): Transformer[In, Out] = {
+//				new ParserFollowedByTransformer(self, followUp)
+//			}
+//		}
+//	}
 
-		def flatMap[Out](followUp: A => M[Out])(implicit S: StackLike[In, Any]): M[Out] = apply(followUp)
+	trait FollowedBy[In, +A, M[-_, +_]] { self =>
+		def apply[Out](followUp: A => M[In, Out])(implicit S: StackLike[In, Any]): M[In, Out]
+
+		def flatMap[Out](followUp: A => M[In, Out])(implicit S: StackLike[In, Any]): M[In, Out] = apply(followUp)
 
 		def map[B](f: A => B)(implicit S: StackLike[In, Any]): FollowedBy[In, B, M] = new FollowedBy[In, B, M] {
-			def apply[Out](followUp: B => M[Out])(implicit S: StackLike[In, Any]) = self { a => followUp(f(a)) }
+			def apply[Out](followUp: B => M[In, Out])(implicit S: StackLike[In, Any]) = self { a => followUp(f(a)) }
 		}
 	}
 }

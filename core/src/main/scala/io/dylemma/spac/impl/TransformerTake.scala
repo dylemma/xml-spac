@@ -1,13 +1,22 @@
 package io.dylemma.spac
 package impl
 
-import cats.Applicative
+class TransformerTake[In](n: Int) extends Transformer[In, In] {
+	def newHandler = new TransformerTake.Handler(n)
+}
 
-class TransformerTake[F[+_], In](remaining: Int)(implicit F: Applicative[F]) extends Transformer[F, In, In] {
-	def step(in: In): F[(Emit[In], Option[Transformer[F, In, In]])] = {
-		if (remaining > 1) F.pure { Emit.one(in) -> Some(new TransformerTake(remaining - 1)) }
-		else if (remaining == 1) F.pure { Emit.one(in) -> None }
-		else F.pure { Emit.nil -> None }
+object TransformerTake {
+	class Handler[In](private var remaining: Int) extends Transformer.Handler[In, In] {
+		def step(in: In) = {
+			if (remaining > 1) {
+				remaining -= 1
+				Emit.one(in) -> Some(this)
+			} else if (remaining == 1) {
+				Emit.one(in) -> None
+			} else {
+				Emit.nil -> None
+			}
+		}
+		def finish() = Emit.nil
 	}
-	def finish: F[Emit[In]] = F.pure(Emit.nil)
 }

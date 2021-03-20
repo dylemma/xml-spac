@@ -1,12 +1,10 @@
 package io.dylemma.spac
 package impl
 
-import cats.Applicative
-
-class ParserFind[F[+_], In](predicate: In => Boolean)(implicit F: Applicative[F]) extends Parser[F, In, Option[In]] {
+class ParserFind[In](predicate: In => Boolean) extends Parser.Stateless[In, Option[In]] {
 	def step(in: In) = {
-		if (predicate(in)) F.pure { Left(Some(in)) }
-		else F.pure { Right(this) }
+		if (predicate(in)) Left(Some(in))
+		else Right(this)
 	}
-	def finish = F.pure(None)
+	def finish() = None
 }

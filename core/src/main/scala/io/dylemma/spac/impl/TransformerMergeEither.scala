@@ -1,21 +1,36 @@
 package io.dylemma.spac
 package impl
 
-import cats.Apply
+class TransformerMergeEither[In, A, B](left: Transformer[In, A], right: Transformer[In, B]) extends Transformer[In, Either[A, B]] {
+	def newHandler = new TransformerMergeEither.Handler(left.newHandler, right.newHandler)
+}
 
-class TransformerMergeEither[F[+_], -In, +A, +B](left: Transformer[F, In, A], right: Transformer[F, In, B])(implicit F: Apply[F]) extends Transformer[F, In, Either[A, B]] {
-	def step(in: In): F[(Emit[Either[A, B]], Option[Transformer[F, In, Either[A, B]]])] = F.map2(left.step(in), right.step(in)) {
-		case ((emitA, continueA), (emitB, continueB)) =>
+object TransformerMergeEither {
+	class Handler[In, A, B](
+		private var left: Transformer.Handler[In, A],
+		private var right: Transformer.Handler[In, B]
+	) extends Transformer.Handler[In, Either[A, B]] {
+		def step(in: In) = {
+			val (emitA, contA) = left.step(in)
+			val (emitB, contB) = right.step(in)
 			val emit: Emit[Either[A, B]] = emitA.map(Left(_)) ++ emitB.map(Right(_))
-			val cont = (continueA, continueB) match {
-				case (None, None) => None
-				case (Some(l), Some(r)) => Some(new TransformerMergeEither(l, r))
-				case (Some(l), None) => Some(l.map(Left(_)))
-				case (None, Some(r)) => Some(r.map(Right(_)))
+			val cont = (contA, contB) match {
+				case (Some(l), Some(r)) =>
+					left = l
+					right = r
+					Some(this)
+				case (Some(l), None) =>
+					Some { new TransformerMapBatch.Handler[In, A, Either[A, B]](l, _.map(Left(_))) }
+				case (None, Some(r)) =>
+					Some { new TransformerMapBatch.Handler[In, B, Either[A, B]](r, _.map(Right(_))) }
+				case (None, None) =>
+					None
 			}
 			emit -> cont
-	}
-	def finish: F[Emit[Either[A, B]]] = F.map2(left.finish, right.finish) { (emitA, emitB) =>
-		emitA.map(Left(_)) ++ emitB.map(Right(_))
+		}
+
+		def finish() = {
+			left.finish().map(Left(_)) ++ right.finish().map(Right(_))
+		}
 	}
 }

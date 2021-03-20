@@ -1,4 +1,4 @@
-package io.dylemma.spac.xml
+package io.dylemma.spac.xml2
 
 import java.io.Writer
 
@@ -7,7 +7,7 @@ import javax.xml.stream.events._
 import javax.xml.stream.{Location, XMLStreamConstants}
 import org.scalatest.Assertions
 
-object TestUtils extends Assertions {
+object MockJavax extends Assertions {
 	def mockElem(name: String, attrs: (String, String)*): StartElement = {
 		new StartElement {
 			val getName: QName = new QName(name)

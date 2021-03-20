@@ -1,6 +1,5 @@
 package io.dylemma.spac
 
-import cats.data.NonEmptyList
 import org.tpolecat.typename._
 
 trait SpacException extends Exception
@@ -10,23 +9,23 @@ object SpacException {
 		extends NoSuchElementException(s"No ${ typeName[Out] } was encountered before the end of its input.")
 			with SpacException
 
-	class UnexpectedInputException[A](val input: A, val expectations: NonEmptyList[String])
+	class UnexpectedInputException[A](val input: A, val expectations: List[String])
 		extends IllegalArgumentException(s"Unexpected input: expected ${ formatExpectations(expectations) }, but got $input")
 			with SpacException
 
-	class UnfulfilledInputsException(val expectations: NonEmptyList[String])
+	class UnfulfilledInputsException(val expectations: List[String])
 		extends IllegalStateException(s"Unexpected end of input: still expected ${ formatExpectations(expectations) }")
 			with SpacException
 
-	private def formatExpectations(expectations: NonEmptyList[String]) = expectations.tail match {
+	private def formatExpectations(expectations: List[String]) = expectations.tail match {
 		case Nil => expectations.head
 		case list => (expectations.head :: list).mkString("[", ", then ", "]")
 	}
 
-	class FallbackChainFailure(val underlyingErrors: NonEmptyList[Throwable])
+	class FallbackChainFailure(val underlyingErrors: List[Throwable])
 		extends Exception("Every parser in the fallback chain failed")
 			with SpacException {
-		for (err <- underlyingErrors.toList) this.addSuppressed(err)
+		for (err <- underlyingErrors) this.addSuppressed(err)
 	}
 
 	object ContextualizedException {

@@ -20,18 +20,18 @@ object ToPullable {
 trait Pullable[F[+_], +A] {
 	def uncons: F[Option[(A, Pullable[F, A])]]
 
-	def into[B](parser: Parser[F, A, B])(implicit F: Monad[F]): F[B] = F.tailRecM(this -> parser) { case (currentPull, currentParser) =>
-		currentPull.uncons.flatMap {
-			case None => currentParser.finish.map(Right(_))
-			case Some((a, nextPull)) => currentParser.step(a).flatMap {
-				case Left(result) => F.pure(Right(result))
-				case Right(nextParser) => F.pure(Left(nextPull -> nextParser))
+	def into[B](parser: Parser[A, B])(implicit F: Monad[F]): F[B] = F.tailRecM(this -> parser.newHandler) { case (currentPull, handler) =>
+		currentPull.uncons.map {
+			case None => Right(handler.finish())
+			case Some((a, nextPull)) => handler.step(a) match {
+				case Left(result) => Right(result)
+				case Right(nextParser) => Left(nextPull -> nextParser)
 			}
 		}
 	}
 
-	def through[B](transformer: Transformer[F, A, B])(implicit F: Monad[F]): Pullable[F, B] = {
-		new TransformedPullable(this, transformer)
+	def through[B](transformer: Transformer[A, B])(implicit F: Monad[F]): Pullable[F, B] = {
+		new TransformedPullable(this, transformer.newHandler)
 	}
 }
 object Pullable {
@@ -70,10 +70,10 @@ object Pullable {
 }
 
 
-private class TransformedPullable[F[+_] : Monad, A, B](base: Pullable[F, A], transformer: Transformer[F, A, B]) extends Pullable[F, B] {
+private class TransformedPullable[F[+_] : Monad, A, B](base: Pullable[F, A], transformer: Transformer.Handler[A, B]) extends Pullable[F, B] {
 	def uncons = base.uncons.flatMap {
 		case Some((head, nextPull)) =>
-			transformer.step(head).flatMap {
+			transformer.step(head) match {
 				// if the transformer ends, we can discard the `nextPull` and end after emitting the `toEmit` buffer
 				case (toEmit, None) => Pullable.unconsFrom(toEmit, Pullable.nil[F])
 				// otherwise, emit the `toEmit` buffer before continuing on with the 'next' states
@@ -81,7 +81,8 @@ private class TransformedPullable[F[+_] : Monad, A, B](base: Pullable[F, A], tra
 			}
 		case None =>
 			// EOF - finish the transformer and emit whatever leftovers it produced
-			transformer.finish.flatMap { Pullable.unconsFrom(_, Pullable.nil[F]) }
+			val emit = transformer.finish()
+			Pullable.unconsFrom(emit, Pullable.nil[F])
 	}
 }
 private class BufferedPullable[F[+_] : Applicative, A](buffer: NonEmptyChain[A], next: Pullable[F, A]) extends Pullable[F, A] {

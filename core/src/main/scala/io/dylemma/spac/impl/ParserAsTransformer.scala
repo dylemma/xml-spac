@@ -1,15 +1,21 @@
 package io.dylemma.spac
 package impl
 
-import cats.Functor
-import cats.data.Chain
+class ParserAsTransformer[In, Out](self: Parser[In, Out]) extends Transformer[In, Out] {
+	def newHandler = new ParserAsTransformer.Handler(self.newHandler)
+}
 
-class ParserAsTransformer[F[+_], -In, +Out](parser: Parser[F, In, Out])(implicit F: Functor[F]) extends Transformer[F, In, Out] {
-	def step(in: In) = F.map(parser.step(in)) {
-		case Left(out) => Chain.one(out) -> None
-		case Right(nextParser) =>
-			val nextTransform = if (nextParser eq parser) this else new ParserAsTransformer(nextParser)
-			Chain.nil -> Some(nextTransform)
+object ParserAsTransformer {
+	class Handler[In, Out](var self: Parser.Handler[In, Out]) extends Transformer.Handler[In, Out] {
+		def step(in: In) = self.step(in) match {
+			case Right(cont) =>
+				self = cont
+				Emit.nil -> Some(this)
+			case Left(out) =>
+				Emit.one(out) -> None
+		}
+		def finish() = {
+			Emit.one { self.finish() }
+		}
 	}
-	def finish = F.map(parser.finish) { Chain.one }
 }

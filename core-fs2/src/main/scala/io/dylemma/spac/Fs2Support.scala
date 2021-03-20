@@ -1,14 +1,24 @@
-package io.dylemma.spac.pure // TODO repackage
+package io.dylemma.spac
 
 import cats.Monad
 import fs2.{Chunk, Pipe, Stream, Pull => Fs2Pull}
-import io.dylemma.spac.{Parser, Pullable, ToPullable, Transformer}
+import io.dylemma.spac.types.Unconsable
 
 object Fs2Support {
 
-	implicit class TransformerOps[F[+_]: Monad, A, B](transformer: Transformer[F, A, B]) {
-		def toPipe: Pipe[F, A, B] = {
+	implicit class TransformerOps[A, B](transformer: Transformer[A, B]) {
+		def toPipe[F[_]: Monad]: Pipe[F, A, B] = {
 			stream => pullTransformed(stream, transformer).stream
+		}
+	}
+
+	implicit val fs2ChunkUnconsable: Unconsable[Chunk] = new Unconsable[Chunk] {
+		def uncons[A](chunk: Chunk[A]) = {
+			if (chunk.isEmpty) None
+			else {
+				val (headChunk, tail) = chunk.splitAt(1)
+				headChunk.head.map(_ -> tail)
+			}
 		}
 	}
 
@@ -17,19 +27,22 @@ object Fs2Support {
 	around a type inference issue that affects scala 2.12. Since F is covariant, it seems to be confusing
 	the compiler when fulfilling the `F2[x] >: F[x]` part of the flatMap signature.
 	 */
-
-	private def pullTransformed[F[+_]: Monad, A, B](stream: Stream[F, A], transformer: Transformer[F, A, B]): Fs2Pull[F, B, Unit] = {
-		stream.pull.uncons1.flatMap[F[*], B, Unit] {
-			case Some((a, nextStream)) =>
-				Fs2Pull.eval(transformer.step(a)).flatMap[F[*], B, Unit] {
-					case (toEmit, Some(nextTransformer)) => Fs2Pull.output(Chunk.chain(toEmit)) >> pullTransformed(nextStream, nextTransformer)
-					case (toEmit, None) => Fs2Pull.output(Chunk.chain(toEmit))
+	private def pullTransformed[F[_]: Monad, A, B](stream: Stream[F, A], transformer: Transformer[A, B]): Fs2Pull[F, B, Unit] = {
+		Fs2Pull.suspend { Fs2Pull.pure[F, Transformer.Handler[A, B]](transformer.newHandler) } flatMap { handler =>
+			pullTransformed(stream, handler)
+		}
+	}
+	private def pullTransformed[F[_]: Monad, A, B](stream: Stream[F, A], handler: Transformer.Handler[A, B]): Fs2Pull[F, B, Unit] = {
+		stream.pull.uncons.flatMap {
+			case Some((chunk, nextStream)) =>
+				handler.stepMany(chunk) match {
+					case (toEmit, Right(nextTransformer)) => Fs2Pull.output(Chunk.chain(toEmit)) >> pullTransformed(nextStream, nextTransformer)
+					case (toEmit, Left(leftovers)) => Fs2Pull.output(Chunk.chain(toEmit))
 				}
 			case None =>
 				// EOF - finish the transformer and emit what it produces
-				Fs2Pull.eval(transformer.finish).flatMap[F[*], B, Unit] { finalEmit =>
-					Fs2Pull.output(Chunk.chain(finalEmit))
-				}
+				val finalEmit = handler.finish()
+				Fs2Pull.output(Chunk.chain(finalEmit))
 		}
 	}
 
@@ -41,23 +54,29 @@ object Fs2Support {
 		}
 	}
 
-	implicit class ParserOps[F[+_], A, B](parser: Parser[F, A, B]) {
+	implicit class ParserOps[F[+_], A, B](parser: Parser[A, B]) {
 		def toPipe: Pipe[F, A, B] = {
 			stream => pullParsed(stream, parser).stream
 		}
 	}
 
-	private def pullParsed[F[+_], A, B](stream: Stream[F, A], parser: Parser[F, A, B]): Fs2Pull[F, B, Unit] = {
-		stream.pull.uncons1.flatMap[F[*], B, Unit] {
-			case Some((head, nextStream)) =>
+	private def pullParsed[F[_], A, B](stream: Stream[F, A], parser: Parser[A, B]): Fs2Pull[F, B, Unit] = {
+		Fs2Pull.suspend { Fs2Pull.pure(parser.newHandler) }.flatMap { handler =>
+			pullParsed(stream, handler)
+		}
+	}
+	private def pullParsed[F[_], A, B](stream: Stream[F, A], handler: Parser.Handler[A, B]): Fs2Pull[F, B, Unit] = {
+		stream.pull.uncons.flatMap {
+			case Some((chunk, nextStream)) =>
 				// feed the `head` to the parser...
-				Fs2Pull.eval(parser.step(head)).flatMap[F[*], B, Unit] {
-					case Left(result) => Fs2Pull.output1(result)
-					case Right(nextParser) => pullParsed(nextStream, nextParser)
+				handler.stepMany(chunk) match {
+					case Right(nextHandler) => pullParsed(nextStream, nextHandler)
+					case Left((result, leftovers)) => Fs2Pull.output1(result)
 				}
 			case None =>
 				// EOF; finish the parser, output its result, and stop pulling
-				Fs2Pull.eval(parser.finish).flatMap[F[*], B, Unit](Fs2Pull.output1)
+				val result = handler.finish()
+				Fs2Pull.output1(result)
 		}
 	}
 }

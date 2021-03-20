@@ -1,13 +1,21 @@
 package io.dylemma.spac
 package impl
 
-import cats.MonadError
+import scala.util.Try
 
-class ParserRethrow[F[+_], In, Out, Err](p: Parser[F, In, Either[Err, Out]])(implicit F: MonadError[F, Err]) extends Parser[F, In, Out] {
-	def step(in: In): F[Either[Out, Parser[F, In, Out]]] = F.flatMap(p.step(in)) {
-		case Right(cont) => F pure Right(new ParserRethrow(cont))
-		case Left(Left(err)) => F raiseError err
-		case Left(Right(result)) => F pure Left(result)
+class ParserRethrow[In, Out](self: Parser[In, Try[Out]]) extends Parser[In, Out] {
+	def newHandler = new ParserRethrow.Handler(self.newHandler)
+}
+
+object ParserRethrow {
+	class Handler[In, Out](private var p: Parser.Handler[In, Try[Out]]) extends Parser.Handler[In, Out] {
+		def step(in: In) = p.step(in) match {
+			case Right(cont) =>
+				p = cont
+				Right(this)
+			case Left(tryOut) => Left(tryOut.get)
+		}
+
+		def finish() = p.finish().get
 	}
-	def finish: F[Out] = F.rethrow(p.finish)
 }

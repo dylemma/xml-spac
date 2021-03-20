@@ -31,36 +31,28 @@ package object xml2 {
 	  * @see [[XmlParserApplyOps]]
 	  * @group parser
 	  */
-	val XmlParser: ParserApplyWithBoundInput[XmlEvent] = Parser.over[XmlEvent]
+	val XmlParser: ParserApplyWithBoundInput[XmlEvent] = Parser[XmlEvent]
 	/** Type alias for a `Parser` whose input type is `XmlEvent`.
 	  *
 	  * @group parser
 	  */
-	type XmlParser[F[+_], Out] = Parser[F, XmlEvent, Out]
+	type XmlParser[Out] = Parser[XmlEvent, Out]
 
-	/** @group parser */
-	val XmlParserSIO: ParserApplyBound[SyncIO, XmlEvent] = Parser[SyncIO, XmlEvent]
-	/** @group parser */
-	type XmlParserSIO[Out] = Parser[SyncIO, XmlEvent, Out]
+	@deprecated("Use `XmlParser` (with lowercase 'ml') to reference the parser companion", "v0.9")
+	val XMLParser = XmlParser
+	@deprecated("Use `XmlParser` (with lowercase 'ml') instead", "v0.9")
+	type XMLParser[Out] = XmlParser[Out]
 
 	/** XML-specific parser constructor methods for `XmlParser` or `Parser.over[XmlEvent]`
 	  *
 	  * @group parser
 	  */
 	implicit class XmlParserApplyOps(val parserApply: ParserApplyWithBoundInput[XmlEvent]) extends AnyVal {
-		def forText[F[+_] : Applicative]: Parser[F, XmlEvent, String] = new XmlTextCollector[F](Chain.nil)
-		def forMandatoryAttribute[F[+_], N: AsQName](attributeName: N)(implicit F: MonadError[F, Throwable]): Parser[F, XmlEvent, String] = new MandatoryAttributeParser(attributeName)
-		def forOptionalAttribute[F[+_] : Applicative, N: AsQName](attributeName: N): Parser[F, XmlEvent, Option[String]] = new OptionalAttributeParser(attributeName)
-	}
-
-	/** XML-specific parser constructor methods for `XmlParser[F]` or `Parser[F, XmlEvent]`
-	  *
-	  * @group parser
-	  */
-	implicit class XmlParserApplyFOps[F[+_]](private val parserApply: ParserApplyBound[F, XmlEvent]) extends AnyVal {
-		def forText(implicit F: Applicative[F]): Parser[F, XmlEvent, String] = XmlParser.forText
-		def forMandatoryAttribute[N: AsQName](attributeName: N)(implicit F: MonadError[F, Throwable]): Parser[F, XmlEvent, String] = XmlParser.forMandatoryAttribute(attributeName)
-		def forOptionalAttribute[N: AsQName](attributeName: N)(implicit F: Applicative[F]): Parser[F, XmlEvent, Option[String]] = XmlParser.forOptionalAttribute(attributeName)
+		def forText: Parser[XmlEvent, String] = XmlParserText
+		def forMandatoryAttribute[N: AsQName](attributeName: N): Parser[XmlEvent, String] = new XmlParserMandatoryAttribute(attributeName)
+		def forOptionalAttribute[N: AsQName](attributeName: N): Parser[XmlEvent, Option[String]] = new XmlParserOptionalAttribute(attributeName)
+		def attr[N: AsQName](attributeName: N): XmlParser[String] = forMandatoryAttribute(attributeName)
+		def attrOpt[N: AsQName](attributeName: N): XmlParser[Option[String]] = forOptionalAttribute(attributeName)
 	}
 
 	// ----------------------------------------------------------------------------
@@ -68,27 +60,17 @@ package object xml2 {
 	// ----------------------------------------------------------------------------
 
 	/** @group splitter */
-	val XmlSplitter: SplitterApplyWithBoundInput[XmlEvent] = Splitter.over[XmlEvent]
+	val XmlSplitter: SplitterApplyWithBoundInput[XmlEvent] = Splitter[XmlEvent]
 	/** @group splitter */
-	type XmlSplitter[F[+_], C] = Splitter[F, XmlEvent, C]
+	type XmlSplitter[C] = Splitter[XmlEvent, C]
 
-	/** @group splitter */
-	val XmlSplitterSIO: SplitterApplyBound[SyncIO, XmlEvent] = Splitter[SyncIO, XmlEvent]
-	/** @group splitter */
-	type XmlSplitterSIO[C] = Splitter[SyncIO, XmlEvent, C]
-
+	@deprecated("Use `XmlSplitter` (with lowercase 'ml') for directly referencing the companion object, or use `Splitter.xml` to construct a new XmlSplitter", "v0.9")
+	val XMLSplitter = XmlSplitter
+	@deprecated("Use `XmlSplitter` (with lowercase 'ml') instead", "v0.9")
+	type XMLSplitter[C] = XmlSplitter[C]
 	/** @group splitter */
 	implicit class XmlSplitterApplyOps(val splitter: Splitter.type) extends AnyVal {
-		def xml[F[+_], C](matcher: ContextMatcher[XmlEvent.ElemStart, C])(implicit F: Monad[F]): XmlSplitter[F, C] = splitter.fromMatcher(matcher)
-	}
-	/** @group splitter */
-	implicit class XmlSplitterApplyBoundOps[F[+_]](val splitter: SplitterApplyBound[F, XmlEvent]) {
-		def xml[C](matcher: ContextMatcher[XmlEvent.ElemStart, C])(implicit F: Monad[F]): XmlSplitter[F, C] = splitter.fromMatcher(matcher)
-	}
-	/** @group splitter */
-	implicit class XmlSplitterApplyWithBoundEffectOps[F[+_]](val splitter: SplitterApplyWithBoundEffect[F]) {
-		// probably the most convenient usage: `Splitter[F].xml(...)`
-		def xml[C](matcher: ContextMatcher[XmlEvent.ElemStart, C])(implicit F: Monad[F]): XmlSplitter[F, C] = splitter.fromMatcher(matcher)
+		def xml[C](matcher: ContextMatcher[XmlEvent.ElemStart, C]): XmlSplitter[C] = splitter.fromMatcher(matcher)
 	}
 
 	// ----------------------------------------------------------------------------
@@ -96,32 +78,35 @@ package object xml2 {
 	// ----------------------------------------------------------------------------
 
 	/** @group splitter2 */
-	implicit class XmlSplitterOps[F[+_], C](splitter: Splitter[F, XmlEvent, C])(implicit F: MonadError[F, Throwable]) {
-		def attr[N: AsQName](name: N): Transformer[F, XmlEvent, String] = splitter.map(_ => XmlParser.forMandatoryAttribute(name))
-		def attrOpt[N: AsQName](name: N): Transformer[F, XmlEvent, Option[String]] = splitter.map(_ => XmlParser.forOptionalAttribute(name))
-		def text: Transformer[F, XmlEvent, String] = splitter.map(_ => XmlParser.forText)
+	implicit class XmlSplitterOps[C](splitter: Splitter[XmlEvent, C]) {
+		def attr[N: AsQName](name: N): Transformer[XmlEvent, String] = splitter.map(_ => XmlParser.forMandatoryAttribute(name))
+		def attrOpt[N: AsQName](name: N): Transformer[XmlEvent, Option[String]] = splitter.map(_ => XmlParser.forOptionalAttribute(name))
+		def text: Transformer[XmlEvent, String] = splitter.map(_ => XmlParser.forText)
+
+		@deprecated("Use `.text` instead", "v0.9")
+		def asText = text
 	}
 
-	/** @group splitter2 */
-	implicit class SplitterWordFirstXmlOps[F[+_]](first: Splitter.SplitterWordFirst[F, XmlEvent, Any])(implicit F: MonadError[F, Throwable]) {
-		def attr[N: AsQName](name: N): Parser[F, XmlEvent, String] = first.into { _ => XmlParser.forMandatoryAttribute(name) }
-		def attrOpt[N: AsQName](name: N): Parser[F, XmlEvent, Option[String]] = first.into { _ => XmlParser.forOptionalAttribute(name) }
-		def text: Parser[F, XmlEvent, String] = first.into { _ => XmlParser.forText }
-	}
-
-	/** @group splitter2 */
-	implicit class SplitterWordFirstOptXmlOps[F[+_]](firstOpt: Splitter.SplitterWordFirstOpt[F, XmlEvent, Any])(implicit F: MonadError[F, Throwable]) {
-		def attr[N: AsQName](name: N): Parser[F, XmlEvent, Option[String]] = firstOpt.into { _ => XmlParser.forMandatoryAttribute(name) }
-		def attrOpt[N: AsQName](name: N): Parser[F, XmlEvent, Option[Option[String]]] = firstOpt.into { _ => XmlParser.forOptionalAttribute(name) }
-		def text: Parser[F, XmlEvent, Option[String]] = firstOpt.into { _ => XmlParser.forText }
-	}
-
-	/** @group splitter2 */
-	implicit class SplitterWordAsListXmlOps[F[+_]](asList: Splitter.SplitterWordAsList[F, XmlEvent, Any])(implicit F: MonadError[F, Throwable]) {
-		def attr[N: AsQName](name: N): Parser[F, XmlEvent, List[String]] = asList.into { _ => XmlParser.forMandatoryAttribute(name) }
-		def attrOpt[N: AsQName](name: N): Parser[F, XmlEvent, List[Option[String]]] = asList.into { _ => XmlParser.forOptionalAttribute(name) }
-		def text: Parser[F, XmlEvent, List[String]] = asList.into { _ => XmlParser.forText }
-	}
+//	/** @group splitter2 */
+//	implicit class SplitterWordFirstXmlOps(first: Splitter.SplitterWordFirst[XmlEvent, Any]) {
+//		def attr[N: AsQName](name: N): Parser[XmlEvent, String] = first.map { _ => XmlParser.forMandatoryAttribute(name) }
+//		def attrOpt[N: AsQName](name: N): Parser[XmlEvent, Option[String]] = first.map { _ => XmlParser.forOptionalAttribute(name) }
+//		def text: Parser[XmlEvent, String] = first.map { _ => XmlParser.forText }
+//	}
+//
+//	/** @group splitter2 */
+//	implicit class SplitterWordFirstOptXmlOps(firstOpt: Splitter.SplitterWordFirstOpt[XmlEvent, Any]) {
+//		def attr[N: AsQName](name: N): Parser[XmlEvent, Option[String]] = firstOpt.map { _ => XmlParser.forMandatoryAttribute(name) }
+//		def attrOpt[N: AsQName](name: N): Parser[XmlEvent, Option[Option[String]]] = firstOpt.map { _ => XmlParser.forOptionalAttribute(name) }
+//		def text: Parser[XmlEvent, Option[String]] = firstOpt.map { _ => XmlParser.forText }
+//	}
+//
+//	/** @group splitter2 */
+//	implicit class SplitterWordAsListXmlOps(asList: Splitter.SplitterWordAsList[XmlEvent, Any]) {
+//		def attr[N: AsQName](name: N): Parser[XmlEvent, List[String]] = asList.map { _ => XmlParser.forMandatoryAttribute(name) }
+//		def attrOpt[N: AsQName](name: N): Parser[XmlEvent, List[Option[String]]] = asList.map { _ => XmlParser.forOptionalAttribute(name) }
+//		def text: Parser[XmlEvent, List[String]] = asList.map { _ => XmlParser.forText }
+//	}
 
 	// ----------------------------------------------------------------------------
 	// XML ContextMatcher Syntax

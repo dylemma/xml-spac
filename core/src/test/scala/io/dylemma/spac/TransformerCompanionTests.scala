@@ -8,184 +8,169 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 class TransformerCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks {
 
 	describe("Transformer.identity") {
-		def identityTransformer(makeTransformer: => Transformer[SyncIO, Int, Int]) = {
+		def identityTransformer(makeTransformer: => Transformer[Int, Int]) = {
 			val t = makeTransformer
 
 			it ("should emit each input") {
 				forAll { (list: List[Int]) =>
-					t.stepMany(list).unsafeRunSync()._1 shouldEqual Emit.fromSeq(list)
+					t.newHandler.stepMany(list)._1 shouldEqual Emit.fromSeq(list)
 				}
 			}
 			it ("should be stateless") {
 				forAll { (list: List[Int]) =>
 					forAll { (list: List[Int]) =>
-						t.stepMany(list).unsafeRunSync()._2 shouldEqual Right(t)
+						t.newHandler.stepMany(list)._2 shouldEqual Right(t)
 					}
 				}
 			}
 			it ("should emit nothing in response to the end of the input") {
-				t.finish.unsafeRunSync() shouldEqual Emit.nil
+				t.newHandler.finish() shouldEqual Emit.empty
 			}
 		}
 
-		describe("Transformer.identity[F, In]") {
-			it should behave like identityTransformer(Transformer.identity[SyncIO, Int])
+		describe("Transformer.identity[In]") {
+			it should behave like identityTransformer(Transformer.identity[Int])
 		}
-		describe("Transformer[F].identity[In]") {
-			it should behave like identityTransformer(Transformer[SyncIO].identity[Int])
-		}
-		describe("Transformer[F, In].identity") {
-			it should behave like identityTransformer(Transformer[SyncIO, Int].identity)
+		describe("Transformer[In].identity") {
+			it should behave like identityTransformer(Transformer[Int].identity)
 		}
 	}
 
 	describe("Transformer.op") {
-		def opTransformer(makeTransformer: (Int => Emit[Int]) => Transformer[SyncIO, Int, Int]) = {
-			val t0 = makeTransformer(_ => Emit.nil)
+		def opTransformer(makeTransformer: (Int => Emit[Int]) => Transformer[Int, Int]) = {
+			val t0 = makeTransformer(_ => Emit.empty)
 			val t1 = makeTransformer(i => Emit.one(i))
 			val t2 = makeTransformer(i => Emit(i * 2, i * 2 + 1))
 
 			it("should transform the input via the provided function, and be stateless") {
 				forAll { (list: List[Int]) =>
-					t0.stepMany(list).unsafeRunSync()._1 shouldEqual Emit.nil
-					t1.stepMany(list).unsafeRunSync()._1 shouldEqual Emit.fromSeq(list)
-					t2.stepMany(list).unsafeRunSync()._1 shouldEqual Emit.fromSeq(list.flatMap(i => List(i * 2, i * 2 + 1)))
+					t0.newHandler.stepMany(list)._1 shouldEqual Emit.empty
+					t1.newHandler.stepMany(list)._1 shouldEqual Emit.fromSeq(list)
+					t2.newHandler.stepMany(list)._1 shouldEqual Emit.fromSeq(list.flatMap(i => List(i * 2, i * 2 + 1)))
 				}
 			}
 			it("should be stateless") {
 				forAll { (list: List[Int]) =>
-					t0.stepMany(list).unsafeRunSync()._2 shouldEqual Right(t0)
-					t1.stepMany(list).unsafeRunSync()._2 shouldEqual Right(t1)
-					t2.stepMany(list).unsafeRunSync()._2 shouldEqual Right(t2)
+					t0.newHandler.stepMany(list)._2 shouldEqual Right(t0)
+					t1.newHandler.stepMany(list)._2 shouldEqual Right(t1)
+					t2.newHandler.stepMany(list)._2 shouldEqual Right(t2)
 				}
 			}
 			it("should emit nothing in reaction to the end of the input") {
-				t0.finish.unsafeRunSync() shouldBe empty
-				t1.finish.unsafeRunSync() shouldBe empty
-				t2.finish.unsafeRunSync() shouldBe empty
+				t0.newHandler.finish() shouldBe empty
+				t1.newHandler.finish() shouldBe empty
+				t2.newHandler.finish() shouldBe empty
 			}
 		}
 
-		describe("Transformer.op[F, In, Out]") {
+		describe("Transformer.op[In, Out]") {
 			it should behave like opTransformer(Transformer.op)
 		}
-		describe("Transformer[F].op[In, Out]") {
-			it should behave like opTransformer(Transformer[SyncIO].op)
-		}
-		describe("Transformer[F, In].op[Out]") {
-			it should behave like opTransformer(Transformer[SyncIO, Int].op)
+		describe("Transformer[In].op[Out]") {
+			it should behave like opTransformer(Transformer[Int].op)
 		}
 	}
 
 	describe("Transformer.map") {
-		def mapTransformer(makeTransformer: (Int => Int) => Transformer[SyncIO, Int, Int]) = {
+		def mapTransformer(makeTransformer: (Int => Int) => Transformer[Int, Int]) = {
 			val t = makeTransformer(_ * 2)
 
 			it("should transform the inputs via the provided function") {
 				forAll { (list: List[Int]) =>
 					val mappedList = Emit.fromSeq(list.map(_ * 2))
-					t.stepMany(list).unsafeRunSync()._1 shouldEqual mappedList
+					t.newHandler.stepMany(list)._1 shouldEqual mappedList
 				}
 			}
 			it("should be stateless") {
 				forAll { (list: List[Int]) =>
-					t.stepMany(list).unsafeRunSync()._2 shouldEqual Right(t)
+					t.newHandler.stepMany(list)._2 shouldEqual Right(t)
 				}
 			}
 			it("should emit nothing in reaction to the end of the input") {
-				t.finish.unsafeRunSync() shouldBe empty
+				t.newHandler.finish() shouldBe empty
 			}
 		}
 
-		describe("Transformer.map[F, In, Out]") {
+		describe("Transformer.map[In, Out]") {
 			it should behave like mapTransformer(Transformer.map)
 		}
-		describe("Transformer[F].map[In, Out]") {
-			it should behave like mapTransformer(Transformer[SyncIO].map)
-		}
-		describe("Transformer[F, In].map[Out]") {
-			it should behave like mapTransformer(Transformer[SyncIO, Int].map)
+		describe("Transformer[In].map[Out]") {
+			it should behave like mapTransformer(Transformer[Int].map)
 		}
 	}
 
 	describe("Transformer.filter") {
-		def filterTransformer(makeTransformer: (Int => Boolean) => Transformer[SyncIO, Int, Int]) = {
+		def filterTransformer(makeTransformer: (Int => Boolean) => Transformer[Int, Int]) = {
 			val t = makeTransformer(_ % 2 == 0)
 
 			it("should pass through only the inputs for which the filter function returns true") {
 				forAll { (list: List[Int]) =>
 					val evens = Emit.fromSeq(list.filter(_ % 2 == 0))
-					t.stepMany(list).unsafeRunSync()._1 shouldEqual evens
+					t.newHandler.stepMany(list)._1 shouldEqual evens
 				}
 			}
 			it("should be stateless") {
 				forAll { (list: List[Int]) =>
-					t.stepMany(list).unsafeRunSync()._2 shouldEqual Right(t)
+					t.newHandler.stepMany(list)._2 shouldEqual Right(t)
 				}
 			}
 			it("should emit nothing in reaction to the end of the input") {
-				t.finish.unsafeRunSync() shouldBe empty
+				t.newHandler.finish() shouldBe empty
 			}
 		}
 
-		describe("Transformer.filter[F, In]") {
+		describe("Transformer.filter[In]") {
 			it should behave like filterTransformer(Transformer.filter)
 		}
-		describe("Transformer[F].filter[In]") {
-			it should behave like filterTransformer(Transformer[SyncIO].filter)
-		}
-		describe("Transformer[F, In].filter") {
-			it should behave like filterTransformer(Transformer[SyncIO, Int].filter)
+		describe("Transformer[In].filter") {
+			it should behave like filterTransformer(Transformer[Int].filter)
 		}
 	}
 
 	describe("Transformer.take") {
-		def takeTransformer(makeTransformer: Int => Transformer[SyncIO, Int, Int]) = {
+		def takeTransformer(makeTransformer: Int => Transformer[Int, Int]) = {
 			it ("should emit outputs corresponding to List.take(n)") {
 				val t0 = makeTransformer(0)
 				val t1 = makeTransformer(1)
 				val t5 = makeTransformer(5)
 
 				forAll { (list: List[Int]) =>
-					t0.stepMany(list).unsafeRunSync()._1 shouldEqual Emit.nil
-					t1.stepMany(list).unsafeRunSync()._1 shouldEqual Emit.fromSeq(list take 1)
-					t5.stepMany(list).unsafeRunSync()._1 shouldEqual Emit.fromSeq(list take 5)
+					t0.newHandler.stepMany(list)._1 shouldEqual Emit.empty
+					t1.newHandler.stepMany(list)._1 shouldEqual Emit.fromSeq(list take 1)
+					t5.newHandler.stepMany(list)._1 shouldEqual Emit.fromSeq(list take 5)
 				}
 			}
 			it ("should end upon encountering the 1st input, if N=0") {
-				makeTransformer(0).step(42).unsafeRunSync() shouldEqual { Emit.nil -> None }
+				makeTransformer(0).newHandler.step(42) shouldEqual { Emit.empty -> None }
 			}
 			it ("should end after emitting Nth input, if N>0") {
-				makeTransformer(1).stepMany(List(1, 2, 3)).unsafeRunSync() shouldEqual { Emit.one(1) -> Left(List(2, 3)) }
-				makeTransformer(2).stepMany(List(1, 2, 3)).unsafeRunSync() shouldEqual { Emit(1, 2) -> Left(List(3)) }
-				makeTransformer(3).stepMany(List(1, 2, 3)).unsafeRunSync() shouldEqual { Emit(1, 2, 3) -> Left(Nil) }
+				makeTransformer(1).newHandler.stepMany(List(1, 2, 3)) shouldEqual { Emit.one(1) -> Left(List(2, 3)) }
+				makeTransformer(2).newHandler.stepMany(List(1, 2, 3)) shouldEqual { Emit(1, 2) -> Left(List(3)) }
+				makeTransformer(3).newHandler.stepMany(List(1, 2, 3)) shouldEqual { Emit(1, 2, 3) -> Left(Nil) }
 			}
 			it ("should not end before encountering N inputs") {
 				val t = makeTransformer(4)
-				t.stepMany(List(1, 2, 3)).unsafeRunSync() should matchPattern { case (Emit(1, 2, 3), Right(_)) => }
+				t.newHandler.stepMany(List(1, 2, 3)) should matchPattern { case (Emit(1, 2, 3), Right(_)) => }
 			}
 			it ("should emit nothing in reaction to the end of the input") {
 				forAll { (n: Int) =>
 					whenever(n >= 0) {
-						makeTransformer(n).finish.unsafeRunSync() shouldEqual Emit.nil
+						makeTransformer(n).newHandler.finish() shouldEqual Emit.empty
 					}
 				}
 			}
 		}
 
-		describe("Transformer.take[F, In]") {
+		describe("Transformer.take[In]") {
 			it should behave like takeTransformer(Transformer.take)
 		}
-		describe("Transformer[F].take[In]") {
-			it should behave like takeTransformer(Transformer[SyncIO].take)
-		}
-		describe("Transformer[F, In].take") {
-			it should behave like takeTransformer(Transformer[SyncIO, Int].take)
+		describe("Transformer[In].take") {
+			it should behave like takeTransformer(Transformer[Int].take)
 		}
 	}
 
 	describe("Transformer.takeWhile") {
-		def takeWhileTransformer(makeTransformer: (Int => Boolean) => Transformer[SyncIO, Int, Int]) = {
+		def takeWhileTransformer(makeTransformer: (Int => Boolean) => Transformer[Int, Int]) = {
 			it ("should emit outputs corresponding to List.takeWhile(f)") {
 				val f2 = (i: Int) => i % 2 != 0
 				val f5 = (i: Int) => i % 5 != 0
@@ -195,21 +180,21 @@ class TransformerCompanionTests extends AnyFunSpec with Matchers with ScalaCheck
 				val t10 = makeTransformer(f10)
 
 				forAll { (list: List[Int]) =>
-					t2.stepMany(list).unsafeRunSync()._1 shouldEqual Emit.fromSeq(list takeWhile f2)
-					t5.stepMany(list).unsafeRunSync()._1 shouldEqual Emit.fromSeq(list takeWhile f5)
-					t10.stepMany(list).unsafeRunSync()._1 shouldEqual Emit.fromSeq(list takeWhile f10)
+					t2.newHandler.stepMany(list)._1 shouldEqual Emit.fromSeq(list takeWhile f2)
+					t5.newHandler.stepMany(list)._1 shouldEqual Emit.fromSeq(list takeWhile f5)
+					t10.newHandler.stepMany(list)._1 shouldEqual Emit.fromSeq(list takeWhile f10)
 				}
 			}
 			it ("should discard the first predicate-failing input and terminate as a result") {
 				val t = makeTransformer(_ != 0)
-				t.stepMany(List(5, 4, 3, 2, 1, 0, 10)).unsafeRunSync() shouldEqual { Emit(5, 4, 3, 2, 1) -> Left(List(10)) }
-				t.stepMany(List(0, 1, 2, 3)).unsafeRunSync() shouldEqual { Emit.nil -> Left(List(1, 2, 3)) }
+				t.newHandler.stepMany(List(5, 4, 3, 2, 1, 0, 10)) shouldEqual { Emit(5, 4, 3, 2, 1) -> Left(List(10)) }
+				t.newHandler.stepMany(List(0, 1, 2, 3)) shouldEqual { Emit.empty -> Left(List(1, 2, 3)) }
 			}
 			it ("should not end if no inputs fail the predicate") {
 				val t = makeTransformer(_ != 0)
 				forAll { (_list: List[Int]) =>
 					val chain = Emit.fromSeq(_list.filter(_ != 0))
-					val (emitted, cont) = t.stepMany(chain).unsafeRunSync()
+					val (emitted, cont) = t.newHandler.stepMany(chain)
 					emitted shouldEqual chain
 					cont should matchPattern { case Right(_) => }
 				}
@@ -218,24 +203,21 @@ class TransformerCompanionTests extends AnyFunSpec with Matchers with ScalaCheck
 				val t = makeTransformer(_ != 0)
 				forAll { (_list: List[Int]) =>
 					val chain = Emit.fromSeq(_list.filter(_ != 0))
-					t.stepMany(chain).unsafeRunSync()._2 shouldEqual Right(t)
+					t.newHandler.stepMany(chain)._2 shouldEqual Right(t)
 				}
 			}
 			it ("should emit nothing in response to the end of the input") {
 				forAll { (f: Int => Boolean) =>
-					makeTransformer(f).finish.unsafeRunSync() shouldEqual Emit.nil
+					makeTransformer(f).newHandler.finish() shouldEqual Emit.empty
 				}
 			}
 		}
 
-		describe("Transformer.takeWhile[F, In]") {
+		describe("Transformer.takeWhile[In]") {
 			it should behave like takeWhileTransformer(Transformer.takeWhile)
 		}
-		describe("Transformer[F].takeWhile[In]") {
-			it should behave like takeWhileTransformer(Transformer[SyncIO].takeWhile)
-		}
-		describe("Transformer[F, In].takeWhile") {
-			it should behave like takeWhileTransformer(Transformer[SyncIO, Int].takeWhile)
+		describe("Transformer[In].takeWhile") {
+			it should behave like takeWhileTransformer(Transformer[Int].takeWhile)
 		}
 	}
 }
