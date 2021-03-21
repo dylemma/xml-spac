@@ -3,13 +3,19 @@ package impl
 
 import cats.data.Chain
 
-case class SplitterByContextMatch[In, Elem, C](matcher: ContextMatcher[Elem, C])
-	extends Transformer[Either[ContextChange[In, Elem], In], Either[ContextChange[In, C], In]]
-{
+case class SplitterByContextMatch[In, Elem, C](matcher: ContextMatcher[Elem, C])(implicit S: StackLike[In, Elem]) extends Splitter[In, C] {
+
+	def addBoundaries = S.interpret :>> new SplitterByContextMatch.Boundaries(matcher)
 	def newHandler = new SplitterByContextMatch.Handler(matcher, SplitterByContextMatch.Unmatched[In, Elem](Vector.empty, Vector.empty))
 }
 
 object SplitterByContextMatch {
+
+	class Boundaries[In, Elem, C](matcher: ContextMatcher[Elem, C])
+		extends Transformer[Either[ContextChange[In, Elem], In], Either[ContextChange[In, C], In]]
+	{
+		def newHandler = new SplitterByContextMatch.Handler(matcher, SplitterByContextMatch.Unmatched[In, Elem](Vector.empty, Vector.empty))
+	}
 
 	sealed abstract class State[In, Elem](val isMatched: Boolean)
 	case class Unmatched[In, Elem](traces: Vector[ContextTrace[In]], stack: Vector[Elem]) extends State[In, Elem](false)

@@ -11,6 +11,7 @@ trait Transformer[-In, +Out] {
 	def mapBatch[Out2](f: Emit[Out] => Emit[Out2]): Transformer[In, Out2] = new TransformerMapBatch(this, f)
 	def map[Out2](f: Out => Out2): Transformer[In, Out2] = mapBatch(_.map(f))
 	def filter(predicate: Out => Boolean): Transformer[In, Out] = mapBatch(_.filter(predicate))
+	def withFilter(predicate: Out => Boolean): Transformer[In, Out] = filter(predicate)
 	def collect[Out2](pf: PartialFunction[Out, Out2]): Transformer[In, Out2] = mapBatch(_.collect(pf))
 
 	def mergeEither[In2 <: In, Out2](right: Transformer[In2, Out2]): Transformer[In2, Either[Out, Out2]] = new TransformerMergeEither(this, right)
@@ -19,10 +20,12 @@ trait Transformer[-In, +Out] {
 	def cast[Out2](implicit ev: Out <:< Out2): Transformer[In, Out2] = this.asInstanceOf[Transformer[In, Out2]]
 
 	def through[Out2](next: Transformer[Out, Out2]): Transformer[In, Out2] = new TransformerThrough(this, next)
-	def >>[Out2](next: Transformer[Out, Out2]): Transformer[In, Out2] = through(next)
+	def :>>[Out2](next: Transformer[Out, Out2]): Transformer[In, Out2] = through(next)
 
 	/* NOTE: `def into` provided by Transformer.InvariantOps */
 	def :>[Out2](parser: Parser[Out, Out2]): Parser[In, Out2] = new TransformerIntoParser(this, parser)
+
+	def transform(itr: Iterator[In]): Iterator[Out] = new IteratorTransform(itr, this)
 }
 
 class TransformerWordInto[In, A](self: Transformer[In, A]) {
@@ -75,6 +78,7 @@ object Transformer {
 	def filter[In](f: In => Boolean): Transformer[In, In] = op { in => if (f(in)) Emit.one(in) else Emit.empty }
 	def take[In](n: Int): Transformer[In, In] = new TransformerTake(n)
 	def takeWhile[In](f: In => Boolean): Transformer[In, In] = new TransformerTakeWhile(f)
+	def tap[In](f: In => Unit): Transformer[In, In] = new TransformerTap(f)
 
 	implicit class TransformerInvariantOps[In, Out](val self: Transformer[In, Out]) extends AnyVal {
 		def into = new TransformerWordInto[In, Out](self)
@@ -82,10 +86,11 @@ object Transformer {
 }
 
 class TransformerApplyBound[In] {
-	def identity: Transformer[In, In] = new TransformerIdentity
-	def op[Out](f: In => Emit[Out]): Transformer[In, Out] = new TransformerOp(f)
-	def map[Out](f: In => Out): Transformer[In, Out] = op { in => Emit.one(f(in)) }
-	def filter(f: In => Boolean): Transformer[In, In] = op { in => if (f(in)) Emit.one(in) else Emit.empty }
-	def take(n: Int): Transformer[In, In] = new TransformerTake(n)
-	def takeWhile(f: In => Boolean): Transformer[In, In] = new TransformerTakeWhile(f)
+	def identity: Transformer[In, In] = Transformer.identity
+	def op[Out](f: In => Emit[Out]): Transformer[In, Out] = Transformer.op(f)
+	def map[Out](f: In => Out): Transformer[In, Out] = Transformer.map(f)
+	def filter(f: In => Boolean): Transformer[In, In] = Transformer.filter(f)
+	def take(n: Int): Transformer[In, In] = Transformer.take(n)
+	def takeWhile(f: In => Boolean): Transformer[In, In] = Transformer.takeWhile(f)
+	def tap(f: In => Unit): Transformer[In, In] = Transformer.tap(f)
 }

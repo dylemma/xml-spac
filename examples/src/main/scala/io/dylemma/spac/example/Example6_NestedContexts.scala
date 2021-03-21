@@ -1,14 +1,14 @@
-package io.dylemma.xml.example
+package io.dylemma.spac
+package example
 
-import javax.xml.stream.events.XMLEvent
-import io.dylemma.spac.old._
-import io.dylemma.spac.old.xml._
+import io.dylemma.spac.xml._
+import io.dylemma.spac.xml.spac_javax._
 
 object Example6_NestedContexts extends App {
 
 	/** This Data class requires an `info` and `context` value to be passed in from
 	  * further up the stack. BUT, for argument's sake let's assume we have MANY
-	  * `<data>` elements in our XML, so we want to make a `Transformer[XMLEvent, Data]`
+	  * `<data>` elements in our XML, so we want to make a `Transformer[XmlEvent, Data]`
 	  * for the whole document.
 	  *
 	  * @param info
@@ -41,22 +41,22 @@ object Example6_NestedContexts extends App {
 	// We'll define some standalone parsers/transformers ahead of time...
 
 	/** Parses the "id" attribute from the first `<info>` in a `<stuff>` */
-	val stuffInfoParser = XMLSplitter("stuff" \ "info").first.attr("id")
+	val stuffInfoParser = Splitter.xml("stuff" \ "info").attr("id").into.first
 
 	/** Get the "id" attribute from the first <context> element in a <thing> */
-	val thingContextParser = XMLSplitter("thing" \ "context").first.attr("id")
+	val thingContextParser = Splitter.xml("thing" \ "context").attr("id").into.first
 
 	/** Get a stream of each `<data>`'s Int values from inside a <thing> */
-	val thingDataTransform = XMLSplitter("thing" \ "data").asText.map(_.toInt)
+	val thingDataTransform = Splitter.xml("thing" \ "data").text.map(_.toInt)
 
 	/** Creates a stream of Data objects from within a `<stuff>` */
-	val verboseSelectDataFromStuff: Transformer[XMLEvent, Data] = {
+	val verboseSelectDataFromStuff: Transformer[XmlEvent, Data] = {
 		// get the <info> element's "id" attribute, using it to create an inner transformer
 		stuffInfoParser.followedByStream { infoId =>
 			println(s"Captured info.id as $infoId")
 
 			// Select into the <thing> elements, using `flatMap` to attach an inner transformer to each one.
-			XMLSplitter("stuff" \ "thing").flatMap { ignoredContext =>
+			Splitter.xml("stuff" \ "thing").flatMap { ignoredContext =>
 				/* This block will run once per <thing>.
 				 *
 				 * Note: We could pass a Transformer instead of a function, since Transformer counts
@@ -80,9 +80,9 @@ object Example6_NestedContexts extends App {
 	}
 
 	// Same as above, but using flatMap/map, no printlns, and no comments
-	val selectDataFromStuff: Transformer[XMLEvent, Data] = for {
+	val selectDataFromStuff: Transformer[XmlEvent, Data] = for {
 		infoId <- stuffInfoParser.followedByStream
-		_ <- XMLSplitter("stuff" \ "thing")
+		_ <- Splitter.xml("stuff" \ "thing")
 		contextId <- thingContextParser.followedByStream
 		value <- thingDataTransform
 	} yield Data(infoId, contextId, value)
@@ -91,17 +91,17 @@ object Example6_NestedContexts extends App {
 	  * Put this in front of the `selectData` transformer to see when
 	  * the selectData transformer finds its events.
  	  */
-	val printEvent = Transformer.sideEffect[XMLEvent](e => println(s"event: [${e.toString.trim}]"))
+	val printEvent = XmlTransformer.tap(e => println(s"event: [${e.toString.trim}]"))
 
 	/** Consumer for `Data` objects that prints a message for each one.
 	  * This consumer's result type is Unit because all it does are side effects.
 	  */
-	val printData = Parser.foreach[Data]{ d => println(s"RESULT - $d") }
+	val printData = Parser.tap[Data]{ d => println(s"RESULT - $d") }
 
 	// Data(DYLAN, A, 123)
 	// Data(DYLAN, A, 124)
 	// ...
 	// Data(DYLAN, B, 568
 	// Data(DYLAN, B, 569)
-	/*printEvent >>*/ verboseSelectDataFromStuff >> printData parse xml
+	/*printEvent >>*/ verboseSelectDataFromStuff :> printData parse xml
 }

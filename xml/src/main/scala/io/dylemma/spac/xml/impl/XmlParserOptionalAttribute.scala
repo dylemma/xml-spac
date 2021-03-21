@@ -1,5 +1,5 @@
 package io.dylemma.spac
-package xml2
+package xml
 package impl
 
 class XmlParserOptionalAttribute[N: AsQName](attributeName: N) extends Parser.Stateless[XmlEvent, Option[String]] {

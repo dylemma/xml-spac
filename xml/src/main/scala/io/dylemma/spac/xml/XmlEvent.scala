@@ -1,4 +1,4 @@
-package io.dylemma.spac.xml2
+package io.dylemma.spac.xml
 
 import cats.Show
 import cats.data.Chain
@@ -27,6 +27,7 @@ object AsXmlEvent {
 }
 
 /** Adapter for various representations of QName
+  *
   * @group event
   */
 trait AsQName[N] {
@@ -64,8 +65,8 @@ object XmlEvent {
 
 		override def toString: String = {
 			val sb = new StringBuilder("<")
-			sb append show"${qName[ShowableQName]}"
-			for((k,v) <- attrs[ShowableQName]) {
+			sb append show"${ qName[ShowableQName] }"
+			for ((k, v) <- attrs[ShowableQName]) {
 				sb append show""" $k="$v""""
 			}
 			sb append '>'
@@ -82,7 +83,7 @@ object XmlEvent {
 	trait ElemEnd extends XmlEvent {
 		def qName[N: AsQName]: N
 		def name: String = qName[String]
-		override def toString: String = show"</${qName[ShowableQName]}>"
+		override def toString: String = show"</${ qName[ShowableQName] }>"
 		override def asElemEnd: Option[ElemEnd] = Some(this)
 	}
 
@@ -121,8 +122,8 @@ object XmlEvent {
 	implicit val showDebugXmlEvent: Show[XmlEvent] = Show.show[XmlEvent] {
 		case ElemStart(e) =>
 			val sb = new StringBuilder("ElemStart(")
-			sb append show"${e.qName[ShowableQName]}"
-			for{ (k, v) <- e.attrs[ShowableQName] } {
+			sb append show"${ e.qName[ShowableQName] }"
+			for {(k, v) <- e.attrs[ShowableQName]} {
 				sb append ", "
 				sb append k
 				sb append '='
@@ -132,13 +133,13 @@ object XmlEvent {
 			sb.result()
 
 		case ElemEnd(e) =>
-			show"ElemEnd(${e.qName[ShowableQName]})"
+			show"ElemEnd(${ e.qName[ShowableQName] })"
 
 		case Text(e) =>
-			if(e.isWhitespace) s"Whitespace(length=${e.value.length})"
+			if (e.isWhitespace) s"Whitespace(length=${ e.value.length })"
 			else {
 				val chars = e.value.iterator.takeWhile(_ != '\n').take(120).mkString
-				val ellipsis = if(chars.length < e.value.length) " [...]" else ""
+				val ellipsis = if (chars.length < e.value.length) " [...]" else ""
 				s"Text($chars$ellipsis)"
 			}
 

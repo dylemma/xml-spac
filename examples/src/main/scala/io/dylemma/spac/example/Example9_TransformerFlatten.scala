@@ -1,8 +1,9 @@
-package io.dylemma.xml.example
+package io.dylemma.spac
+package example
 
-import io.dylemma.spac.old._
-import io.dylemma.spac.old.xml._
-import javax.xml.stream.events.XMLEvent
+import cats.syntax.apply._
+import io.dylemma.spac.xml._
+import io.dylemma.spac.xml.spac_javax._
 
 object Example9_TransformerFlatten {
 
@@ -16,25 +17,25 @@ object Example9_TransformerFlatten {
 		  |</people>
 		""".stripMargin
 
-	/* To start with, you'll typically create an XMLParser for the `<person>` element,
+	/* To start with, you'll typically create an XmlParser for the `<person>` element,
 	 * and since a person can have an optional alias along with their normal name,
-	 * the simplest way to model it is as an `XMLParser[List[String]]`.
+	 * the simplest way to model it is as an `XmlParser[List[String]]`.
 	 */
-	val personParser: XMLParser[List[String]] = (
-		XMLParser.forText and
-		XMLParser.forOptionalAttribute("alias")
-	) as { (name, alias) =>
+	val personParser: XmlParser[List[String]] = (
+		XmlParser.forText,
+		XmlParser.forOptionalAttribute("alias")
+	) mapN { (name, alias) =>
 		name :: alias.toList
 	}
 
 	/* Then put the PersonParser in the context of the `<people>` element to get
 	 * a `Transformer[XMLEvent, List[String]]`
 	 */
-	val namesListTransformer: Transformer[XMLEvent, List[String]] =
-		XMLSplitter("people" \ "person").as(personParser)
+	val namesListTransformer: Transformer[XmlEvent, List[String]] =
+		Splitter.xml("people" \ "person").as(personParser)
 
 	/* We could handle the stream of names via a `.parseForeach`, but that would be awkward. */
-	val awkwardParser: XMLParser[Unit] = namesListTransformer.parseForeach { names =>
+	val awkwardParser: XmlParser[Unit] = namesListTransformer.into.tap { names =>
 		for(name <- names) println(s"Got a name: $name")
 	}
 
@@ -43,11 +44,11 @@ object Example9_TransformerFlatten {
 	 * inside some other elements and you want the list of names to be available
 	 * in that context.
 	 */
-	val namesTransformer: Transformer[XMLEvent, String] =
-		namesListTransformer.flatten
+	val namesTransformer: Transformer[XmlEvent, String] =
+		namesListTransformer.mapBatch { _.flatMap(Emit.fromSeq) }
 
 	def main(args: Array[String]): Unit = {
-		namesTransformer.parseForeach(n => println(s"Got a name: $n")).parse(xml)
+		namesTransformer.into.tap(n => println(s"Got a name: $n")).parse(xml)
 	}
 
 }

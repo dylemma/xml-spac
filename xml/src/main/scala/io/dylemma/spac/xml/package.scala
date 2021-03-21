@@ -1,10 +1,7 @@
 package io.dylemma.spac
 
-import cats.data.Chain
-import cats.effect.SyncIO
 import cats.syntax.show._
-import cats.{Applicative, Monad, MonadError}
-import io.dylemma.spac.xml2.impl._
+import io.dylemma.spac.xml.impl._
 
 import scala.language.implicitConversions
 
@@ -20,7 +17,7 @@ import scala.language.implicitConversions
   * @groupprio contextMatcherSyntax 3
   * @groupprio event 4
   */
-package object xml2 {
+package object xml {
 
 	// ----------------------------------------------------------------------------
 	// XmlParser - companion ops
@@ -55,9 +52,17 @@ package object xml2 {
 		def attrOpt[N: AsQName](attributeName: N): XmlParser[Option[String]] = forOptionalAttribute(attributeName)
 	}
 
+	val XmlTransformer: TransformerApplyBound[XmlEvent] = Transformer[XmlEvent]
+	type XmlTransformer[+Out] = Transformer[XmlEvent, Out]
+
 	// ----------------------------------------------------------------------------
 	// Splitter & XmlSplitter - companion ops
 	// ----------------------------------------------------------------------------
+
+	type XmlContextMatcher[+Context] = ContextMatcher[XmlEvent.ElemStart, Context]
+
+	@deprecated("Use `XmlContextMatcher (with lowercase 'ml') instead", "v0.9")
+	type XMLContextMatcher[+Context] = XmlContextMatcher[Context]
 
 	/** @group splitter */
 	val XmlSplitter: SplitterApplyWithBoundInput[XmlEvent] = Splitter[XmlEvent]

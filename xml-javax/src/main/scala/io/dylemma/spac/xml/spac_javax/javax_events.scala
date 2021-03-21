@@ -1,9 +1,9 @@
-package io.dylemma.spac.xml2
+package io.dylemma.spac
+package xml
+package spac_javax
 
-import io.dylemma.spac.ContextLocation
-import io.dylemma.spac.xml2.XmlEvent._
+import io.dylemma.spac.xml.XmlEvent._
 import javax.xml.namespace.QName
-import JavaxSupport.javaxQNameAsQName
 
 private class ElemStartImpl(
 	_qName: QName,

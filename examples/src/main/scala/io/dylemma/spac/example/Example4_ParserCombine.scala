@@ -1,10 +1,12 @@
-package io.dylemma.xml.example
+package io.dylemma.spac
+package example
 
 import java.text.SimpleDateFormat
 import java.util.Date
 
-import io.dylemma.spac.old._
-import io.dylemma.spac.old.xml._
+import cats.syntax.apply._
+import io.dylemma.spac.xml._
+import io.dylemma.spac.xml.spac_javax._
 
 /**
  * Created by dylan on 10/11/2015.
@@ -45,30 +47,30 @@ object Example4_ParserCombine {
 	 */
 
 	// Parse <user id="..." name="..." /> into a User(id, name)
-	implicit val UserParser: XMLParser[User] = (
-		XMLParser.forMandatoryAttribute("id") and
-		XMLParser.forMandatoryAttribute("name")
-	).as(User)
+	implicit val UserParser: XmlParser[User] = (
+		XmlParser.forMandatoryAttribute("id"),
+		XmlParser.forMandatoryAttribute("name")
+	).mapN(User)
 
 	// Parse <stats upvote-count="..." downvote-count="..." /> into a Stats(upvoteCount, downvoteCount)
-	implicit val StatsParser: XMLParser[Stats] = (
-		XMLParser.forMandatoryAttribute("upvote-count").map(_.toInt) and
-		XMLParser.forMandatoryAttribute("downvote-count").map(_.toInt)
-	).as(Stats)
+	implicit val StatsParser: XmlParser[Stats] = (
+		XmlParser.forMandatoryAttribute("upvote-count").map(_.toInt),
+		XmlParser.forMandatoryAttribute("downvote-count").map(_.toInt)
+	).mapN(Stats)
 
 	// note that SimpleDateFormat isn't thread-safe. You should use Joda time instead
 	val commentDateFormat = new SimpleDateFormat("yyyy-MM-dd")
 	// Parser for Comment
-	implicit val CommentParser: XMLParser[Comment] = (
-		XMLParser.forMandatoryAttribute("date").map(commentDateFormat.parse) and
-		XMLSplitter(* \ "user").first[User] and
-		XMLSplitter(* \ "stats").first[Stats] and
-		XMLSplitter(* \ "body").first.asText
-	).as(Comment)
+	implicit val CommentParser: XmlParser[Comment] = (
+		XmlParser.forMandatoryAttribute("date").map(commentDateFormat.parse),
+		Splitter.xml(* \ "user").as[User].into.first,
+		Splitter.xml(* \ "stats").as[Stats].into.first,
+		Splitter.xml(* \ "body").text.into.first
+	).mapN(Comment)
 
 	def main(args: Array[String]): Unit = {
 
-		val mainParser = XMLSplitter("comments" \ "comment").as[Comment].parseForeach(println)
+		val mainParser = Splitter.xml("comments" \ "comment").as[Comment].into.tap(println)
 
 		mainParser parse rawXml
 	}

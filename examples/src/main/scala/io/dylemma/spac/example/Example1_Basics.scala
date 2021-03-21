@@ -1,8 +1,8 @@
-package io.dylemma.xml.example
+package io.dylemma.spac.example
 
-import javax.xml.stream.events.XMLEvent
-import io.dylemma.spac.old._
-import io.dylemma.spac.old.xml._
+import io.dylemma.spac._
+import io.dylemma.spac.xml._
+import io.dylemma.spac.xml.spac_javax._
 
 import scala.util.Try
 
@@ -22,7 +22,7 @@ object Example1_Basics extends App {
 
 	The `XMLParser.forText` parser will collect all of the `Characters` events it encounters, and concatenate them.
 	 */
-	val bookParser: XMLParser[String] = XMLParser.forText
+	val bookParser: XmlParser[String] = XmlParser.forText
 
 	/*
 	If we run the `bookParser` by itself on the `libraryXml`, we get the titles of all of the
@@ -42,7 +42,7 @@ object Example1_Basics extends App {
 	Note that some `Splitters` can extract a "context" value. This one simply matches without
 	extracting anything, so its type parameter is just `Unit`.
 	 */
-	val bookSplitter: XMLSplitter[Unit] = XMLSplitter("library" \ "book")
+	val bookSplitter: XmlSplitter[Unit] = Splitter.xml("library" \ "book")
 
 	/*
 	By attaching a parser to a splitter, you run the parser on each individual substream.
@@ -50,14 +50,14 @@ object Example1_Basics extends App {
 	The result of combining a Splitter and an XMLParser is called a "Transformer" because it
 	"transforms" an stream of inputs into a stream of something else.
 	*/
-	val bookTransformer: Transformer[XMLEvent, String] = bookSplitter.map(bookParser)
+	val bookTransformer: Transformer[XmlEvent, String] = bookSplitter.joinBy(bookParser)
 
 	/*
 	To actually get a result from a stream, you'll either need an `XMLParser`.
 
 	Transformers can be turned into Parsers via a handful of convenience methods.
 	 */
-	val bookListParser: XMLParser[List[String]] = bookTransformer.parseToList
+	val bookListParser: XmlParser[List[String]] = bookTransformer.into.list
 
 	/*
 	The underlying handler created by a Parser may throw exceptions when handling inputs.
@@ -66,7 +66,7 @@ object Example1_Basics extends App {
 	This will wrap its output in a `scala.util.Try` class, where exceptions will appear as
 	`Failure` instances, and regular outputs will appear inside `Success` instances.
 	 */
-	val safeBookListConsumer: XMLParser[Try[List[String]]] = bookListParser.wrapSafe
+	val safeBookListConsumer: XmlParser[Try[List[String]]] = bookListParser.wrapSafe
 
 	/*
 	The bookList parser and consumer will yield the same result; the list of titles emitted by the `bookTransformer`.
@@ -82,7 +82,7 @@ object Example1_Basics extends App {
 	/*
 	You can handle results as they are discovered by using one of the `foreach` transformer methods.
 	 */
-	val foreachConsumer = bookTransformer.parseForeach{ title => println(s"book: $title") }
+	val foreachConsumer = bookTransformer.into.tap{ title => println(s"book: $title") }
 	foreachConsumer parse libraryXml
 
 }

@@ -1,7 +1,7 @@
 package io.dylemma.spac.xml
 
 import io.dylemma.spac.ContextLocation
-import io.dylemma.spac.xml2.{AsQName, XmlEvent}
+import io.dylemma.spac.xml.{AsQName, XmlEvent}
 
 import scala.util.matching.Regex
 import scala.util.parsing.combinator.RegexParsers

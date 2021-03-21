@@ -2,7 +2,7 @@ package io.dylemma.spac.xml
 
 import cats.syntax.apply._
 import io.dylemma.spac._
-import io.dylemma.spac.xml2._
+import io.dylemma.spac.xml._
 import javax.xml.stream.events.XMLEvent
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers

@@ -7,6 +7,9 @@ import cats.data.Chain
 case class ContextTrace[+A](elems: Chain[(ContextLocation, A)]) {
 	def /[A2 >: A](subContext: ContextTrace[A2]): ContextTrace[A2] = ContextTrace(elems ++ subContext.elems)
 }
+object ContextTrace {
+	def empty: ContextTrace[Nothing] = ContextTrace(Chain.nil)
+}
 
 /** A map-like representation of some location in a stream,
   * used like stack trace elements for reporting errors in stream processing.

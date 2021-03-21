@@ -1,8 +1,9 @@
-package io.dylemma.xml.example
+package io.dylemma.spac
+package example
 
-import javax.xml.stream.events.XMLEvent
-import io.dylemma.spac.old._
-import io.dylemma.spac.old.xml._
+import cats.syntax.apply._
+import io.dylemma.spac.xml._
+import io.dylemma.spac.xml.spac_javax._
 
 object Example5_FollowedBy extends App {
 	val xml ="""<doc>
@@ -30,52 +31,52 @@ object Example5_FollowedBy extends App {
 	case class Message(user: User, content: String)
 
 	// parser for a <user> element to a `User`
-	implicit val userParser: XMLParser[User] = (
-		XMLParser.forMandatoryAttribute("id") and
-		XMLParser.forText
-	).as(User)
+	implicit val userParser: XmlParser[User] = (
+		XmlParser.forMandatoryAttribute("id"),
+		XmlParser.forText
+	).mapN(User)
 
 	// parser for a <users> element to a `UserMap`
-	implicit val userMapParser: XMLParser[UserMap] = XMLSplitter(* \ "user").as[User].parseToList.map { userList =>
+	implicit val userMapParser: XmlParser[UserMap] = Splitter.xml(* \ "user").as[User].into.list.map { userList =>
 		UserMap(userList.map(u => u.id -> u).toMap)
 	}
 
 	// parser to get the first <users> element from the document
-	val usersParser = XMLSplitter(* \ "users").first[UserMap]
+	val usersParser = Splitter.xml(* \ "users").as[UserMap].into.first
 
 	// parser for <message> elements, given a function to get a User by its id
-	def getMessageParser(userMap: UserMap): XMLParser[Message] = (
-		XMLParser.forMandatoryAttribute("user_id").map(userMap) and
-		XMLParser.forText
-	).as(Message)
+	def getMessageParser(userMap: UserMap): XmlParser[Message] = (
+		XmlParser.forMandatoryAttribute("user_id").map(userMap),
+		XmlParser.forText
+	).mapN(Message)
 
 	/*
 	The result of `usersParser` can now be used to create a transformer that will receive all
 	<message> elements encountered after the <users> have been parsed.
 	 */
-	val messagesTransformer: Transformer[XMLEvent, Message] = usersParser.followedByStream { userMap =>
-		XMLSplitter(* \ "message").as(getMessageParser(userMap))
+	val messagesTransformer: Transformer[XmlEvent, Message] = usersParser.followedByStream { userMap =>
+		Splitter.xml(* \ "message").joinBy(getMessageParser(userMap))
 	}
 
 	// a Transformer that passes events through after printing them
-	val eventPrinter = Transformer.sideEffect[XMLEvent](e => println(s"  xml event [$e]"))
+	val eventPrinter = Transformer.tap[XmlEvent](e => println(s"  xml event [$e]"))
 
 	// Here I'm adding a println for each XMLEvent to show exactly when each message is parsed during the stream:
 	// the important point is that they are parsed *during* the stream, rather than at the end
 	println("messagesTransformer:")
-	(eventPrinter >> messagesTransformer).parseForeach(println).parse(xml)
+	eventPrinter :>> messagesTransformer :> Parser.tap(println) parse xml
 	println("---\n")
 
 	/*
 	You can also use for-comprehension syntax with `followedByStream`, as `followedByStream`
 	is actually an object with identical `apply` and `flatMap` methods
 	 */
-	val messagesTransformer2: Transformer[XMLEvent, Message] = for {
+	val messagesTransformer2: Transformer[XmlEvent, Message] = for {
 		userMap <- usersParser.followedByStream
-		message <- XMLSplitter(* \ "message").as(getMessageParser(userMap))
+		message <- Splitter.xml(* \ "message").as(getMessageParser(userMap))
 	} yield message
 	println("messagesTransformer2:")
-	messagesTransformer2.parseForeach(println).parse(xml)
+	messagesTransformer2.into.tap(println).parse(xml)
 	println("---\n")
 
 	/*
@@ -84,16 +85,16 @@ object Example5_FollowedBy extends App {
 	 */
 	case class RawMessage(userId: String, content: String)
 	implicit val rawMessageParser = (
-		XMLParser.forMandatoryAttribute("user_id") and
-		XMLParser.forText
-	).as(RawMessage)
+		XmlParser.forMandatoryAttribute("user_id"),
+		XmlParser.forText
+	).mapN(RawMessage)
 
-	val messagesTransformer3: Transformer[XMLEvent, Message] = for {
+	val messagesTransformer3: Transformer[XmlEvent, Message] = for {
 		userMap <- usersParser.followedByStream
-		RawMessage(userId, content) <- XMLSplitter(* \ "message").as[RawMessage]
+		RawMessage(userId, content) <- Splitter.xml(* \ "message").as[RawMessage]
 	} yield Message(userMap(userId), content)
 
 	println("messagesTransformer3:")
-	messagesTransformer3.parseForeach(println).parse(xml)
+	messagesTransformer3.into.tap(println).parse(xml)
 	println("---\n")
 }

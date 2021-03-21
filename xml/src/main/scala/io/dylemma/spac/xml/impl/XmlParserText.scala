@@ -1,5 +1,5 @@
 package io.dylemma.spac
-package xml2
+package xml
 package impl
 
 object XmlParserText extends XmlParser[String] {

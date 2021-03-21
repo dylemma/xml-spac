@@ -109,6 +109,9 @@ class ParserApplyWithBoundInput[In] {
 	def fromBuilder[Out](b: => collection.mutable.Builder[In, Out]): Parser[In, Out] = Parser.fromBuilder(b)
 	def toList: Parser[In, List[In]] = Parser.toList
 	def toChain: Parser[In, Chain[In]] = Parser.toChain
+	def toMap[K, V](implicit ev: In <:< (K, V)): Parser[(K, V), Map[K, V]] = Parser.toMap[K, V]
+	def tap(f: In => Unit): Parser[In, Unit] = Parser.tap(f)
+	def drain: Parser[In, Unit] = Parser.drain
 }
 
 object Parser {
@@ -151,6 +154,10 @@ object Parser {
 	def toChain[In]: Parser[In, Chain[In]] = fold(Chain.empty[In])(_ :+ _)
 	def toMap[K, V]: Parser[(K, V), Map[K, V]] = fromBuilder { Map.newBuilder[K, V] }
 	def tap[In](f: In => Unit): Parser[In, Unit] = new ParserTap(f)
+	def drain: Parser[Any, Unit] = ParserDrain
+
+	@deprecated("use `.pure` instead", "v0.9")
+	def constant[Out](value: Out) = pure(value)
 
 	implicit class TryParserOps[-In, +Out](parser: Parser[In, Try[Out]]) {
 		def unwrapSafe: Parser[In, Out] = new ParserRethrow(parser)

@@ -1,10 +1,12 @@
 package io.dylemma.spac
 
 import cats.data.{Chain, NonEmptyChain}
-import cats.effect.Resource
+import cats.effect.{Resource, SyncIO}
 import cats.implicits._
 import cats.{Applicative, Monad}
 import io.dylemma.spac.types.Unconsable
+
+import scala.collection.AbstractIterator
 
 trait ToPullable[F[+_], S, +A] {
 	def apply(source: S): Resource[F, Pullable[F, A]]
@@ -13,6 +15,54 @@ object ToPullable {
 	implicit def forUnconsable[F[+_]: Applicative, C[_]: Unconsable, A]: ToPullable[F, C[A], A] = new ToPullable[F, C[A], A] {
 		def apply(source: C[A]) = Resource.liftF {
 			source.pure[F].map { Pullable.fromUnconsable[F, C, A] }
+		}
+	}
+
+	object Ops extends Ops
+	trait Ops {
+		implicit class SourceToPullable[S](source: S) {
+			def toPullable[F[+_], A](implicit S: ToPullable[F, S, A]): Resource[F, Pullable[F, A]] = S(source)
+
+			def toIterator[A](implicit S: ToPullable[SyncIO, S, A]): Resource[SyncIO, Iterator[A]] = S(source).map { pullable =>
+				// the "close" is taken care of by the `Resource` that wraps this, so we're not exposing the `AutoCloseable` aspect of the iterator in this case
+				new SyncPullableIterator[A](Some(pullable), SyncIO.unit)
+			}
+
+			def toCloseableIterator[A](implicit S: ToPullable[SyncIO, S, A]): Iterator[A] with AutoCloseable = {
+				val (pullable, closeIO) = S(source).allocated.unsafeRunSync()
+				new SyncPullableIterator[A](Some(pullable), closeIO)
+			}
+		}
+	}
+
+	private class SyncPullableIterator[A](private var state: Option[Pullable[SyncIO, A]], closeIO: SyncIO[Unit]) extends AbstractIterator[A] with AutoCloseable {
+		private var nextResult: Option[A] = None
+		def hasNext = nextResult match {
+			case Some(_) => true
+			case None => doPull()
+		}
+
+		def next() = nextResult match {
+			case Some(a) =>
+				nextResult = None
+				a
+			case None =>
+				if (doPull()) nextResult.get
+				else throw new NoSuchElementException("next() on empty iterator")
+		}
+
+		def close() = closeIO.unsafeRunSync()
+
+		// precondition: `nextResult` is None
+		// postcondition: either `nextResult` is Some or `state` is None
+		private def doPull(): Boolean = state match {
+			case Some(p) =>
+				val unconsed = p.uncons.unsafeRunSync()
+				nextResult = unconsed.map(_._1)
+				state = unconsed.map(_._2)
+				nextResult.isDefined
+			case None =>
+				false
 		}
 	}
 }

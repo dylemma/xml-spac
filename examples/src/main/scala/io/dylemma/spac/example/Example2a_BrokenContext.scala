@@ -1,7 +1,9 @@
-package io.dylemma.xml.example
+package io.dylemma.spac
+package example
 
-import io.dylemma.spac.old._
-import io.dylemma.spac.old.xml._
+import cats.syntax.apply._
+import io.dylemma.spac.xml._
+import io.dylemma.spac.xml.spac_javax._
 
 object Example2a_BrokenContext extends App {
 
@@ -21,17 +23,17 @@ object Example2a_BrokenContext extends App {
 
 	case class Comment(postId: Int, user: String, text: String)
 
-	def CommentParser(idFromContext: Int): XMLParser[Comment] = (
-		Parser.constant(idFromContext) and
-		XMLParser.forMandatoryAttribute("user") and
-		XMLParser.forText
-	).as(Comment)
+	def CommentParser(idFromContext: Int): XmlParser[Comment] = (
+		Parser.pure(idFromContext),
+		XmlParser.forMandatoryAttribute("user"),
+		XmlParser.forText
+	).mapN(Comment)
 
 	val contextMatcher = "blog" \ ("post" & attr("id").map(_.toInt)) \ "comment"
 
-	val consumer = XMLSplitter(contextMatcher)
+	val consumer = Splitter.xml(contextMatcher)
 		.map(CommentParser(_).wrapSafe) // parse the substreams created by the Splitter, using the implicit CommentParser
-		.parseForeach(println) // println each of the results
+		.into.tap(println) // println each of the results
 
 	consumer parse rawXml
 }

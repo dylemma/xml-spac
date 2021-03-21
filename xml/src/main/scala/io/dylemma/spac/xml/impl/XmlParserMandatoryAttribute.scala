@@ -1,8 +1,8 @@
 package io.dylemma.spac
-package xml2
+package xml
 package impl
 
-import io.dylemma.spac.xml2.XmlEvent.ShowableQName
+import io.dylemma.spac.xml.XmlEvent.ShowableQName
 
 class XmlParserMandatoryAttribute[N: AsQName](attributeName: N) extends Parser.Stateless[XmlEvent, String] {
 	def step(in: XmlEvent) = in.asElemStart match {

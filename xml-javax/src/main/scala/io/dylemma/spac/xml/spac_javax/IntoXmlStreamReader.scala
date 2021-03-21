@@ -1,4 +1,6 @@
-package io.dylemma.spac.xml2
+package io.dylemma.spac
+package xml
+package spac_javax
 
 import java.io._
 

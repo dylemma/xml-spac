@@ -1,4 +1,4 @@
-package io.dylemma.spac.xml2
+package io.dylemma.spac.xml
 
 import java.io.Writer
 

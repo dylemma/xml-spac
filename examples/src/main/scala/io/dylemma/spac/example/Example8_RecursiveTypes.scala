@@ -1,8 +1,9 @@
-package io.dylemma.xml.example
+package io.dylemma.spac
+package example
 
-import io.dylemma.spac.old._
-import io.dylemma.spac.old.xml._
-import javax.xml.stream.events.XMLEvent
+import cats.syntax.apply._
+import io.dylemma.spac.xml._
+import io.dylemma.spac.xml.spac_javax._
 
 // based on https://github.com/dylemma/xml-spac/issues/19
 object Example8_RecursiveTypes {
@@ -25,11 +26,11 @@ object Example8_RecursiveTypes {
 		""".stripMargin
 
 	/* The problem is that (to my knowledge) java.xml.stream doesn't support a "mark/reset"
-	 * interaction for an XMLEvent stream. So it would be impossible to actually return a
+	 * interaction for an XmlEvent stream. So it would be impossible to actually return a
 	 * `Stream[Group]` for each group, since at any given point there would be lots of
 	 * potential "stream heads" (due to there being at least one Group in memory for each
 	 * point in the Group hierarchy). Supporting all of those group streams would mean that
-	 * each time you tried to get the stream's tail, the underlying XMLEvent stream would
+	 * each time you tried to get the stream's tail, the underlying XmlEvent stream would
 	 * have to reset to the location of that particular subGroup stream, and resume parsing.
 	 *
 	 * So since that's impossible, we try something else:
@@ -51,53 +52,45 @@ object Example8_RecursiveTypes {
 	case class GroupContext(id: Int, name: String)
 
 	// given a <group> element, parse a GroupContext
-	implicit val groupContextParser: XMLParser[GroupContext] = (
-		XMLSplitter(* \ "id").asText.map(_.toInt).parseFirst and
-		XMLSplitter(* \ "name").asText.parseFirst
-	).as(GroupContext)
+	implicit val groupContextParser: XmlParser[GroupContext] = (
+		Splitter.xml(* \ "id").text.map(_.toInt).into.first,
+		Splitter.xml(* \ "name").text.into.first
+	).mapN(GroupContext)
 
 	// given a <group> element, parse a GroupContext, then get a Transformer that can find the subGroups,
 	// making sure that the GroupContext we parsed is treated as a "parent" for recursion involving the `stack`
-	def groupTransformer(stack: List[GroupContext]): Transformer[XMLEvent, List[GroupContext]] = {
+	def groupTransformer(stack: List[GroupContext]): Transformer[XmlEvent, List[GroupContext]] = {
 		groupContextParser.followedByStream { context =>
 			val nestedContext = context :: stack
-			val after = XMLSplitter(* \ "groups" \ "group").flatMap(groupTransformer(nestedContext))
-			new SinglePrefixTransformer[XMLEvent, List[GroupContext]](nestedContext, after) >> Transformer.map(_.reverse)
+			val after = Splitter.xml(* \ "groups" \ "group").flatMap(_ => groupTransformer(nestedContext))
+			new SinglePrefixTransformer[XmlEvent, List[GroupContext]](nestedContext, after) :>> Transformer.map(_.reverse)
 		}
 	}
 
 	// a Transformer that sends a `prefix` element downstream before acting as a pass-through
 	class SinglePrefixTransformer[In, T](prefix: T, transformer: Transformer[In, T]) extends Transformer[In, T] {
-		def makeHandler[Out](next: Handler[T, Out]): Handler[In, Out] = new Handler[In, Out] {
-			val tNext = transformer.makeHandler(next)
-			var didPrepend = false
-			def isFinished: Boolean = didPrepend && next.isFinished
-			def handlePrefix(): Option[Out] = {
-				if(!didPrepend) {
-					didPrepend = true
-					next.handleInput(prefix)
-				} else {
-					None
-				}
+		def newHandler = new Transformer.Handler[In, T] {
+			val inner = transformer.newHandler
+			def step(in: In) = {
+				val (toEmit, cont) = inner.step(in)
+				(prefix +: toEmit) -> cont
 			}
-			def handleInput(input: In): Option[Out] = {
-				handlePrefix() orElse tNext.handleInput(input)
-			}
-			def handleError(error: Throwable): Option[Out] = {
-				handlePrefix() orElse tNext.handleError(error)
-			}
-			def handleEnd(): Out = {
-				handlePrefix() getOrElse tNext.handleEnd()
-			}
+			def finish() = prefix +: inner.finish()
 		}
 	}
 
 	def main(args: Array[String]): Unit = {
-		// this will print:
-		// List(GroupContext(1, a))
-		// List(GroupContext(2, b), GroupContext(1, a))
-		for(ctx <- groupTransformer(Nil).transform(xml)) println(ctx)
+		val xmlEvents: Iterator[XmlEvent] with AutoCloseable = xml.toCloseableIterator[XmlEvent]
+		try {
+			val itr = groupTransformer(Nil).transform(xmlEvents)
 
-		/* What you do with this stream is left as an exercise for the reader */
+			// this will print:
+			// List(GroupContext(1, a))
+			// List(GroupContext(2, b), GroupContext(1, a))
+			for (ctx <- itr) println(ctx)
+			/* What you do with this stream is left as an exercise for the reader */
+		} finally {
+			xmlEvents.close()
+		}
 	}
 }

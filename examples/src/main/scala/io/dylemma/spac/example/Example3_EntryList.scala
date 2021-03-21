@@ -1,8 +1,8 @@
-package io.dylemma.xml.example
+package io.dylemma.spac
+package example
 
-import io.dylemma.spac.old._
-import io.dylemma.spac.old.xml._
-import javax.xml.stream.events.XMLEvent
+import io.dylemma.spac.xml._
+import io.dylemma.spac.xml.spac_javax._
 
 /**
  * Created by dylan on 11/24/2015.
@@ -43,11 +43,11 @@ object Example3_EntryList extends App {
 	which will be passed into a function that chooses a parser for an element based on its name.
 	 */
 	type KeyOrValue = Either[String, Int]
-	def keyOrValueParser(elemType: String): XMLParser[KeyOrValue] = elemType match {
-		case "key" => XMLParser.forText.map(Left(_))
-		case "value" => XMLParser.forText.map(s => Right(s.toInt))
+	def keyOrValueParser(elemType: String): XmlParser[KeyOrValue] = elemType match {
+		case "key" => XmlParser.forText.map(Left(_))
+		case "value" => XmlParser.forText.map(s => Right(s.toInt))
 	}
-	val keyOrValueTransformer: Transformer[XMLEvent, KeyOrValue] = XMLSplitter("entrylist" \ extractElemName).map(keyOrValueParser)
+	val keyOrValueTransformer: Transformer[XmlEvent, KeyOrValue] = Splitter.xml("entrylist" \ extractElemName).map(keyOrValueParser)
 
 
 	/*
@@ -57,7 +57,7 @@ object Example3_EntryList extends App {
 	make a `Splitter` to extract the element name
 	in the right context, send it through the `keyOrValueParser`, and use `parseToList` to collect the results.
 	 */
-	val entryListParserV1 = keyOrValueTransformer.parseToList
+	val entryListParserV1 = keyOrValueTransformer.into.list
 	println("V1 result:")
 	println(entryListParserV1 parse rawXml)
 	println()
@@ -75,7 +75,7 @@ object Example3_EntryList extends App {
 	Then we'll use the ToList consumer to collect the keys and values from each substream,
 	then map the results from that consumer to `Entry` instances.
 	 */
-	val kvToEntryTransformer: Transformer[KeyOrValue, Entry] = Splitter.splitOnMatch[KeyOrValue]{ _.isLeft } map {
+	val kvToEntryTransformer: Transformer[KeyOrValue, Entry] = Splitter.splitOnMatch[KeyOrValue]{ _.isLeft } joinBy {
 		Parser.toList[KeyOrValue].map { keyAndValues =>
 			// we can safely assume that there will be at least one element in the `keyAndValues`
 			// list, and that it is a `Left`, due to the `splitOnMatch` condition
@@ -89,8 +89,8 @@ object Example3_EntryList extends App {
 	Now that the transformer is defined, we can modify the V1 parser.
 	Note the difference between V1 and V2 is the addition of `.andThen(kvToEntryTransformer)`
 	 */
-	val entryListParserV2: XMLParser[List[Entry]] = {
-		keyOrValueTransformer.andThen(kvToEntryTransformer).parseToList
+	val entryListParserV2: XmlParser[List[Entry]] = {
+		keyOrValueTransformer :>> kvToEntryTransformer :> Parser.toList
 	}
 
 	println("V2 results:")

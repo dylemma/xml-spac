@@ -1,8 +1,8 @@
 package io.dylemma.spac
-package xml2
+package xml
 
 import cats.syntax.show._
-import io.dylemma.spac.xml2.XmlEvent.{ElemStart, ShowableQName}
+import io.dylemma.spac.xml.XmlEvent.{ElemStart, ShowableQName}
 
 trait XmlSpacException extends SpacException
 object XmlSpacException {

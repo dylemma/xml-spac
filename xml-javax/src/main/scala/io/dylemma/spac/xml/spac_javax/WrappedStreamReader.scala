@@ -1,7 +1,8 @@
-package io.dylemma.spac.xml2
+package io.dylemma.spac
+package xml
+package spac_javax
 
 import cats.effect.{Resource, Sync}
-import io.dylemma.spac._
 import javax.xml.namespace.QName
 import javax.xml.stream.{Location, XMLStreamReader}
 

@@ -1,7 +1,7 @@
-package io.dylemma.spac.xml2
+package io.dylemma.spac
+package xml
 
 import cats.effect.{Resource, Sync}
-import io.dylemma.spac.{Pullable, ToPullable}
 import javax.xml.XMLConstants
 import javax.xml.namespace.QName
 import javax.xml.stream.XMLInputFactory
@@ -15,7 +15,7 @@ import javax.xml.stream.XMLInputFactory
   *
   * Note that because javax's `XMLStreamReader` is internally mutable, the resulting XmlPull instances will not be referentially transparent.
   */
-object JavaxSupport {
+package object spac_javax {
 	implicit def xmlStreamReadableAsImpureXmlPull[F[+_], R](implicit F: Sync[F], intoXmlStreamReader: IntoXmlStreamReader[F, R], factory: XMLInputFactory = defaultFactory): ToPullable[F, R, XmlEvent] = new ToPullable[F, R, XmlEvent] {
 		def apply(source: R): Resource[F, Pullable[F, XmlEvent]] = {
 			val readerResource: Resource[F, WrappedStreamReader] = intoXmlStreamReader(factory, source)

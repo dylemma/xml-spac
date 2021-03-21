@@ -1,9 +1,10 @@
-package io.dylemma.xml.example
+package io.dylemma.spac
+package example
 
-import io.dylemma.spac.SingleItemContextMatcher
-import javax.xml.stream.events.StartElement
-import io.dylemma.spac.old._
-import io.dylemma.spac.old.xml._
+import cats.syntax.apply._
+import io.dylemma.spac.xml.XmlEvent.ElemStart
+import io.dylemma.spac.xml._
+import io.dylemma.spac.xml.spac_javax._
 
 object Example2_Contexts extends App {
 
@@ -39,16 +40,16 @@ object Example2_Contexts extends App {
 
 	// extracts the "title" attribute from the first element in the stack,
 	// but does not match if that element is missing the "title" attribute.
-	val titleAttributeMatcher: SingleItemContextMatcher[StartElement, String] = attr("title")
+	val titleAttributeMatcher: SingleItemContextMatcher[ElemStart, String] = attr("title")
 
 	// same as above, but for the "id" attribute
-	val idAttributeMatcher: SingleItemContextMatcher[StartElement, String] = attr("id")
+	val idAttributeMatcher: SingleItemContextMatcher[ElemStart, String] = attr("id")
 
 	// extracts nothing, and only matches if the name of the element is "comment"
-	val commentElementMatcher: SingleItemContextMatcher[StartElement, Unit] = elem("comment")
+	val commentElementMatcher: SingleItemContextMatcher[ElemStart, Unit] = elem("comment")
 
 	// the `syntax._` import gives an implicit conversion from `String` or `QName` to a matcher
-	val commentElementMatcher2: SingleItemContextMatcher[StartElement, Unit] = "comment"
+	val commentElementMatcher2: SingleItemContextMatcher[ElemStart, Unit] = "comment"
 
 	/*
 	The base `ContextMatcher` trait has two type parameters:
@@ -65,9 +66,9 @@ object Example2_Contexts extends App {
 	`TypeReduce` typeclass. Essentially, `Unit` will be stripped out unless
 	it is the only thing left.
 	*/
-	val chainExample1: XMLContextMatcher[Unit] = "blog" \ "post" \ "comment"
-	val chainExample2: XMLContextMatcher[String] = "blog" \ attr("id") \ "comment"
-	val chainExample3: XMLContextMatcher[(String, String)] = "blog" \ attr("id") \ attr("stuff")
+	val chainExample1: XmlContextMatcher[Unit] = "blog" \ "post" \ "comment"
+	val chainExample2: XmlContextMatcher[String] = "blog" \ attr("id") \ "comment"
+	val chainExample3: XmlContextMatcher[(String, String)] = "blog" \ attr("id") \ attr("stuff")
 
 	/*
 	The same type reduction logic also applies when combining two single-element
@@ -75,12 +76,12 @@ object Example2_Contexts extends App {
 	"id" and "author" attributes from the first element in the stack. If the context
 	is matched successfully, the result will be an `(id, author)` tuple.
 	*/
-	val andExample1: SingleItemContextMatcher[StartElement, (String, String)] = attr("id") & attr("author")
+	val andExample1: XmlContextMatcher[(String, String)] = attr("id") & attr("author")
 
 	/*
 	Complicated context matchers can be built from the combination methods
 	 */
-	val chainedMatcher: XMLContextMatcher[(String, (String, Int))] = {
+	val chainedMatcher: XmlContextMatcher[(String, (String, Int))] = {
 		// The individual segments are [String] + [(String, Int)] + [Unit].
 		// Unit is stripped, leaving a tuple of `String` and `(String, Int)`
 		attr("title") \ (attr("author") & attr("id").map(_.toInt)) \ "comment"
@@ -91,7 +92,7 @@ object Example2_Contexts extends App {
 	as well as its `flatMap` and `filter` methods (not shown).
 	 */
 	case class PostContext(blogTitle: String, author: String, postId: Int)
-	val postContextMatcher: XMLContextMatcher[PostContext] = chainedMatcher map {
+	val postContextMatcher: XmlContextMatcher[PostContext] = chainedMatcher map {
 		case (title, (author, postId)) => PostContext(title, author, postId)
 	}
 
@@ -99,7 +100,7 @@ object Example2_Contexts extends App {
 	Now you can use the `postContextMatcher` to create a splitter that
 	has a `PostContext` as its context.
 	 */
-	val postSplitter: XMLSplitter[PostContext] = XMLSplitter(postContextMatcher)
+	val postSplitter: XmlSplitter[PostContext] = Splitter.xml(postContextMatcher)
 
 	/*
 	Create a `Comment` class then create a parser for it.
@@ -110,17 +111,16 @@ object Example2_Contexts extends App {
 	that dependency.
 	 */
 	case class Comment(body: String, context: PostContext)
-	def commentParser(context: PostContext): XMLParser[Comment] = (
-		XMLParser.forText and
-			Parser.constant(context)
-	).as(Comment)
+	def commentParser(context: PostContext): XmlParser[Comment] = {
+		(XmlParser.forText, Parser.pure(context)).mapN(Comment)
+	}
 
 	/*
 	Note: for this particular use case it might be more convenient to
 	insert the `context` with a `map` on the text parser.
 	 */
-	def alternateCommentParser(context: PostContext): XMLParser[Comment] = {
-		XMLParser.forText.map(Comment(_, context))
+	def alternateCommentParser(context: PostContext): XmlParser[Comment] = {
+		XmlParser.forText.map(Comment(_, context))
 	}
 
 	/*
@@ -131,5 +131,8 @@ object Example2_Contexts extends App {
 	- `[...] parseForeach println` creates a consumer
 	- `[...] consume rawXml` runs that consumer on the raw xml
 	 */
-	postSplitter map commentParser parseForeach println parse rawXml
+	postSplitter
+		.map(commentParser)
+		.into.tap(println)
+		.parse(rawXml)
 }
