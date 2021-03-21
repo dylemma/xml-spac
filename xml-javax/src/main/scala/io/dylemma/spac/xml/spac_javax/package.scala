@@ -6,16 +6,21 @@ import javax.xml.XMLConstants
 import javax.xml.namespace.QName
 import javax.xml.stream.XMLInputFactory
 
-/** Provides an implicit `AsXmlPull` instance for the following types that can be plugged into a `javax.xml.stream.XMLInputFactory` to create an XMLStreamReader:
+/** Provides support for `javax.xml.stream` to be used with `io.dylemma.spac.xml`.
   *
-  * - `String`
-  * - `File`
-  * - `Resource[F, java.io.InputStream]`
-  * - `Resource[F, java.io.Reader]`
+  * Provides an implicit `AsXmlPull` instance for the following types that can be plugged into a `javax.xml.stream.XMLInputFactory` to create an XMLStreamReader:
+  *
+  *  - `String`
+  *  - `File`
+  *  - `Resource[F, java.io.InputStream]`
+  *  - `Resource[F, java.io.Reader]`
   *
   * Note that because javax's `XMLStreamReader` is internally mutable, the resulting XmlPull instances will not be referentially transparent.
   */
 package object spac_javax {
+	/** Allows types which can be opened as a javax XMLStreamReader to be passed to an XmlParser's `parse` method.
+	  * The "open as javax XMLStreamReader" logic is defined by the `IntoXmlStreamReader` typeclass.
+	  */
 	implicit def xmlStreamReadableAsImpureXmlPull[F[+_], R](implicit F: Sync[F], intoXmlStreamReader: IntoXmlStreamReader[F, R], factory: XMLInputFactory = defaultFactory): ToPullable[F, R, XmlEvent] = new ToPullable[F, R, XmlEvent] {
 		def apply(source: R): Resource[F, Pullable[F, XmlEvent]] = {
 			val readerResource: Resource[F, WrappedStreamReader] = intoXmlStreamReader(factory, source)
@@ -26,6 +31,7 @@ package object spac_javax {
 		}
 	}
 
+	/** Allows `javax.xml.namespace.QName` to be passed to name-based methods like `elem` and `attr` */
 	implicit val javaxQNameAsQName: AsQName[QName] = new AsQName[QName] {
 		def name(n: QName): String = n.getLocalPart
 		def namespaceUri(n: QName): Option[String] = n.getNamespaceURI match {

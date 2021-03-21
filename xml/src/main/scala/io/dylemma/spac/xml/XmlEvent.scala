@@ -5,7 +5,12 @@ import cats.data.Chain
 import cats.implicits._
 import io.dylemma.spac._
 
-/** @group event */
+/** Spac's internal representation of XML "events".
+  * Third-party xml streaming classes like `javax.xml.stream` or `fs2-data` can be supported
+  * by providing an `AsXmlEvent` implementation which converts the third-party event type into this type.
+  *
+  * @group event
+  */
 sealed trait XmlEvent {
 	import XmlEvent._
 	def asElemStart: Option[ElemStart] = None
@@ -14,7 +19,11 @@ sealed trait XmlEvent {
 	def location: ContextLocation
 }
 
-/** @group event */
+/** Typeclass for viewing an `E` as an `XmlEvent`.
+  * This is the core for allowing the integration of different third-party XML streaming libraries.
+  *
+  * @group event
+  */
 trait AsXmlEvent[-E] {
 	def unapply(event: E): Option[XmlEvent]
 }

@@ -4,7 +4,16 @@ package xml
 import cats.syntax.show._
 import io.dylemma.spac.xml.XmlEvent.{ElemStart, ShowableQName}
 
+/** SpacException subtype for XML-specific exceptions
+  *
+  * @group aliases
+  */
 trait XmlSpacException extends SpacException
+
+/** Contains the actual `XmlSpacException` subtypes
+  *
+  * @group aliases
+  */
 object XmlSpacException {
 
 	class MissingMandatoryAttributeException(val attributeName: ShowableQName, val elem: Option[ElemStart])
