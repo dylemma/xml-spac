@@ -5,7 +5,25 @@ import io.dylemma.spac.types.Unconsable
 
 import scala.annotation.tailrec
 
+/** Primary "spac" abstraction which represents a transformation stage for a stream of data events
+  *
+  * Transformers effectively transform a stream of `In` events into a stream of `Out` events.
+  * The actual stream handling logic is defined by a `Transformer.Handler`, which a `Transformer` is responsible for constructing.
+  * Handlers may be internally-mutable, and so they are generally only constructed by other handlers.
+  * Transformers themselves are immutable, acting as "handler factories", and so they may be freely reused.
+  *
+  * A transformer may choose to abort in response to any input event,
+  * as well as emit any number of outputs in response to an input event or the EOF signal.
+  *
+  * @tparam In The incoming event type
+  * @tparam Out The outgoing event type
+  * @groupname abstract Abstract Members
+  */
 trait Transformer[-In, +Out] {
+	/** Transformer's main abstract method; constructs a new Handler representing this transformer's logic.
+	  * Transformers are expected to be immutable, but Handlers may be internally-mutable.
+	  * @group abstract
+	  */
 	def newHandler: Transformer.Handler[In, Out]
 
 	def mapBatch[Out2](f: Emit[Out] => Emit[Out2]): Transformer[In, Out2] = new TransformerMapBatch(this, f)

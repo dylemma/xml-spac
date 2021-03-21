@@ -14,7 +14,7 @@ case class ParserOrElseChain[In, Out] private(chain: Chain[Parser[In, Out]]) ext
 }
 
 object ParserOrElseChain {
-	def apply[In, Out](members: Chain[Parser[In, Out]]) = {
+	def apply[In, Out](members: Chain[Parser[In, Out]]): ParserOrElseChain[In, Out] = {
 		val chain = members.flatMap {
 			case ParserOrElseChain(innerChain) => innerChain
 			case p => Chain.one(p)

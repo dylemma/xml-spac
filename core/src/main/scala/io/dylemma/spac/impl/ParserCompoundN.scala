@@ -22,46 +22,6 @@ case class ParserCompoundN[In, Out](members: Chain[Parser[In, Any]], assemble: (
 	override def map[Out2](f: Out => Out2): Parser[In, Out2] = {
 		ParserCompoundN(members, (get: Int => Any) => f(assemble(get)))
 	}
-
-	/** Optimization related to Parser's `Applicative`.
-	  * This function represents the `product` operation where the LHS parser is also a "compound" parser.
-	  * The underlying finished/unfinished/assemble values from this parser and `fa` will be merged,
-	  * returning a new "compound" parser.
-	  * The general goal is to "flatten" the hierarchy created by Applicative's ap/map operations
-	  * so we end up having fewer instantiations while the parser is running.
-	  */
-//	def compoundProductWithLhs[A](fa: ParserCompoundN[In, A]): ParserCompoundN[In, (A, Out)] = {
-//		val combinedMembers = fa.members ++ members
-//		val offset = fa.members.length.toInt
-//		val combinedAssemble = (get: Int => Any) => {
-//			val out = assemble(i => get(i + offset))
-//			val a = fa.assemble(get)
-//			a -> out
-//		}
-//		ParserCompoundN(combinedMembers, combinedAssemble)
-//	}
-//	/** Optimization related to Parser's `Applicative`.
-//	  * This function represents the `product` operation where the LHS parser is a non-compound parser.
-//	  * The LHS parser will be added as a new 'unfinished' member, to a new compound parser that will be returned.
-//	  * The general goal is to "flatten" the hierarchy created by Applicative's ap/map operations
-//	  * so we end up having fewer instantiations while the parser is running.
-//	  */
-//	def productWithLhs[A](fa: Parser[In, A]): ParserCompoundN[In, (A, Out)] = {
-//		val lhs = ParserCompoundN(Chain.one(fa), _ (0).asInstanceOf[A])
-//		compoundProductWithLhs(lhs)
-//	}
-
-//	/** Sort of a compromise between optimization and aesthetics, related to Parser's Applicative.
-//	  * If you put together something like `((p1, p2).tupled, p3).tupled`, when the `p3`
-//	  * gets handled by Applicative, it comes in as the `fa` for this method.
-//	  * Really this exists in order to satisfy the aesthetic requirement that the indexes
-//	  * for the underlying parsers be consistent with their order in the source code.
-//	  * If it weren't for that, we could just use `.productWithLhs(fa).map(_.swap).
-//	  */
-//	def productWithRhs[A](fa: Parser[In, A]): ParserCompoundN[In, (Out, A)] = {
-//		val rhs = ParserCompoundN(Chain.one(fa), _ (0).asInstanceOf[A])
-//		rhs.productWithLhs(this)
-//	}
 }
 
 object ParserCompoundN {
