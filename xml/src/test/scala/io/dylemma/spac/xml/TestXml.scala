@@ -1,9 +1,7 @@
 package io.dylemma.spac.xml
 
 import io.dylemma.spac.ContextLocation
-import io.dylemma.spac.xml.{AsQName, XmlEvent}
 
-import scala.util.matching.Regex
 import scala.util.parsing.combinator.RegexParsers
 
 /** This is a stupidly simple XML Parser based on the scala parser combinators library.

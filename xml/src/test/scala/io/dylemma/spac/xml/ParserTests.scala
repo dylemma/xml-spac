@@ -2,11 +2,9 @@ package io.dylemma.spac.xml
 
 import cats.syntax.apply._
 import io.dylemma.spac._
-import io.dylemma.spac.xml._
-import javax.xml.stream.events.XMLEvent
+import io.dylemma.spac.xml.TestXml._
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
-import TestXml._
 
 import scala.util.{Failure, Success, Try}
 

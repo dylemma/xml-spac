@@ -1,6 +1,5 @@
 package io.dylemma.spac.xml
 
-import io.dylemma.spac.xml._
 import io.dylemma.spac.xml.TestXml.{testElem, testQName}
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
