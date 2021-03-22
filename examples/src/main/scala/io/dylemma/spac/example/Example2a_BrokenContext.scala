@@ -33,7 +33,7 @@ object Example2a_BrokenContext extends App {
 
 	val consumer = Splitter.xml(contextMatcher)
 		.map(CommentParser(_).wrapSafe) // parse the substreams created by the Splitter, using the implicit CommentParser
-		.into.tap(println) // println each of the results
+		.parseTap(println) // println each of the results
 
 	consumer parse rawXml
 }

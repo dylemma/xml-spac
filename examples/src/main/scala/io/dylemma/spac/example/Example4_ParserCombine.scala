@@ -63,14 +63,14 @@ object Example4_ParserCombine {
 	// Parser for Comment
 	implicit val CommentParser: XmlParser[Comment] = (
 		XmlParser.forMandatoryAttribute("date").map(commentDateFormat.parse),
-		Splitter.xml(* \ "user").as[User].into.first,
-		Splitter.xml(* \ "stats").as[Stats].into.first,
-		Splitter.xml(* \ "body").text.into.first
+		Splitter.xml(* \ "user").as[User].parseFirst,
+		Splitter.xml(* \ "stats").as[Stats].parseFirst,
+		Splitter.xml(* \ "body").text.parseFirst
 	).mapN(Comment)
 
 	def main(args: Array[String]): Unit = {
 
-		val mainParser = Splitter.xml("comments" \ "comment").as[Comment].into.tap(println)
+		val mainParser = Splitter.xml("comments" \ "comment").as[Comment].parseTap(println)
 
 		mainParser parse rawXml
 	}

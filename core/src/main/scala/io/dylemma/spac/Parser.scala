@@ -33,6 +33,7 @@ trait Parser[-In, +Out] { self =>
 
 	/** Parser's main abstract method; constructs a new Handler representing this parser's logic.
 	  * Parsers are expected to be immutable, but Handlers may be internally-mutable.
+	  *
 	  * @group abstract
 	  */
 	def newHandler: Parser.Handler[In, Out]
@@ -43,7 +44,7 @@ trait Parser[-In, +Out] { self =>
 	  * @return A copy of this parser whose `toString` returns the given `name`
 	  * @group combinators
 	  */
-	def withName(name: String): Parser[In, Out] = new ParserNamed(this, name)
+	def withName(name: String): Parser[In, Out] = new ParserWithName(this, name)
 
 	/** Create a copy of this Parser whose result is transformed by the given function `f`.
 	  *
@@ -190,6 +191,30 @@ trait Parser[-In, +Out] { self =>
 			case Left((out, _)) => out
 			case Right(cont) => cont.finish()
 		}
+	}
+
+	/** Specialization of `parse` which operates on a raw Iterator of inputs.
+	  *
+	  * Creates a new handler, and pulls values from the iterator until the handler produces a result.
+	  * If the iterator ends before the handler produces a result, the handler's `finish` method will be called.
+	  *
+	  * This method does not concern itself with resource management, it simply consumes the iterator.
+	  *
+	  * @param iterator An iterator of `In` values
+	  * @return The parse result
+	  * @group consumers
+	  */
+	def parseIterator(iterator: Iterator[In]): Out = {
+		@tailrec def loop(handler: Parser.Handler[In, Out]): Out = {
+			if (iterator.hasNext) handler.step(iterator.next()) match {
+				case Left(out) => out
+				case Right(cont) => loop(cont)
+			} else {
+				handler.finish()
+			}
+		}
+
+		loop(newHandler)
 	}
 
 	/** Interpret the given `source` as a data stream of type `In`, using this parser to produce a result of type `Out`.

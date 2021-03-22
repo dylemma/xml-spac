@@ -31,7 +31,7 @@ import scala.language.implicitConversions
   *  A DSL for creating xml-specific ContextMatchers is provided to make it more convenient to call `Splitter.xml`.
   *  For example:
   *  {{{
-  *  Splitter.xml("things" \ "thing").attr("foo").into.list
+  *  Splitter.xml("things" \ "thing").attr("foo").parseToList
   *  }}}
   *  Can be used to capture a list of the "foo" attributes in the `<thing>` elements in
   *  {{{

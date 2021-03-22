@@ -5,7 +5,7 @@ import cats.data.Chain
 
 case class SplitterByContextMatch[In, Elem, C](matcher: ContextMatcher[Elem, C])(implicit S: StackLike[In, Elem]) extends Splitter[In, C] {
 
-	def addBoundaries = S.interpret :>> new SplitterByContextMatch.Boundaries(matcher)
+	def addBoundaries = S.interpret >> new SplitterByContextMatch.Boundaries(matcher)
 	def newHandler = new SplitterByContextMatch.Handler(matcher, SplitterByContextMatch.Unmatched[In, Elem](Vector.empty, Vector.empty))
 }
 

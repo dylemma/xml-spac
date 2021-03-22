@@ -37,12 +37,12 @@ object Example5_FollowedBy extends App {
 	).mapN(User)
 
 	// parser for a <users> element to a `UserMap`
-	implicit val userMapParser: XmlParser[UserMap] = Splitter.xml(* \ "user").as[User].into.list.map { userList =>
+	implicit val userMapParser: XmlParser[UserMap] = Splitter.xml(* \ "user").as[User].parseToList.map { userList =>
 		UserMap(userList.map(u => u.id -> u).toMap)
 	}
 
 	// parser to get the first <users> element from the document
-	val usersParser = Splitter.xml(* \ "users").as[UserMap].into.first
+	val usersParser = Splitter.xml(* \ "users").as[UserMap].parseFirst
 
 	// parser for <message> elements, given a function to get a User by its id
 	def getMessageParser(userMap: UserMap): XmlParser[Message] = (
@@ -64,7 +64,7 @@ object Example5_FollowedBy extends App {
 	// Here I'm adding a println for each XMLEvent to show exactly when each message is parsed during the stream:
 	// the important point is that they are parsed *during* the stream, rather than at the end
 	println("messagesTransformer:")
-	eventPrinter :>> messagesTransformer :> Parser.tap(println) parse xml
+	eventPrinter >> messagesTransformer :> Parser.tap(println) parse xml
 	println("---\n")
 
 	/*
@@ -76,7 +76,7 @@ object Example5_FollowedBy extends App {
 		message <- Splitter.xml(* \ "message").as(getMessageParser(userMap))
 	} yield message
 	println("messagesTransformer2:")
-	messagesTransformer2.into.tap(println).parse(xml)
+	messagesTransformer2.parseTap(println).parse(xml)
 	println("---\n")
 
 	/*
@@ -95,6 +95,6 @@ object Example5_FollowedBy extends App {
 	} yield Message(userMap(userId), content)
 
 	println("messagesTransformer3:")
-	messagesTransformer3.into.tap(println).parse(xml)
+	messagesTransformer3.parseTap(println).parse(xml)
 	println("---\n")
 }

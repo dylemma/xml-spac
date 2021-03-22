@@ -283,7 +283,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 			implicit val testStackable: StackLike[Int, Int] = StackOnTens
 
 			val match10 = new SingleItemContextMatcher.Predicate[Int](_ == 10)
-			val base = Splitter.fromMatcher(match10).map(_ => Transformer[Int].take(3) :> Parser.toList).into.first
+			val base = Splitter.fromMatcher(match10).map(_ => Transformer[Int].take(3) :> Parser.toList).parseFirst
 			val input = List(
 				1, 2, 3, 4, // all of this should end up ignored by the `base`
 				10, // context push to start the base off, plus the follow-up should see this during the reply

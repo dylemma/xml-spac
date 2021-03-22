@@ -6,7 +6,7 @@ trait Splitter[In, +C] {
 
 	def addBoundaries: Transformer[In, Either[ContextChange[In, C], In]]
 
-	def flatMap[Out](transformMatches: ContextPush[In, C] => Transformer[In, Out]): Transformer[In, Out] = addBoundaries :>> SplitterJoiner(transformMatches)
+	def flatMap[Out](transformMatches: ContextPush[In, C] => Transformer[In, Out]): Transformer[In, Out] = addBoundaries >> SplitterJoiner(transformMatches)
 	def mapTraced[Out](parseMatches: ContextPush[In, C] => Parser[In, Out]): Transformer[In, Out] = flatMap(parseMatches(_).asTransformer)
 	def map[Out](parseMatches: C => Parser[In, Out]): Transformer[In, Out] = mapTraced(push => parseMatches(push.context))
 	def joinBy[Out](parser: Parser[In, Out]): Transformer[In, Out] = map(_ => parser)

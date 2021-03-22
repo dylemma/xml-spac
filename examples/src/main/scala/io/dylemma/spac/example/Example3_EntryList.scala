@@ -57,7 +57,7 @@ object Example3_EntryList extends App {
 	make a `Splitter` to extract the element name
 	in the right context, send it through the `keyOrValueParser`, and use `parseToList` to collect the results.
 	 */
-	val entryListParserV1 = keyOrValueTransformer.into.list
+	val entryListParserV1 = keyOrValueTransformer.parseToList
 	println("V1 result:")
 	println(entryListParserV1 parse rawXml)
 	println()
@@ -90,7 +90,7 @@ object Example3_EntryList extends App {
 	Note the difference between V1 and V2 is the addition of `.andThen(kvToEntryTransformer)`
 	 */
 	val entryListParserV2: XmlParser[List[Entry]] = {
-		keyOrValueTransformer :>> kvToEntryTransformer :> Parser.toList
+		keyOrValueTransformer >> kvToEntryTransformer :> Parser.toList
 	}
 
 	println("V2 results:")

@@ -24,14 +24,14 @@ object Example7_Interrupter extends App {
 		""".stripMargin
 
 	// capture an optional <context> element's id
-	val captureOptionalContext: XmlParser[Option[String]] = Splitter.xml("stuff" \ "context").attr("id").into.firstOpt
+	val captureOptionalContext: XmlParser[Option[String]] = Splitter.xml("stuff" \ "context").attr("id").parseFirstOpt
 
 	// Stream of <data> given an optional greeting
 	def dataStream(greeting: Option[String]) = Splitter.xml("stuff" \ "data").text.map { subject =>
 		greeting.fold(s"(no greeting for) $subject"){ g => s"$g, $subject" }
 	}
 
-	val handleGreetings = captureOptionalContext.followedByStream(dataStream).into.tap(println)
+	val handleGreetings = captureOptionalContext.followedByStream(dataStream).parseTap(println)
 
 	println("The greetings should be all ok here:")
 	handleGreetings parse rawXml1
@@ -40,9 +40,9 @@ object Example7_Interrupter extends App {
 	handleGreetings parse rawXml2
 
 	// make the context capturing parser hit an early EOF when we reach a <data>
-	val interrupter = Splitter.xml("stuff" \ "data").joinBy(Parser.pure("interrupt!" /* this value doesn't matter */)).into.first
+	val interrupter = Splitter.xml("stuff" \ "data").joinBy(Parser.pure("interrupt!" /* this value doesn't matter */)).parseFirst
 	val betterCaptureOptionalContext = captureOptionalContext.interruptedBy(interrupter)
-	val betterHandleGreetings = betterCaptureOptionalContext.followedByStream(dataStream).into.tap(println)
+	val betterHandleGreetings = betterCaptureOptionalContext.followedByStream(dataStream).parseTap(println)
 
 	println("\n\nNow the new handler:")
 	betterHandleGreetings parse rawXml1

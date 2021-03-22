@@ -57,7 +57,7 @@ object Example1_Basics extends App {
 
 	Transformers can be turned into Parsers via a handful of convenience methods.
 	 */
-	val bookListParser: XmlParser[List[String]] = bookTransformer.into.list
+	val bookListParser: XmlParser[List[String]] = bookTransformer.parseToList
 
 	/*
 	The underlying handler created by a Parser may throw exceptions when handling inputs.
@@ -82,7 +82,7 @@ object Example1_Basics extends App {
 	/*
 	You can handle results as they are discovered by using one of the `foreach` transformer methods.
 	 */
-	val foreachConsumer = bookTransformer.into.tap{ title => println(s"book: $title") }
+	val foreachConsumer = bookTransformer.parseTap{ title => println(s"book: $title") }
 	foreachConsumer parse libraryXml
 
 }

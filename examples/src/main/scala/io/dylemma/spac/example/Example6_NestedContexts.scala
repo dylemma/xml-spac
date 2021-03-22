@@ -41,10 +41,10 @@ object Example6_NestedContexts extends App {
 	// We'll define some standalone parsers/transformers ahead of time...
 
 	/** Parses the "id" attribute from the first `<info>` in a `<stuff>` */
-	val stuffInfoParser = Splitter.xml("stuff" \ "info").attr("id").into.first
+	val stuffInfoParser = Splitter.xml("stuff" \ "info").attr("id").parseFirst
 
 	/** Get the "id" attribute from the first <context> element in a <thing> */
-	val thingContextParser = Splitter.xml("thing" \ "context").attr("id").into.first
+	val thingContextParser = Splitter.xml("thing" \ "context").attr("id").parseFirst
 
 	/** Get a stream of each `<data>`'s Int values from inside a <thing> */
 	val thingDataTransform = Splitter.xml("thing" \ "data").text.map(_.toInt)

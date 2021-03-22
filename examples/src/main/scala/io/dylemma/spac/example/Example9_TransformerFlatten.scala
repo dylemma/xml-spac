@@ -35,7 +35,7 @@ object Example9_TransformerFlatten {
 		Splitter.xml("people" \ "person").as(personParser)
 
 	/* We could handle the stream of names via a `.parseForeach`, but that would be awkward. */
-	val awkwardParser: XmlParser[Unit] = namesListTransformer.into.tap { names =>
+	val awkwardParser: XmlParser[Unit] = namesListTransformer.parseTap { names =>
 		for(name <- names) println(s"Got a name: $name")
 	}
 
@@ -48,7 +48,7 @@ object Example9_TransformerFlatten {
 		namesListTransformer.mapBatch { _.flatMap(Emit.fromSeq) }
 
 	def main(args: Array[String]): Unit = {
-		namesTransformer.into.tap(n => println(s"Got a name: $n")).parse(xml)
+		namesTransformer.parseTap(n => println(s"Got a name: $n")).parse(xml)
 	}
 
 }

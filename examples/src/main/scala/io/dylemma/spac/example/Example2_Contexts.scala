@@ -133,6 +133,6 @@ object Example2_Contexts extends App {
 	 */
 	postSplitter
 		.map(commentParser)
-		.into.tap(println)
+		.parseTap(println)
 		.parse(rawXml)
 }

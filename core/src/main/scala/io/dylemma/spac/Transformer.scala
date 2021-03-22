@@ -2,6 +2,7 @@ package io.dylemma.spac
 
 import io.dylemma.spac.impl._
 import io.dylemma.spac.types.Unconsable
+import org.tpolecat.typename.TypeName
 
 import scala.annotation.tailrec
 
@@ -15,47 +16,274 @@ import scala.annotation.tailrec
   * A transformer may choose to abort in response to any input event,
   * as well as emit any number of outputs in response to an input event or the EOF signal.
   *
-  * @tparam In The incoming event type
+  * @tparam In  The incoming event type
   * @tparam Out The outgoing event type
   * @groupname abstract Abstract Members
+  * @groupname util Utility
+  * @groupname combinator Transformation / Combinator Methods
+  * @groupname parse Conversions to Parser
+  * @groupprio abstract 0
+  * @groupprio utility 1
+  * @groupprio combinator 2
+  * @groupprio parse 3
   */
 trait Transformer[-In, +Out] {
 	/** Transformer's main abstract method; constructs a new Handler representing this transformer's logic.
 	  * Transformers are expected to be immutable, but Handlers may be internally-mutable.
+	  *
 	  * @group abstract
 	  */
 	def newHandler: Transformer.Handler[In, Out]
 
+	/** Creates a copy of this transformer, but with a different `toString`
+	  *
+	  * @param name The new "name" (i.e. `toString` for this transformer
+	  * @return A copy of this transformer whose `toString` returns the given `name`
+	  * @group combinator
+	  */
+	def withName(name: String): Transformer[In, Out] = new TransformerWithName(this, name)
+
+	/** Creates a new transformer which emits values according to the Emit transformation function `f`,
+	  * where the inputs to `f` are the outputs emitted by this transformer.
+	  *
+	  * This is the low-level operation used by `map`, `filter`, and `collect`.
+	  *
+	  * @param f The Emit transformation function
+	  * @tparam Out2 Output type of the resulting transformer
+	  * @return A new transformer which alters the values emitted by this transformer according to `f`
+	  * @group combinator
+	  */
 	def mapBatch[Out2](f: Emit[Out] => Emit[Out2]): Transformer[In, Out2] = new TransformerMapBatch(this, f)
+
+	/** Creates a new transformer which applies the transformation function `f` to each of this transformer's outputs.
+	  *
+	  * @param f A transformation function
+	  * @tparam Out2 The transformation output type
+	  * @return The mapped transformer
+	  * @group combinator
+	  */
 	def map[Out2](f: Out => Out2): Transformer[In, Out2] = mapBatch(_.map(f))
+
+	/** Creates a new transformer which filters the outputs from this transformer.
+	  *
+	  * @param predicate A function which decides whether an output from this transformer should be emitted
+	  *                  from the returned transformer. `true` means emit, `false` means skip.
+	  * @return The filtered transformer
+	  * @group combinator
+	  */
 	def filter(predicate: Out => Boolean): Transformer[In, Out] = mapBatch(_.filter(predicate))
+
+	/** Alias for `filter`, used under the hood by for-comprehensions
+	  *
+	  * @param predicate The filtering function
+	  * @return The filtered transformer
+	  * @group combinator
+	  */
 	def withFilter(predicate: Out => Boolean): Transformer[In, Out] = filter(predicate)
+
+	/** Creates a new transformer which filters and maps the outputs from this transformer
+	  *
+	  * @param pf Partial function responsible for the filtering and mapping of outputs from this transformer
+	  * @tparam Out2 Result type of the `pf`
+	  * @return The filteried and mapped transformer
+	  * @group combinator
+	  */
 	def collect[Out2](pf: PartialFunction[Out, Out2]): Transformer[In, Out2] = mapBatch(_.collect(pf))
 
-	def mergeEither[In2 <: In, Out2](right: Transformer[In2, Out2]): Transformer[In2, Either[Out, Out2]] = new TransformerMergeEither(this, right)
+	/** Creates a new transformer which folds outputs from this transformer into a "state" which is emitted each time.
+	  *
+	  * @param init The initial "state"
+	  * @param op   State update function; this is called for each `Out` emitted by this transformer, and the result
+	  *             is emitted by the combined transformer in addition to becoming the next "state"
+	  * @tparam Out2 The type of the scan "state"
+	  * @return The new transformer
+	  * @group combinator
+	  */
+	def scan[Out2](init: Out2)(op: (Out2, Out) => Out2): Transformer[In, Out2] = through(new TransformerScan(init, op))
 
+	/** Creates a new transformer which sends inputs to both this transformer and the `right` transformer.
+	  * Whenever either `this` or `right` emit a value, that value will be emitted from the returned transformer,
+	  * wrapped as a `Left` or `Right` depending on which underlying transformer emitted it.
+	  * For each individual input, the resulting values emitted by this transformer will be emitted before
+	  * the resulting values emitted by the `right` transformer.
+	  *
+	  * @param right Another transformer
+	  * @tparam In2  Contravariance-friendly version of `In`
+	  * @tparam Out2 The output type of the `right` transformer
+	  * @return The merged transformer
+	  * @group combinator
+	  */
+	def mergeEither[In2 <: In, Out2](right: Transformer[In2, Out2]): Transformer[In2, Either[Out, Out2]] = TransformerMerge.either(this, right)
+
+	@deprecated("This method is being renamed to `mergeEither`", "v0.9")
+	def parallelEither[In2 <: In, Out2](right: Transformer[In2, Out2]) = mergeEither(right)
+
+	/** Like `mergeEither`, but when both sides have a common output type.
+	  * This is a less-roundabout way of doing `.mergeEither(right).map(_.merge)`.
+	  * The same order-of-operations rules apply as with `mergeEither`, where this transformer "goes first" for each input.
+	  *
+	  * @param that Another transformer
+	  * @tparam In2  Contravariance-friendly version of `In`
+	  * @tparam Out2 Common output type between `this` and `that`
+	  * @return The merged transformer
+	  * @group combinator
+	  */
+	def merge[In2 <: In, Out2 >: Out](that: Transformer[In2, Out2]): Transformer[In2, Out2] = TransformerMerge(this, that)
+
+	@deprecated("This method is being renamed to `merge`", "v0.9")
+	def parallel[In2 <: In, Out2 >: Out](that: Transformer[In2, Out2]) = merge(that)
+
+	/** Returns this transformer, but with less restricted `In` / `Out` types.
+	  *
+	  * @tparam In2  A subtype of `In`
+	  * @tparam Out2 A supertype of `Out`
+	  * @return This transformer (not a copy, it's actually literally `this`)
+	  * @group combinator
+	  */
 	def upcast[In2 <: In, Out2 >: Out]: Transformer[In2, Out2] = this
+
+	/** Returns this transformer, but with a different view of the `Out` type.
+	  * The `Out <:< Out2` implicit evidence is used to make sure the `asInstanceOf` cast is safe.
+	  * This is mostly useful when you know you have a transformer that yields a tuple or some kind of type constructor.
+	  *
+	  * @param ev
+	  * @tparam Out2
+	  * @return
+	  * @group combinator
+	  */
 	def cast[Out2](implicit ev: Out <:< Out2): Transformer[In, Out2] = this.asInstanceOf[Transformer[In, Out2]]
 
+	/** Attach this transformer to the `next` transformer, creating a single transformer that encapsulates the pair.
+	  * Values emitted from this transformer will be passed as inputs to the `next` transformer,
+	  * and the resulting outputs from the `next` transformer are emitted as outputs from the combined transformer.
+	  *
+	  * @param next
+	  * @tparam Out2
+	  * @return
+	  * @group combinator
+	  */
 	def through[Out2](next: Transformer[Out, Out2]): Transformer[In, Out2] = new TransformerThrough(this, next)
-	def :>>[Out2](next: Transformer[Out, Out2]): Transformer[In, Out2] = through(next)
 
-	/* NOTE: `def into` provided by Transformer.InvariantOps */
+	@deprecated("This method is being renamed to `through`", "v0.9")
+	def andThen[Out2](next: Transformer[Out, Out2]) = through(next)
+
+	/** Operator version of `through`
+	  *
+	  * @param next
+	  * @tparam Out2
+	  * @return
+	  * @group combinator
+	  */
+	def >>[Out2](next: Transformer[Out, Out2]): Transformer[In, Out2] = through(next)
+
+	/** Attach this transformer to a `parser`, creating a new parser that encapsulates the pair.
+	  * Values emitted from this transformer will be passed as inputs to the `parser`,
+	  * and the resulting output from the `parser` will be yielded as output by the combined parser.
+	  *
+	  * @param parser
+	  * @tparam Out2
+	  * @return
+	  * @group parse
+	  */
+	def parseWith[Out2](parser: Parser[Out, Out2]): Parser[In, Out2] = this :> parser
+
+	/** Operator version of `parseWith`
+	  *
+	  * @param parser
+	  * @tparam Out2
+	  * @return
+	  * @group parse
+	  */
 	def :>[Out2](parser: Parser[Out, Out2]): Parser[In, Out2] = new TransformerIntoParser(this, parser)
 
+	@deprecated("Use the single-argument version of `parseWith`, then call `withName` on the resulting parser", "v0.9")
+	def parseWith[Out2](parser: Parser[Out, Out2], setDebugName: Option[String]): Parser[In, Out2] = setDebugName match {
+		case None => parseWith(parser)
+		case Some(name) => parseWith(parser).withName(name)
+	}
+
+	/** Convenience for `this :> Parser.toList`
+	  *
+	  * @return
+	  * @group parse
+	  */
+	def parseToList: Parser[In, List[Out]] = parseWith(Parser.toList)
+
+	/** Convenience for `this :> Parser.firstOpt`
+	  *
+	  * @return
+	  * @group parse
+	  */
+	def parseFirstOpt: Parser[In, Option[Out]] = parseWith(Parser.firstOpt)
+
+	@deprecated("This method is being renamed to `parseFirstOpt`", "v0.9")
+	def parseFirstOption = parseFirstOpt
+
+	/** Convenience for `this :> Parser.fold(init)(f)`
+	  *
+	  * @param init
+	  * @param f
+	  * @tparam Out2
+	  * @return
+	  * @group parse
+	  */
+	def parseAsFold[Out2](init: Out2)(f: (Out2, Out) => Out2): Parser[In, Out2] = parseWith(Parser.fold(init)(f))
+
+	/** Convenience for `this :> Parser.tap(f)`
+	  *
+	  * @param f
+	  * @return
+	  * @group parse
+	  */
+	def parseTap(f: Out => Unit): Parser[In, Unit] = parseWith(Parser.tap(f))
+
+	@deprecated("This method is being renamed to `parseTap`", "v0.9")
+	def parseForeach(f: Out => Any): Parser[In, Unit] = parseTap(in => f(in))
+
+	/** Convenience for `this :> Parser.drain`
+	  *
+	  * @return
+	  * @group parse
+	  */
+	def drain: Parser[In, Unit] = parseWith(Parser.drain)
+
+	@deprecated("This method is being renamed to `drain`", "v0.9")
+	def sink = drain
+
+	/** Applies this transformer's logic to an iterator, returning a new Iterator which yields values
+	  * emitted by this transformer when run on the underlying `itr`.
+	  *
+	  * @param itr An iterator
+	  * @return A wrapped version of `itr`, transformed via this transformer
+	  * @group util
+	  */
 	def transform(itr: Iterator[In]): Iterator[Out] = new IteratorTransform(itr, this)
 }
 
-class TransformerWordInto[In, A](self: Transformer[In, A]) {
-	def apply[Out](parser: Parser[A, Out]): Parser[In, Out] = new TransformerIntoParser(self, parser)
-	def list: Parser[In, List[A]] = apply(Parser.toList)
-	def map[K, V](implicit ev: A <:< (K, V)) = new TransformerIntoParser(self.cast[(K, V)], Parser.toMap[K, V])
-	def first: Parser[In, A] = apply(Parser.first)
-	def firstOpt: Parser[In, Option[A]] = apply(Parser.firstOpt)
-	def tap(f: A => Unit): Parser[In, Unit] = apply(Parser.tap(f))
-}
-
 object Transformer {
+	/** Extra transformer methods that had to be defined separately from the trait due to either `In` or `Out` needing to be invariant. */
+	implicit class TransformerParsingOps[In, A](private val self: Transformer[In, A]) extends AnyVal {
+
+		/** Convenience for `this :> Parser.first`
+		  *
+		  * @param A
+		  * @return
+		  * @group parse
+		  */
+		def parseFirst(implicit A: TypeName[A]): Parser[In, A] = self :> Parser.first
+	}
+
+	/** Extra methods for transformers whose `Out` type is a Tuple2 */
+	implicit class TransformerKVParsingOps[In, K, V](private val self: Transformer[In, (K, V)]) extends AnyVal {
+
+		/** Convenience for `this :> Parser.toMap[K, V]`
+		  *
+		  * @return
+		  * @group parse
+		  */
+		def parseToMap: Parser[In, Map[K, V]] = self.parseWith(Parser.toMap)
+	}
+
 	trait Stateless[-In, +Out] extends Transformer[In, Out] with Handler[In, Out] {
 		def newHandler: this.type = this
 	}
@@ -68,6 +296,7 @@ object Transformer {
 			// eventually returning the concatenation of all `outs`, and the final `transformer` state if the transformer is ready to continue,
 			// or else the leftover unconsumed inputs if the transformer decided to end partway through
 			var out: Emit[Out] = Emit.nil
+
 			@tailrec def loop(current: Handler[In, Out], remaining: C[In2]): Either[C[In2], Handler[In, Out]] = {
 				C.uncons(remaining) match {
 					case Some((in, tail)) =>
@@ -83,31 +312,44 @@ object Transformer {
 						Right(current)
 				}
 			}
+
 			val endState = loop(this, _ins)
 			out -> endState
 		}
 	}
 
+	/** Convenience for creating transformers whose input type is bound to `In`.
+	  *
+	  * This is particularly nice when the `Out` type can be inferred by the compiler, e.g.
+	  * {{{
+	  * Transformer[Int].op(i => Emit.one(i * 2))
+	  * // versus
+	  * Transformer.op[Int, Int](i => Emit.one(i * 2))
+	  * }}}
+	  */
 	def apply[In] = new TransformerApplyBound[In]
 
 	def identity[In]: Transformer[In, In] = new TransformerIdentity
 	def op[In, Out](f: In => Emit[Out]): Transformer[In, Out] = new TransformerOp(f)
 	def map[In, Out](f: In => Out): Transformer[In, Out] = op { in => Emit.one(f(in)) }
 	def filter[In](f: In => Boolean): Transformer[In, In] = op { in => if (f(in)) Emit.one(in) else Emit.empty }
+	def drop[In](n: Int): Transformer[In, In] = new TransformerDrop(n)
+	def dropWhile[In](f: In => Boolean): Transformer[In, In] = new TransformerDropWhile(f)
 	def take[In](n: Int): Transformer[In, In] = new TransformerTake(n)
 	def takeWhile[In](f: In => Boolean): Transformer[In, In] = new TransformerTakeWhile(f)
 	def tap[In](f: In => Unit): Transformer[In, In] = new TransformerTap(f)
-
-	implicit class TransformerInvariantOps[In, Out](val self: Transformer[In, Out]) extends AnyVal {
-		def into = new TransformerWordInto[In, Out](self)
-	}
 }
 
+/** Convenience version of the `Transformer` companion object,
+  * which provides transformer constructors with the `In` type already specified.
+  */
 class TransformerApplyBound[In] {
 	def identity: Transformer[In, In] = Transformer.identity
 	def op[Out](f: In => Emit[Out]): Transformer[In, Out] = Transformer.op(f)
 	def map[Out](f: In => Out): Transformer[In, Out] = Transformer.map(f)
 	def filter(f: In => Boolean): Transformer[In, In] = Transformer.filter(f)
+	def drop(n: Int): Transformer[In, In] = new TransformerDrop(n)
+	def dropWhile(f: In => Boolean): Transformer[In, In] = new TransformerDropWhile(f)
 	def take(n: Int): Transformer[In, In] = Transformer.take(n)
 	def takeWhile(f: In => Boolean): Transformer[In, In] = Transformer.takeWhile(f)
 	def tap(f: In => Unit): Transformer[In, In] = Transformer.tap(f)

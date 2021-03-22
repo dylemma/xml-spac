@@ -53,8 +53,8 @@ object Example8_RecursiveTypes {
 
 	// given a <group> element, parse a GroupContext
 	implicit val groupContextParser: XmlParser[GroupContext] = (
-		Splitter.xml(* \ "id").text.map(_.toInt).into.first,
-		Splitter.xml(* \ "name").text.into.first
+		Splitter.xml(* \ "id").text.map(_.toInt).parseFirst,
+		Splitter.xml(* \ "name").text.parseFirst
 	).mapN(GroupContext)
 
 	// given a <group> element, parse a GroupContext, then get a Transformer that can find the subGroups,
@@ -63,7 +63,7 @@ object Example8_RecursiveTypes {
 		groupContextParser.followedByStream { context =>
 			val nestedContext = context :: stack
 			val after = Splitter.xml(* \ "groups" \ "group").flatMap(_ => groupTransformer(nestedContext))
-			new SinglePrefixTransformer[XmlEvent, List[GroupContext]](nestedContext, after) :>> Transformer.map(_.reverse)
+			new SinglePrefixTransformer[XmlEvent, List[GroupContext]](nestedContext, after) >> Transformer.map(_.reverse)
 		}
 	}
 

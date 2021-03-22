@@ -124,7 +124,7 @@ lazy val apiDocSettings = Seq(
 lazy val classesForHiddenConversions = Seq(
 	// these end up being added to literally every class,
 	// despite the fact that they should never actually be applied to a spac class
-	"io.dylemma.spac.ToPullable.Ops.SourceToPullable",
+	"io.dylemma.spac.SourceToPullable",
 
 	// for some reason, specifying any `-implicits-hide` flag to the scaladoc task
 	// causes it to *add* all the conversions from scala.Predef,

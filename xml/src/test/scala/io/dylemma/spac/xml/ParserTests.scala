@@ -103,14 +103,14 @@ class ParserTests extends AnyFunSpec with Matchers {
 
 	describe("XMLSplitter") {
 		it("should filter out unmached events"){
-			Splitter.xml(* \ "bar").text.into.list
+			Splitter.xml(* \ "bar").text.parseToList
 				.parse(testXml"<foo><bar>Hello</bar><baz>World</baz></foo>")
 				.shouldEqual { List("Hello") }
 		}
 
 		it("should split the events into substreams"){
 			val rawXml = testXml"<foo><bar>Hello</bar><bar>World</bar></foo>"
-			val splitParser = Splitter.xml(* \ "bar").text.into.list
+			val splitParser = Splitter.xml(* \ "bar").text.parseToList
 			val unsplitParser = XmlParser.forText
 
 			unsplitParser.parse(rawXml) shouldEqual "HelloWorld"
@@ -146,12 +146,12 @@ class ParserTests extends AnyFunSpec with Matchers {
 			val rawXml = testXml"""<foo a="123"><x>Hello</x><y>Goodbye</y></foo>"""
 			// the two inner parsers should receive the same 'A' instance passed to this parser from a splitter
 			def parseAText(context: A, elem: String) = {
-				(Parser.pure(context), Splitter.xml(* \ elem).text.into.first).mapN(AText)
+				(Parser.pure(context), Splitter.xml(* \ elem).text.parseFirst).mapN(AText)
 			}
 			val combinedContextualParser: XmlParser[(AText, AText)] = splitter.map{ a =>
 				(parseAText(a, "x"), parseAText(a, "y")).tupled
-			}.into.first
-			val (x, y) = splitter.joinBy(combinedContextualParser).into.first.parse(rawXml)
+			}.parseFirst
+			val (x, y) = splitter.joinBy(combinedContextualParser).parseFirst.parse(rawXml)
 			x.a shouldEqual y.a
 		}
 	}
@@ -177,7 +177,7 @@ class ParserTests extends AnyFunSpec with Matchers {
 				case "b" => XmlParser.forText.map(s => B(s.toInt))
 			}
 
-			abTransformer.into.list.parse(rawXml) should matchPattern {
+			abTransformer.parseToList.parse(rawXml) should matchPattern {
 				case A(1) :: A(2) :: B(3) :: A(4) :: B(5) :: Nil =>
 			}
 		}
@@ -186,17 +186,17 @@ class ParserTests extends AnyFunSpec with Matchers {
 	describe("Parser.followedBy"){
 		it("should pass the result of the followed parser to create the resulting parser"){
 			val xml = testXml"<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
-			val idParser = Splitter.xml(* \ "id").text.into.first
+			val idParser = Splitter.xml(* \ "id").text.parseFirst
 			val msgsParser = idParser.followedByParser { id =>
-				Splitter.xml(* \ "msg").text.map(msg => s"$id:$msg").into.list
+				Splitter.xml(* \ "msg").text.map(msg => s"$id:$msg").parseToList
 			}
 			msgsParser.parse(xml) shouldEqual List("123:Hello", "123:Goodbye")
 		}
 		it("should provide convenient flatMap syntax that works the same way"){
 			val xml = testXml"<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
 			val msgsParser = for {
-				id <- Splitter.xml(* \ "id").text.into.first.followedByParser
-				msgs <- Splitter.xml(* \ "msg").text.map(msg => s"$id:$msg").into.list
+				id <- Splitter.xml(* \ "id").text.parseFirst.followedByParser
+				msgs <- Splitter.xml(* \ "msg").text.map(msg => s"$id:$msg").parseToList
 			} yield msgs
 			msgsParser.parse(xml) shouldEqual List("123:Hello", "123:Goodbye")
 		}
@@ -204,14 +204,14 @@ class ParserTests extends AnyFunSpec with Matchers {
 			val xml = testXml"<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
 			// this parser does not give a result until the containing element ends,
 			// so the "following" parser will never receive any events (besides the stack replay)
-			val idsParser = Splitter.xml(* \ "id").text.into.list.map(_.mkString)
-			val msgsParser = idsParser.followedByParser(id => Splitter.xml(* \ "msg").text.map(msg => s"$id:$msg").into.list)
+			val idsParser = Splitter.xml(* \ "id").text.parseToList.map(_.mkString)
+			val msgsParser = idsParser.followedByParser(id => Splitter.xml(* \ "msg").text.map(msg => s"$id:$msg").parseToList)
 			msgsParser.parse(xml) shouldEqual Nil
 		}
 		it("should yield an error if the followed parser yields an error"){
 			val xml = testXml"<x><id>ABC</id><msg>Hello</msg><msg>Goodbye</msg></x>"
-			val idParser = Splitter.xml(* \ "id").text.into.first.map(_.toInt) // will yield a Failure because of "ABC".toInt
-			val msgsParser = idParser.followedByParser(id => Splitter.xml(* \ "msg").text.map(msg => s"$id:$msg").into.list)
+			val idParser = Splitter.xml(* \ "id").text.parseFirst.map(_.toInt) // will yield a Failure because of "ABC".toInt
+			val msgsParser = idParser.followedByParser(id => Splitter.xml(* \ "msg").text.map(msg => s"$id:$msg").parseToList)
 
 			an[Exception] should be thrownBy {
 				msgsParser parse xml
@@ -223,41 +223,41 @@ class ParserTests extends AnyFunSpec with Matchers {
 	describe("Parser.followedByStream"){
 		it("should pass the result of the followed parser to create the resulting transformer"){
 			val xml = testXml"<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
-			val idParser = Splitter.xml(* \ "id").text.into.first
+			val idParser = Splitter.xml(* \ "id").text.parseFirst
 			val msgsStream = idParser.followedByStream{ id => Splitter.xml(* \ "msg").text.map(msg => s"$id:$msg") }
-			msgsStream.into.list.parse(xml) shouldEqual List("123:Hello", "123:Goodbye")
+			msgsStream.parseToList.parse(xml) shouldEqual List("123:Hello", "123:Goodbye")
 		}
 		it("should provide convenient flatMap syntax that works the same way"){
 			val xml = testXml"<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
 			val msgsStream = for {
-				id <- Splitter.xml(* \ "id").text.into.first.followedByStream
+				id <- Splitter.xml(* \ "id").text.parseFirst.followedByStream
 				msg <- Splitter.xml(* \ "msg").text
 			} yield s"$id:$msg"
-			msgsStream.into.list.parse(xml) shouldEqual List("123:Hello", "123:Goodbye")
+			msgsStream.parseToList.parse(xml) shouldEqual List("123:Hello", "123:Goodbye")
 		}
 		it("should not pass a result until the followed parser has finished"){
 			val xml = testXml"<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
 			// this parser does not give a result until the containing element ends,
 			// so the "following" parser will never receive any events (besides the stack replay)
-			val idsParser = Splitter.xml(* \ "id").text.into.list.map(_.mkString)
+			val idsParser = Splitter.xml(* \ "id").text.parseToList.map(_.mkString)
 			val msgsParser = idsParser.followedByStream(id => Splitter.xml(* \ "msg").text.map(msg => s"$id:$msg"))
-			msgsParser.into.list.parse(xml) shouldEqual Nil
+			msgsParser.parseToList.parse(xml) shouldEqual Nil
 		}
 		it("should yield a *single* error if the followed parser yields an error"){
 			val xml = testXml"<x><id>ABC</id><msg>Hello</msg><msg>Goodbye</msg></x>"
-			val idParser = Splitter.xml(* \ "id").text.into.first.map(_.toInt) // will yield a Failure because of "ABC".toInt
+			val idParser = Splitter.xml(* \ "id").text.parseFirst.map(_.toInt) // will yield a Failure because of "ABC".toInt
 			val msgsStream = idParser.followedByStream(id => Splitter.xml(* \ "msg").text.map(msg => s"$id:$msg"))
 			a[NumberFormatException] should be thrownBy {
-				msgsStream.into.list.parse(xml)
+				msgsStream.parseToList.parse(xml)
 			}
 		}
 		it("should yield whatever errors the 'following' parser yields"){
 			val xml = testXml"<x><name>dylemma</name><num>1</num><num>B</num><num>3</num></x>"
-			val nameParser = Splitter.xml(* \ "name").text.into.first
+			val nameParser = Splitter.xml(* \ "name").text.parseFirst
 			val numsStream = nameParser.followedByStream { name =>
 				Splitter.xml(* \ "num").text.map(s => Try(s"$name:${s.toInt}"))
 			}
-			numsStream.into.list.parse(xml) should matchPattern {
+			numsStream.parseToList.parse(xml) should matchPattern {
 				case Success("dylemma:1") :: Failure(_) :: Success("dylemma:3") :: Nil =>
 			}
 		}
@@ -271,14 +271,14 @@ class ParserTests extends AnyFunSpec with Matchers {
 				  |</root>"""
 			val dataContext = * \ "data"
 			def dataTransformer(prelude: Option[String]) = Splitter.xml(dataContext).text.map(prelude -> _)
-			val optPreludeParser = Splitter.xml(* \ "prelude").attr("id").into.firstOpt // will return None on the xml above
+			val optPreludeParser = Splitter.xml(* \ "prelude").attr("id").parseFirstOpt // will return None on the xml above
 			val failFastPreludeParser = optPreludeParser.beforeContext(dataContext)
 
 			// waiting until </root> to decide if the prelude parser returns None means the followedByStream sees nothing
-			optPreludeParser.followedByStream(dataTransformer).into.list.parse(xml) shouldEqual Nil
+			optPreludeParser.followedByStream(dataTransformer).parseToList.parse(xml) shouldEqual Nil
 
 			// sending an EOF to the prelude parser on the first <data> allows the followedByStream to receive the <data>s
-			failFastPreludeParser.followedByStream(dataTransformer).into.list.parse(xml) shouldEqual List(None -> "1", None -> "2")
+			failFastPreludeParser.followedByStream(dataTransformer).parseToList.parse(xml) shouldEqual List(None -> "1", None -> "2")
 		}
 	}
 }
