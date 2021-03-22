@@ -445,6 +445,7 @@ object Parser {
 		/** Alias for `followedBy`, for use when Cat's `ApplyOps` gets in the way with its own useless `followedBy` method.
 		  *
 		  * @return
+		  * @group combinators
 		  */
 		def followedByParser = followedBy
 
@@ -474,6 +475,8 @@ object Parser {
 		  *
 		  * See Parser's `interruptedBy`, which is useful when a `transformer.parseFirstOption`
 		  * must be `followedBy` some other parser.
+		  *
+		  * @group combinators
 		  */
 		def followedBy: FollowedBy[In, A, Parser] = new FollowedBy[In, A, Parser] {
 			def apply[Out](followUp: A => Parser[In, Out])(implicit S: StackLike[In, Any]): Parser[In, Out] = {
@@ -502,6 +505,8 @@ object Parser {
 		  *
 		  * See also, `interruptedBy`, which is useful when a `transformer.parseFirstOption`
 		  * must be `followedBy` some other transformer.
+		  *
+		  * @group combinators
 		  */
 		def followedByStream: FollowedBy[In, A, Transformer] = new FollowedBy[In, A, Transformer] {
 			def apply[Out](followUp: A => Transformer[In, Out])(implicit S: StackLike[In, Any]): Transformer[In, Out] = {

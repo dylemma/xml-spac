@@ -12,7 +12,7 @@ trait ToPullable[F[+_], S, +A] {
 	def apply(source: S): Resource[F, Pullable[F, A]]
 }
 object ToPullable {
-	implicit def forUnconsable[F[+_]: Applicative, C[_]: Unconsable, A]: ToPullable[F, C[A], A] = new ToPullable[F, C[A], A] {
+	implicit def forUnconsable[F[+_] : Applicative, C[_] : Unconsable, A]: ToPullable[F, C[A], A] = new ToPullable[F, C[A], A] {
 		def apply(source: C[A]) = Resource.liftF {
 			source.pure[F].map { Pullable.fromUnconsable[F, C, A] }
 		}
@@ -21,13 +21,30 @@ object ToPullable {
 	object Ops extends Ops
 	trait Ops {
 		implicit class SourceToPullable[S](source: S) {
+			/** Returns a resource which allocates a "Pullable" view of this `source`.
+			  *
+			  * @param S
+			  * @tparam F
+			  * @tparam A
+			  * @return
+			  */
 			def toPullable[F[+_], A](implicit S: ToPullable[F, S, A]): Resource[F, Pullable[F, A]] = S(source)
 
+			/** Returns a resource which allocates an Iterator[A] view of this `source`.
+			  */
 			def toIterator[A](implicit S: ToPullable[SyncIO, S, A]): Resource[SyncIO, Iterator[A]] = S(source).map { pullable =>
 				// the "close" is taken care of by the `Resource` that wraps this, so we're not exposing the `AutoCloseable` aspect of the iterator in this case
 				new SyncPullableIterator[A](Some(pullable), SyncIO.unit)
 			}
 
+			/** Returns a closeable iterator over the events in this `source`.
+			  * If you use this method on a `source` that has some underlying resource allocation step,
+			  * you *MUST* call this Iterator's `close()` method so that the underlying resource can be released.
+			  *
+			  * @param S
+			  * @tparam A
+			  * @return
+			  */
 			def toCloseableIterator[A](implicit S: ToPullable[SyncIO, S, A]): Iterator[A] with AutoCloseable = {
 				val (pullable, closeIO) = S(source).allocated.unsafeRunSync()
 				new SyncPullableIterator[A](Some(pullable), closeIO)
@@ -94,10 +111,10 @@ object Pullable {
 		def uncons = None.pure[F]
 	}
 
-	def cons[F[+_]: Applicative, A](toEmit: Chain[A], next: Pullable[F, A]): Pullable[F, A] = new Pullable[F, A] {
+	def cons[F[+_] : Applicative, A](toEmit: Chain[A], next: Pullable[F, A]): Pullable[F, A] = new Pullable[F, A] {
 		def uncons = unconsFrom(toEmit, next)
 	}
-	def unconsFrom[F[+_]: Applicative, A](pendingEmit: Chain[A], next: Pullable[F, A]): F[Option[(A, Pullable[F, A])]] = pendingEmit.uncons match {
+	def unconsFrom[F[+_] : Applicative, A](pendingEmit: Chain[A], next: Pullable[F, A]): F[Option[(A, Pullable[F, A])]] = pendingEmit.uncons match {
 		case None => next.uncons
 		case Some((head, tail)) =>
 			val nextPull = NonEmptyChain.fromChain(tail) match {
@@ -107,18 +124,17 @@ object Pullable {
 			Some(head -> nextPull).pure[F]
 	}
 
-	def fromUnconsable[F[+_]: Applicative, C[_]: Unconsable, A](c: C[A]): Pullable[F, A] = {
+	def fromUnconsable[F[+_] : Applicative, C[_] : Unconsable, A](c: C[A]): Pullable[F, A] = {
 		new UnconsableWrapper(c.pure[F])
 	}
 	private class UnconsableWrapper[F[+_], C[_], A](seqF: F[C[A]])(implicit F: Applicative[F], C: Unconsable[C]) extends Pullable[F, A] {
-		def uncons: F[Option[(A, UnconsableWrapper[F, C, A])]] = F.map(seqF){ seq =>
+		def uncons: F[Option[(A, UnconsableWrapper[F, C, A])]] = F.map(seqF) { seq =>
 			C.uncons(seq) map { case (head, tail) =>
 				head -> new UnconsableWrapper(tail.pure[F])
 			}
 		}
 	}
 }
-
 
 private class TransformedPullable[F[+_] : Monad, A, B](base: Pullable[F, A], transformer: Transformer.Handler[A, B]) extends Pullable[F, B] {
 	def uncons = base.uncons.flatMap {
