@@ -1,6 +1,5 @@
 package io.dylemma.spac
 
-import cats.effect.SyncIO
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -127,6 +126,72 @@ class TransformerCompanionTests extends AnyFunSpec with Matchers with ScalaCheck
 		}
 	}
 
+	describe("Transformer.drop") {
+		def dropTransformer(makeTransformer: Int => Transformer[Int, Int]) = {
+			it ("should emit outputs corresponding to List.drop(n)") {
+				forAll { (list: List[Int], n: Int) =>
+					val t = makeTransformer(n)
+					t.newHandler.stepMany(list)._1 shouldEqual Emit.fromSeq(list drop n)
+				}
+			}
+			it ("should not end on its own") {
+				var h = makeTransformer(9999).newHandler
+				forAll { (i: Int) =>
+					val (_, cont) = h.step(i)
+					cont.isDefined shouldEqual true
+					h = cont.get
+				}
+			}
+			it ("should emit nothing in response to the EOF") {
+				forAll { (list: List[Int], n: Int) =>
+					val h = makeTransformer(n).newHandler
+					val (_, Right(cont)) = h.stepMany(list)
+					cont.finish() shouldBe empty
+				}
+			}
+		}
+
+		describe("Transformer[In].drop") {
+			it should behave like dropTransformer(Transformer[Int].drop)
+		}
+		describe("Transformer.drop[In]") {
+			it should behave like dropTransformer(Transformer.drop[Int])
+		}
+	}
+
+	describe("Transformer.dropWhile") {
+		def dropWhileTransformer(makeTransformer: (Int => Boolean) => Transformer[Int, Int]) = {
+			it ("should emit outputs corresponding to List.dropWhile(n)") {
+				forAll { (list: List[Int], f: Int => Boolean) =>
+					val t = makeTransformer(f)
+					t.newHandler.stepMany(list)._1 shouldEqual Emit.fromSeq(list dropWhile f)
+				}
+			}
+			it ("should not end on its own") {
+				var h = makeTransformer(_ => true).newHandler
+				forAll { (i: Int) =>
+					val (_, cont) = h.step(i)
+					cont.isDefined shouldEqual true
+					h = cont.get
+				}
+			}
+			it ("should emit nothing in response to the EOF") {
+				forAll { (list: List[Int], f: Int => Boolean) =>
+					val h = makeTransformer(f).newHandler
+					val (_, Right(cont)) = h.stepMany(list)
+					cont.finish() shouldBe empty
+				}
+			}
+		}
+
+		describe("Transformer[In].dropWhile") {
+			it should behave like dropWhileTransformer(Transformer[Int].dropWhile)
+		}
+		describe("Transformer.dropWhile[In]") {
+			it should behave like dropWhileTransformer(Transformer.dropWhile[Int])
+		}
+	}
+
 	describe("Transformer.take") {
 		def takeTransformer(makeTransformer: Int => Transformer[Int, Int]) = {
 			it ("should emit outputs corresponding to List.take(n)") {
@@ -218,6 +283,43 @@ class TransformerCompanionTests extends AnyFunSpec with Matchers with ScalaCheck
 		}
 		describe("Transformer[In].takeWhile") {
 			it should behave like takeWhileTransformer(Transformer[Int].takeWhile)
+		}
+	}
+
+	describe("Transformer.tap") {
+		def tapTransformer(makeTransformer: (Int => Unit) => Transformer[Int, Int]) = {
+			it ("should emit every input as output") {
+				val h = makeTransformer(_ => ()).newHandler
+				forAll { (i: Int) =>
+					h.step(i)._1 shouldEqual Emit.one(i)
+				}
+			}
+			it ("should run the side-effect for each input") {
+				forAll { (list: List[Int]) =>
+					val tapped = collection.mutable.Set.empty[Int]
+					val h = makeTransformer(tapped.add).newHandler
+					h.stepMany(list)
+					tapped.toSet shouldEqual list.toSet
+				}
+			}
+			it ("should noop in response to the EOF") {
+				forAll { (list: List[Int]) =>
+					var tapped = false
+					val h = makeTransformer(_ => tapped = true).newHandler
+					h.stepMany(list)
+					tapped shouldEqual list.nonEmpty
+					tapped = false
+					h.finish() shouldBe empty
+					tapped shouldBe false
+				}
+			}
+		}
+
+		describe("Transformer.tap[In]") {
+			it should behave like tapTransformer(Transformer.tap[Int])
+		}
+		describe("Transformer[Int].tap") {
+			it should behave like tapTransformer(Transformer[Int].tap)
 		}
 	}
 }

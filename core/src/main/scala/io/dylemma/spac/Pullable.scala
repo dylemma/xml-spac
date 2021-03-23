@@ -1,12 +1,10 @@
 package io.dylemma.spac
 
 import cats.data.{Chain, NonEmptyChain}
-import cats.effect.{Resource, SyncIO}
+import cats.effect.Resource
 import cats.implicits._
 import cats.{Applicative, Monad}
 import io.dylemma.spac.types.Unconsable
-
-import scala.collection.AbstractIterator
 
 trait ToPullable[F[+_], S, +A] {
 	def apply(source: S): Resource[F, Pullable[F, A]]
