@@ -1,6 +1,6 @@
 package io.dylemma.spac
 
-import io.dylemma.spac.impl.{SplitterByContextMatch, SplitterByInputMatch, SplitterJoiner}
+import io.dylemma.spac.impl.{SplitterByConsecutiveMatches, SplitterByContextMatch, SplitterByInputMatch, SplitterJoiner}
 
 trait Splitter[In, +C] {
 
@@ -19,10 +19,15 @@ object Splitter {
 
 	def splitOnMatch[In, C](matcher: PartialFunction[In, C]): Splitter[In, C] = new SplitterByInputMatch(matcher)
 	def splitOnMatch[In](f: In => Boolean): Splitter[In, Any] = splitOnMatch[In, Unit] { case in if f(in) => () }
+
+	def consecutiveMatches[In, Context](matcher: PartialFunction[In, Context]): Splitter[In, Context] = new SplitterByConsecutiveMatches(matcher)
+	def consecutiveMatches[In](p: In => Boolean): Splitter[In, Any] = consecutiveMatches[In, Any] { case in if p(in) => () }
 }
 
 class SplitterApplyWithBoundInput[In] {
 	def fromMatcher[Elem, C](matcher: ContextMatcher[Elem, C])(implicit S: StackLike[In, Elem]): Splitter[In, C] = Splitter.fromMatcher(matcher)
 	def splitOnMatch[C](matcher: PartialFunction[In, C]): Splitter[In, C] = Splitter.splitOnMatch(matcher)
 	def splitOnMatch(f: In => Boolean): Splitter[In, Any] = Splitter.splitOnMatch(f)
+	def consecutiveMatches[Context](matcher: PartialFunction[In, Context]): Splitter[In, Context] = Splitter.consecutiveMatches(matcher)
+	def consecutiveMatches(p: In => Boolean): Splitter[In, Any] = Splitter.consecutiveMatches(p)
 }
