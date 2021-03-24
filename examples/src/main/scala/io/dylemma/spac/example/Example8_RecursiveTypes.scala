@@ -63,7 +63,7 @@ object Example8_RecursiveTypes {
 		groupContextParser.followedByStream { context =>
 			val nestedContext = context :: stack
 			val after = Splitter.xml(* \ "groups" \ "group").flatMap(_ => groupTransformer(nestedContext))
-			new SinglePrefixTransformer[XmlEvent, List[GroupContext]](nestedContext, after) >> Transformer.map(_.reverse)
+			new SinglePrefixTransformer[XmlEvent, List[GroupContext]](nestedContext, after) :>> Transformer.map(_.reverse)
 		}
 	}
 

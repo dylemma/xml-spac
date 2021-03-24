@@ -174,6 +174,9 @@ trait Transformer[-In, +Out] {
 	  * @return
 	  * @group combinator
 	  */
+	def :>>[Out2](next: Transformer[Out, Out2]): Transformer[In, Out2] = through(next)
+
+	@deprecated("Due to troubles with operator precedence and type inference, this operator is being phased out in favor of `:>>`", "v0.9")
 	def >>[Out2](next: Transformer[Out, Out2]): Transformer[In, Out2] = through(next)
 
 	/** Attach this transformer to a `parser`, creating a new parser that encapsulates the pair.
@@ -195,6 +198,9 @@ trait Transformer[-In, +Out] {
 	  * @group parse
 	  */
 	def :>[Out2](parser: Parser[Out, Out2]): Parser[In, Out2] = new TransformerIntoParser(this, parser)
+
+	@deprecated("Due to troubles with operator precedence and type inference, this operator is being phased out in favor of `:>`", "v0.9")
+	def >>[Out2](parser: Parser[Out, Out2]): Parser[In, Out2] = :>(parser)
 
 	@deprecated("Use the single-argument version of `parseWith`, then call `withName` on the resulting parser", "v0.9")
 	def parseWith[Out2](parser: Parser[Out, Out2], setDebugName: Option[String]): Parser[In, Out2] = setDebugName match {
