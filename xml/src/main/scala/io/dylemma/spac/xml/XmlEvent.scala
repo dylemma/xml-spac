@@ -19,22 +19,6 @@ sealed trait XmlEvent {
 	def location: ContextLocation
 }
 
-/** Typeclass for viewing an `E` as an `XmlEvent`.
-  * This is the core for allowing the integration of different third-party XML streaming libraries.
-  *
-  * @group event
-  */
-trait AsXmlEvent[-E] {
-	def unapply(event: E): Option[XmlEvent]
-}
-
-/** @group event */
-object AsXmlEvent {
-	implicit val identity: AsXmlEvent[XmlEvent] = new AsXmlEvent[XmlEvent] {
-		def unapply(event: XmlEvent): Option[XmlEvent] = Some(event)
-	}
-}
-
 /** Adapter for various representations of QName
   *
   * @group event
