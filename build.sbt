@@ -69,10 +69,16 @@ lazy val json = (project in file("json"))
 	.settings(testSettings: _*)
 	.settings(apiDocSettings: _*)
 	.settings(publishingSettings: _*)
-	.settings(
-		libraryDependencies += jacksonCore
-	)
 	.dependsOn(core)
+
+lazy val jsonJackson = (project in file("json-jackson"))
+	.settings(name := "json-spac-jackson")
+	.settings(commonSettings: _*)
+	.settings(testSettings: _*)
+	.settings(apiDocSettings: _*)
+	.settings(publishingSettings: _*)
+	.settings(libraryDependencies += jacksonCore)
+	.dependsOn(json % "compile->compile;test->test")
 
 lazy val examples = (project in file("examples"))
 	.settings(commonSettings: _*)

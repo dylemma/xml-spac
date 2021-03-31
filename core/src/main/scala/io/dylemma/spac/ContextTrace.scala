@@ -28,11 +28,16 @@ class ContextLocation private[ContextLocation](val dimensions: Map[ContextLocati
 object ContextLocation {
 	def empty: ContextLocation = new ContextLocation(Map.empty)
 	def of[A](tag: ContextLocationTag[A], dim: A): ContextLocation = new ContextLocation(Map(tag -> dim))
+
+	case class Entry[A](tag: ContextLocationTag[A], dim: A)
+	def apply(entries: Entry[_]*): ContextLocation = new ContextLocation(entries.view.map(e => (e.tag, e.dim)).toMap)
 }
 
 // ------------------------------------------------------
 
-abstract class ContextLocationTag[A](val name: String)
+abstract class ContextLocationTag[A](val name: String) {
+	def ->>(dim: A) = ContextLocation.Entry(this, dim)
+}
 
 // ------------------------------------------------------
 

@@ -66,4 +66,8 @@ object IntoXmlStreamReader {
 			forInputStreamResource[F].apply(factory, contentsResource)
 		}
 	}
+
+	implicit def identity[F[_]]: IntoXmlStreamReader[F, Resource[F, XMLStreamReader]] = new IntoXmlStreamReader[F, Resource[F, XMLStreamReader]] {
+		def apply(factory: XMLInputFactory, source: Resource[F, XMLStreamReader])(implicit F: Sync[F]) = source
+	}
 }

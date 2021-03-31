@@ -18,10 +18,10 @@ class XMLResourceTests extends AnyFunSpec with Matchers {
 		it("should be available for String") {
 			"implicitly[IntoXmlStreamReader[cats.effect.SyncIO, String]]" should compile
 		}
-		it("should be available for InputStream") {
+		it("should be available for Resource[F, InputStream]") {
 			"implicitly[IntoXmlStreamReader[cats.effect.SyncIO, cats.effect.Resource[cats.effect.SyncIO, java.io.InputStream]]]" should compile
 		}
-		it("should be available for Reader") {
+		it("should be available for Resource[F, Reader]") {
 			"implicitly[IntoXmlStreamReader[cats.effect.SyncIO,  cats.effect.Resource[cats.effect.SyncIO, java.io.Reader]]]" should compile
 		}
 

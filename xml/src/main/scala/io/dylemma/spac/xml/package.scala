@@ -68,12 +68,12 @@ package object xml {
 	  *
 	  * @group aliases
 	  */
-	type XmlParser[Out] = Parser[XmlEvent, Out]
+	type XmlParser[+Out] = Parser[XmlEvent, Out]
 
 	@deprecated("Use `XmlParser` (with lowercase 'ml') to reference the parser companion", "v0.9")
 	val XMLParser = XmlParser
 	@deprecated("Use `XmlParser` (with lowercase 'ml') instead", "v0.9")
-	type XMLParser[Out] = XmlParser[Out]
+	type XMLParser[+Out] = XmlParser[Out]
 
 	/** XML-specific Parser constructor methods, e.g. `XmlParser.attr` and `XmlParser.text`
 	  *
@@ -99,12 +99,12 @@ package object xml {
 	/** @group aliases */
 	val XmlSplitter: SplitterApplyWithBoundInput[XmlEvent] = Splitter[XmlEvent]
 	/** @group aliases */
-	type XmlSplitter[C] = Splitter[XmlEvent, C]
+	type XmlSplitter[+C] = Splitter[XmlEvent, C]
 
 	@deprecated("Use `XmlSplitter` (with lowercase 'ml') for directly referencing the companion object, or use `Splitter.xml` to construct a new XmlSplitter", "v0.9")
 	val XMLSplitter = XmlSplitter
 	@deprecated("Use `XmlSplitter` (with lowercase 'ml') instead", "v0.9")
-	type XMLSplitter[C] = XmlSplitter[C]
+	type XMLSplitter[+C] = XmlSplitter[C]
 
 	/** Adds `Splitter.xml`, for constructing element matcher-based XmlSplitters.
 	  *
