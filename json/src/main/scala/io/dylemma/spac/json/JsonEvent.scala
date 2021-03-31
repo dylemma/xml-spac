@@ -2,7 +2,6 @@ package io.dylemma.spac
 package json
 
 import cats.data.Chain
-import io.dylemma.spac.old.OldStackable
 
 /** ADT for tokens in a JSON stream.
   */
