@@ -8,4 +8,5 @@ class XmlParserOptionalAttribute[N: AsQName](attributeName: N) extends Parser.St
 		case None => Right(this)
 	}
 	def finish() = None
+	override def toString = s"XmlParser.attrOpt(${AsQName.show(attributeName)})"
 }

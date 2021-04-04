@@ -11,10 +11,10 @@ object JsonParserTypedFirst {
 		def step(in: JsonEvent) = {
 			f(in) match {
 				case Some(a) => Left(a)
-				case None => throw new SpacException.UnexpectedInputException(in, expected :: Nil)
+				case None => throw SpacException.unexpectedInput(in, expected :: Nil)
 			}
 		}
 
-		def finish() = throw new SpacException.UnfulfilledInputsException(expected :: Nil)
+		def finish() = throw SpacException.unfulfilledInputs(expected :: Nil)
 	}
 }

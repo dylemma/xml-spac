@@ -3,10 +3,11 @@ package impl
 
 import cats.data.Chain
 
-case class SplitterByContextMatch[In, Elem, C](matcher: ContextMatcher[Elem, C])(implicit S: StackLike[In, Elem]) extends Splitter[In, C] {
-
-	val addBoundaries = S.interpret :>> new SplitterByContextMatch.Boundaries(matcher)
-	def newHandler = new SplitterByContextMatch.Handler(matcher, SplitterByContextMatch.Unmatched[In, Elem](Vector.empty, Vector.empty))
+case class SplitterByContextMatch[In, Elem, C](matcher: ContextMatcher[Elem, C], matcherPos: util.Pos)(implicit S: StackLike[In, Elem]) extends Splitter[In, C] {
+	val addBoundaries = Transformer
+		.spacFrame(SpacTraceElement.InSplitter(matcher.toString, matcherPos))
+		.through(S.interpret)
+		.through(new SplitterByContextMatch.Boundaries(matcher))
 }
 
 object SplitterByContextMatch {
@@ -14,6 +15,7 @@ object SplitterByContextMatch {
 	class Boundaries[In, Elem, C](matcher: ContextMatcher[Elem, C])
 		extends Transformer[Either[ContextChange[In, Elem], In], Either[ContextChange[In, C], In]]
 	{
+		override def toString = s"SplitterBoundaries($matcher)"
 		def newHandler = new SplitterByContextMatch.Handler(matcher, SplitterByContextMatch.Unmatched[In, Elem](Vector.empty, Vector.empty))
 	}
 
@@ -30,6 +32,8 @@ object SplitterByContextMatch {
 	class Handler[In, Elem, C](matcher: ContextMatcher[Elem, C], state: SplitterByContextMatch.State[In, Elem])
 		extends Transformer.Handler[Either[ContextChange[In, Elem], In], Either[ContextChange[In, C], In]]
 	{
+		override def toString = s"Splitter($matcher)"
+
 		def step(in: Either[ContextChange[In, Elem], In]) = in match {
 			case Right(in) =>
 				/*

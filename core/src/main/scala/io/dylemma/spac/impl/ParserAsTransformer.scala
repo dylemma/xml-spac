@@ -7,6 +7,7 @@ class ParserAsTransformer[In, Out](self: Parser[In, Out]) extends Transformer[In
 
 object ParserAsTransformer {
 	class Handler[In, Out](var self: Parser.Handler[In, Out]) extends Transformer.Handler[In, Out] {
+		override def toString = s"($self).asTransformer"
 		def step(in: In) = self.step(in) match {
 			case Right(cont) =>
 				self = cont

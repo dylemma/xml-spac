@@ -5,10 +5,8 @@ import cats.data.Chain
 
 /** ADT for tokens in a JSON stream.
   */
-sealed trait JsonEvent {
+sealed trait JsonEvent extends HasLocation {
 	import JsonEvent._
-
-	def location: ContextLocation
 
 	def isObjectStart: Boolean = false
 	def isObjectEnd: Boolean = false

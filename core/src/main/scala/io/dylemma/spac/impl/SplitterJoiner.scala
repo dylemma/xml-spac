@@ -22,6 +22,11 @@ object SplitterJoiner {
 		private def continueUnmatched = Some(new Handler[In, C, Out](getTransformer, None))
 		private def continueMatched(s: MatchedState[In, Out]) = Some(new Handler[In, C, Out](getTransformer, Some(s)))
 
+		override def toString = state match {
+			case Some(MatchedState(_, Some(inner), _)) => s"Joiner($inner)"
+			case _ => "Joiner(<pending>)"
+		}
+
 		def step(in: Either[ContextChange[In, C], In]) = in match {
 			case Right(in) =>
 				state match {
@@ -29,7 +34,7 @@ object SplitterJoiner {
 						// feed the input to the inner transformer
 						val stepResult =
 							try inner.step(in)
-							catch { case NonFatal(e) => throw SpacException.ContextualizedException(startTrace, e) }
+							catch { case NonFatal(e) => throw SpacException.addTrace(e, startTrace.asSpacTraceElems) }
 						stepResult match {
 							case (emit, Some(`inner`)) => emit -> Some(this)
 							case (emit, nextInner) => emit -> continueMatched(ms.copy(inner = nextInner))
@@ -56,7 +61,7 @@ object SplitterJoiner {
 						// entering a new context, time to start a new transformer
 						val nextTransformer =
 							try getTransformer(push)
-							catch { case NonFatal(e) => throw SpacException.ContextualizedException(trace, e) }
+							catch { case NonFatal(e) => throw SpacException.addTrace(e, trace.asSpacTraceElems) }
 
 						Emit.nil -> continueMatched(MatchedState(trace, Some(nextTransformer.newHandler), 0))
 				}
@@ -69,7 +74,7 @@ object SplitterJoiner {
 							case None => Emit.nil
 							case Some(inner) =>
 								try inner.finish()
-								catch { case NonFatal(e) => throw SpacException.ContextualizedException(trace, e) }
+								catch { case NonFatal(e) => throw SpacException.addTrace(e, trace.asSpacTraceElems) }
 						}
 						finalOuts -> continueUnmatched
 
@@ -94,7 +99,7 @@ object SplitterJoiner {
 			case Some(MatchedState(trace, Some(inner), _)) =>
 				// in a matched context with an inner transformer left unfinished
 				try inner.finish()
-				catch { case NonFatal(e) => throw SpacException.ContextualizedException(trace, e) }
+				catch { case NonFatal(e) => throw SpacException.addTrace(e, trace.asSpacTraceElems) }
 		}
 	}
 }

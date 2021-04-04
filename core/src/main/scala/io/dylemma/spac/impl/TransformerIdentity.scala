@@ -6,5 +6,6 @@ class TransformerIdentity[In] extends Transformer.Stateless[In, In] {
 	def finish() = Emit.empty
 
 	override def through[Out2](next: Transformer[In, Out2]) = next
-	override def parseWith[Out2](parser: Parser[In, Out2]) = parser
+
+	override def toString = "Transformer.identity"
 }

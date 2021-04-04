@@ -5,11 +5,16 @@ import cats.data.Chain
 
 import scala.annotation.tailrec
 import scala.collection.mutable
+import scala.util.control.NonFatal
 
 case class ParserCompoundN[In, Out](members: Chain[Parser[In, Any]], assemble: (Int => Any) => Out) extends Parser[In, Out] {
 	def newHandler = {
 		val pending = members.iterator.zipWithIndex.map { case (p, i) => i -> p.newHandler }.toArray
 		new ParserCompoundN.Handler(pending, pending.length, mutable.Map.empty, assemble)
+	}
+
+	override def toString = {
+		members.iterator.mkString("ParserCompoundN(\n  ", ",\n  ", "\n)")
 	}
 
 	/** Optimization related to Parser's `Applicative`.
@@ -50,7 +55,11 @@ object ParserCompoundN {
 		}
 
 		def finish() = {
-			for ((j, p) <- pending.iterator.take(numPending)) finished(j) = p.finish()
+			for ((j, p) <- pending.iterator.take(numPending)) {
+				finished(j) =
+					try p.finish()
+					catch { case NonFatal(e) => throw SpacException.addTrace(e, SpacTraceElement.InCompound(j, pending.length)) }
+			}
 			assemble(finished)
 		}
 
@@ -58,7 +67,10 @@ object ParserCompoundN {
 			@tailrec def loop(i: Int): Unit = {
 				if (i < numPending) {
 					val (j, p) = pending(i)
-					p.step(in) match {
+					val stepResult =
+						try p.step(in)
+						catch { case NonFatal(e) => throw SpacException.addTrace(e, SpacTraceElement.InCompound(j, pending.length)) }
+					stepResult match {
 						case Right(cont) =>
 							pending(i) = j -> cont
 							loop(i + 1)

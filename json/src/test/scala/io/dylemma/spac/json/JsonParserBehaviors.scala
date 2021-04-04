@@ -25,7 +25,7 @@ trait JsonParserBehaviors { this: AnyFunSpec with Matchers =>
 			}
 
 			for ((name, input) <- failInputs) it(s"should fail on a $name input") {
-				intercept[IllegalArgumentException] {
+				intercept[SpacException.UnexpectedInputException[_]] {
 					parser parse input
 				}
 			}

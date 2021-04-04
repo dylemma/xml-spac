@@ -53,7 +53,7 @@ object ParserOrElseChain {
 					if (numActive == 0) {
 						// done, where all of the parsers failed
 						val sortedErrors = errors.sortBy(_._1).map(_._2)
-						throw new SpacException.FallbackChainFailure(sortedErrors)
+						throw SpacException.fallbackChainFailure(sortedErrors)
 					} else {
 						// some parsers still running
 						Right(this)
@@ -87,7 +87,7 @@ object ParserOrElseChain {
 				case None =>
 					// all underlying parsers failed; collect their errors in order of their original index
 					val sortedErrors = errors.sortBy(_._1).map(_._2)
-					throw new SpacException.FallbackChainFailure(sortedErrors)
+					throw SpacException.fallbackChainFailure(sortedErrors)
 			}
 		}
 	}

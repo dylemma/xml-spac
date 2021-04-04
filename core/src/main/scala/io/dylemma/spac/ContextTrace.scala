@@ -6,6 +6,7 @@ import cats.data.Chain
 
 case class ContextTrace[+A](elems: Chain[(ContextLocation, A)]) {
 	def /[A2 >: A](subContext: ContextTrace[A2]): ContextTrace[A2] = ContextTrace(elems ++ subContext.elems)
+	def asSpacTraceElems[A2 >: A] = Chain.fromSeq(elems.reverseIterator.map { case (loc, a) => SpacTraceElement.InInputContext[A2](a, loc) }.toSeq)
 }
 object ContextTrace {
 	def empty: ContextTrace[Nothing] = ContextTrace(Chain.nil)
@@ -41,9 +42,9 @@ abstract class ContextLocationTag[A](val name: String) {
 
 // ------------------------------------------------------
 
-case object ContextLineNumber extends ContextLocationTag[Long]("lineNumber")
+case object ContextLineNumber extends ContextLocationTag[Long]("line")
 
-case object ContextColumnOffset extends ContextLocationTag[Long]("columnOffset")
+case object ContextColumnOffset extends ContextLocationTag[Long]("col")
 
-case object ContextCharOffset extends ContextLocationTag[Long]("charOffset")
+case object ContextCharOffset extends ContextLocationTag[Long]("offset")
 

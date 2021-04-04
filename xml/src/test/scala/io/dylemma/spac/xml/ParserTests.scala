@@ -134,8 +134,10 @@ class ParserTests extends AnyFunSpec with Matchers {
 
 		it("should result in an Error when any of the combined parsers does"){
 			val parser = (XmlParser.forMandatoryAttribute("a").map(_.toInt), XmlParser.forText).tupled
-			a[NumberFormatException] should be thrownBy {
+			intercept[SpacException.CaughtError] {
 				parser parse testXml"""<foo a="abc">hello world</foo>"""
+			} should matchPattern {
+				case SpacException.CaughtError(e: NumberFormatException) =>
 			}
 		}
 
@@ -247,8 +249,10 @@ class ParserTests extends AnyFunSpec with Matchers {
 			val xml = testXml"<x><id>ABC</id><msg>Hello</msg><msg>Goodbye</msg></x>"
 			val idParser = Splitter.xml(* \ "id").text.parseFirst.map(_.toInt) // will yield a Failure because of "ABC".toInt
 			val msgsStream = idParser.followedByStream(id => Splitter.xml(* \ "msg").text.map(msg => s"$id:$msg"))
-			a[NumberFormatException] should be thrownBy {
+			intercept[SpacException.CaughtError] {
 				msgsStream.parseToList.parse(xml)
+			} should matchPattern {
+				case SpacException.CaughtError(e: NumberFormatException) =>
 			}
 		}
 		it("should yield whatever errors the 'following' parser yields"){

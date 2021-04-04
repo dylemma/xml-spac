@@ -90,7 +90,7 @@ lazy val examples = (project in file("examples"))
 	.dependsOn(core, coreFs2, xml, xmlJavax)
 
 lazy val root = (project in file("."))
-	.aggregate(core, coreFs2, xml, json, xmlJavax)
+	.aggregate(core, coreFs2, xml, json, xmlJavax, jsonJackson)
 	.settings(
 		publish := {},
 		publishArtifact := false

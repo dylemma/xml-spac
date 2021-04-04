@@ -3,6 +3,7 @@ package impl
 
 class TransformerDrop[In](n: Int) extends Transformer[In, In] {
 	def newHandler = new TransformerDrop.Handler(n)
+	override def toString = s"Transformer.drop($n)"
 }
 
 object TransformerDrop {

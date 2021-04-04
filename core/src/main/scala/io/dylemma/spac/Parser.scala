@@ -9,6 +9,7 @@ import org.tpolecat.typename.TypeName
 
 import scala.annotation.tailrec
 import scala.util.Try
+import scala.util.control.NonFatal
 
 /** Primary "spac" abstraction which represents a sink for data events.
   *
@@ -155,7 +156,7 @@ trait Parser[-In, +Out] { self =>
 	  * @return A parser which will perform an early `finish()` when a matching context is encountered
 	  * @group combinators
 	  */
-	def beforeContext[I2 <: In, StackElem](matcher: ContextMatcher[StackElem, Any])(implicit stackable: StackLike[I2, StackElem]): Parser[I2, Out] = {
+	def beforeContext[I2 <: In, StackElem](matcher: ContextMatcher[StackElem, Any])(implicit stackable: StackLike[I2, StackElem], pos: util.Pos): Parser[I2, Out] = {
 		// use ContextMatchSplitter to drive the stackable+matcher together, and pipe it into a parser that returns when a ContextPush is interpreted,
 		// i.e. the `interrupter` will yield a result upon entering a context matched by the `matcher`
 		interruptedBy { Splitter[I2].fromMatcher(matcher).addBoundaries.collect { case Left(ContextPush(_, _)) => () } :> Parser.firstOpt }
@@ -186,8 +187,9 @@ trait Parser[-In, +Out] { self =>
 	  * @tparam In2 Either `In` or a subtype of `In` (to satisfy contravariance of the `In` type on Parser)
 	  * @group consumers
 	  */
-	def parseSeq[C[_], In2 <: In](source: C[In2])(implicit srcAsSeq: Unconsable[C]): Out = {
-		newHandler.stepMany(source) match {
+	@throws[SpacException[_]]
+	def parseSeq[C[_], In2 <: In](source: C[In2])(implicit srcAsSeq: Unconsable[C], pos: util.Pos): Out = {
+		newHandler.asTopLevelHandler(SpacTraceElement.InParse("parseSeq", pos)).stepMany(source) match {
 			case Left((out, _)) => out
 			case Right(cont) => cont.finish()
 		}
@@ -204,17 +206,24 @@ trait Parser[-In, +Out] { self =>
 	  * @return The parse result
 	  * @group consumers
 	  */
-	def parseIterator(iterator: Iterator[In]): Out = {
+	@throws[SpacException[_]]
+	def parseIterator(iterator: Iterator[In])(implicit pos: util.Pos): Out = {
 		@tailrec def loop(handler: Parser.Handler[In, Out]): Out = {
-			if (iterator.hasNext) handler.step(iterator.next()) match {
-				case Left(out) => out
-				case Right(cont) => loop(cont)
+			if (iterator.hasNext) {
+				val in = iterator.next()
+				val stepResult =
+					try handler.step(in)
+					catch { case NonFatal(e) => throw SpacException.addEarlyTrace(e, SpacTraceElement.InInput(in)) }
+				stepResult match {
+					case Left(out) => out
+					case Right(cont) => loop(cont)
+				}
 			} else {
 				handler.finish()
 			}
 		}
 
-		loop(newHandler)
+		loop(newHandler.asTopLevelHandler(SpacTraceElement.InParse("parseSeq", pos)))
 	}
 
 	/** Interpret the given `source` as a data stream of type `In`, using this parser to produce a result of type `Out`.
@@ -226,8 +235,9 @@ trait Parser[-In, +Out] { self =>
 	  * @return
 	  * @group consumers
 	  */
-	def parse[Src](source: Src)(implicit srcToPullable: ToPullable[SyncIO, Src, In]): Out = {
-		parseF[SyncIO, Src](source).unsafeRunSync()
+	@throws[SpacException[_]]
+	def parse[Src](source: Src)(implicit srcToPullable: ToPullable[SyncIO, Src, In], pos: util.Pos): Out = {
+		parsePullable[SyncIO, Src](source, SpacTraceElement.InParse("parse", pos)).unsafeRunSync()
 	}
 
 	/** Interpret the given `source` as a data stream of type `In`, using this parser to produce a result of type `Out`.
@@ -245,9 +255,13 @@ trait Parser[-In, +Out] { self =>
 	  *         of the `F[Out]`, rather than during the *evaluation*.
 	  * @group consumers
 	  */
-	def parseF[F[+_], Src](source: Src)(implicit srcToPullable: ToPullable[F, Src, In], F: Monad[F], Fb: Bracket[F, Throwable]): F[Out] = {
+	def parseF[F[+_], Src](source: Src)(implicit srcToPullable: ToPullable[F, Src, In], F: Monad[F], Fb: Bracket[F, Throwable], pos: util.Pos): F[Out] = {
+		parsePullable(source, SpacTraceElement.InParse("parseF", pos))
+	}
+
+	protected def parsePullable[F[+_], Src](source: Src, callerFrame: SpacTraceElement)(implicit srcToPullable: ToPullable[F, Src, In], F: Monad[F], Fb: Bracket[F, Throwable]): F[Out] = {
 		srcToPullable(source).use[F[+*], Out] { srcPullable =>
-			F.tailRecM(srcPullable -> newHandler) { case (inputs, handler) =>
+			F.tailRecM(srcPullable -> newHandler.asTopLevelHandler(callerFrame)) { case (inputs, handler) =>
 				F.map(inputs.uncons) {
 					case Some((in, nextInputs)) =>
 						handler.step(in) match {
@@ -351,6 +365,14 @@ object Parser {
 
 			loop(this, inputs)
 		}
+
+		/** Wraps this handler as a "top level" handler, which will inject a SpacTraceElement
+		  * (representing the current input or the "EOF" signal)
+		  * to any exception is thrown by this handler when calling its `step` or `finish` methods.
+		  *
+		  * Used internally by `Parser`'s `parse` methods.
+		  */
+		def asTopLevelHandler(caller: SpacTraceElement): Handler[In, Out] = new TopLevelParserHandler(this, caller)
 	}
 
 	/** Convenience for creating parsers whose input type is bound to `In`.

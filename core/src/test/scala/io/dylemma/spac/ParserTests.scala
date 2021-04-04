@@ -43,7 +43,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 			val errorProneParser = listParser.map[String](_ => throw dummyException)
 			it("should bubble up exceptions thrown by the mapping function") {
 				forAll { (list: List[Int]) =>
-					intercept[Exception] { errorProneParser.parse(list) } shouldEqual dummyException
+					intercept[Exception] { errorProneParser.parse(list) } should matchPattern { case SpacException.CaughtError(`dummyException`) => }
 				}
 			}
 			it("should not throw the exception until the base parser has yielded a result") {
@@ -138,7 +138,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		}
 
 		it("should treat a successful `Failure` result as an error in the effect context instead") {
-			intercept[Exception] { p2.unwrapSafe.parseSeq(List(1, 2, 3)) } shouldEqual err
+			intercept[Exception] { p2.unwrapSafe.parseSeq(List(1, 2, 3)) } should matchPattern { case SpacException.CaughtError(`err`) => }
 		}
 	}
 
@@ -201,7 +201,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 			val dummyException = new Exception("hi")
 			val errorInterrupter = interrupter.map { _ => throw dummyException }
 			val list = List(3, 2, 1, 0, -1, -2, -3)
-			intercept[Exception] { p1.interruptedBy(errorInterrupter).parse(list) } shouldEqual dummyException
+			intercept[Exception] { p1.interruptedBy(errorInterrupter).parse(list) } should matchPattern { case SpacException.CaughtError(`dummyException`) => }
 			p1.interruptedBy(errorInterrupter.attempt).parse(list) shouldEqual List(3, 2, 1)
 		}
 
@@ -213,7 +213,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 			}
 			val pE = p2.interruptedBy(interrupter)
 			pE.parseSeq(List(1, 1, 1, 1)) shouldEqual 4
-			intercept[Exception] { pE.parseSeq(List(1, 2, 3, 4)) } shouldEqual dummyException
+			intercept[Exception] { pE.parseSeq(List(1, 2, 3, 4)) } should matchPattern { case SpacException.CaughtError(`dummyException`) => }
 		}
 	}
 

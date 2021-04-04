@@ -18,30 +18,30 @@ import scala.language.implicitConversions
   *  - `XmlParser.attr` - for capturing mandatory attributes from elements
   *  - `XmlParser.attrOpt` - for capturing optional attributes from elements
   *
-  *  One main Splitter constructor method is added to `Splitter` via the `XmlSplitterApplyOps` implicit class:
+  * One main Splitter constructor method is added to `Splitter` via the `XmlSplitterApplyOps` implicit class:
   *
   *  - `Splitter.xml` - for creating splitters based on an inspection of an "element stack"
   *
-  *  Three main Splitter member methods are added to `Splitter[XmlEvent, C]` via the `XmlSplitterOps` implicit class:
+  * Three main Splitter member methods are added to `Splitter[XmlEvent, C]` via the `XmlSplitterOps` implicit class:
   *
   *  - `.attr` - alias for `.joinBy(XmlParser.attr(...))`
   *  - `.attrOpt` - alias for `.joinBy(XmlParser.attrOpt(...))`
   *  - `.text` - alias for `.joinBy(XmlParser.forText)`
   *
-  *  A DSL for creating xml-specific ContextMatchers is provided to make it more convenient to call `Splitter.xml`.
-  *  For example:
-  *  {{{
+  * A DSL for creating xml-specific ContextMatchers is provided to make it more convenient to call `Splitter.xml`.
+  * For example:
+  * {{{
   *  Splitter.xml("things" \ "thing").attr("foo").parseToList
-  *  }}}
-  *  Can be used to capture a list of the "foo" attributes in the `<thing>` elements in
-  *  {{{
+  * }}}
+  * Can be used to capture a list of the "foo" attributes in the `<thing>` elements in
+  * {{{
   *  <things>
   *     <thing foo="hello" />
   *     <thing foo="Goodbye">
   *        <extra>junk</extra>
   *     </thing>
   *  </thing>
-  *  }}}
+  * }}}
   *
   * @groupname aliases XML-specific Type and Value aliases
   * @groupname extensions XML-specific extensions for Parser and Splitter
@@ -108,7 +108,7 @@ package object xml {
 
 	/** Adds `Splitter.xml`, for constructing element matcher-based XmlSplitters.
 	  *
-	  *  @group extensions
+	  * @group extensions
 	  */
 	implicit class XmlSplitterApplyOps(val splitter: Splitter.type) extends AnyVal {
 
@@ -127,10 +127,11 @@ package object xml {
 		  *
 		  * @param matcher A ContextMatcher used to identify where each sub-stream begins and ends,
 		  *                and extracts some context value to identify each sub-stream.
+		  * @param pos     Used to construct a SpacFrameElement if a parser constructed from this splitter fails
 		  * @tparam C The context type returned by the `matcher`
 		  * @return A new Splitter that splits the source into sub-streams identified by the `matcher`
 		  */
-		def xml[C](matcher: ContextMatcher[XmlEvent.ElemStart, C]): XmlSplitter[C] = splitter.fromMatcher(matcher)
+		def xml[C](matcher: ContextMatcher[XmlEvent.ElemStart, C])(implicit pos: util.Pos): XmlSplitter[C] = splitter.fromMatcher(matcher)
 	}
 
 	// ----------------------------------------------------------------------------

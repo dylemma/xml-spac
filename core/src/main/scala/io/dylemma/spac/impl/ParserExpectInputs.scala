@@ -19,13 +19,13 @@ object ParserExpectInputs {
 					}
 				} else {
 					// input failed our expectations, crash the parser with an error
-					throw new SpacException.UnexpectedInputException(in, expectation :: tailExpectations.map(_._1))
+					throw SpacException.unexpectedInput(in, expectation :: tailExpectations.map(_._1))
 				}
 		}
 
 		def finish() = {
 			if (pendingExpectations.isEmpty) self.finish()
-			else throw new SpacException.UnfulfilledInputsException(pendingExpectations.map(_._1))
+			else throw SpacException.unfulfilledInputs(pendingExpectations.map(_._1))
 		}
 	}
 }

@@ -109,7 +109,7 @@ class ParserCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPrope
 			}
 			describe("with an exception-throwing predicate") {
 				it("should capture thrown exceptions in the effect context") {
-					intercept[Exception] { errorProneParser.parse(List(0)) } shouldEqual dummyException
+					intercept[Exception] { errorProneParser.parse(List(0)) } should matchPattern { case SpacException.CaughtError(`dummyException`) => }
 				}
 				it("should stop pulling values from the source when an exception is thrown") {
 					countPullsIn(List(3, 2, 0, 1)) { s => intercept[Exception] { errorProneParser.parse(s) } } shouldEqual 3
@@ -143,7 +143,7 @@ class ParserCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPrope
 			}
 			describe("with an exception-throwing aggregator function") {
 				it("should capture thrown exceptions in the effect context") {
-					intercept[Exception] { errorProneParser.parseSeq(List(3, 2, 1, 0)) } shouldEqual dummyException
+					intercept[Exception] { errorProneParser.parseSeq(List(3, 2, 1, 0)) } should matchPattern { case SpacException.CaughtError(`dummyException`) => }
 				}
 				it("should stop consuming inputs after an exception is thrown") {
 					countPullsIn(List(3, 2, 1, 0, 1, 2, 3)) { s =>
@@ -407,7 +407,7 @@ class ParserCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPrope
 			it("should catch and raise errors from the underlying parsers") {
 				val pN = F.product(p2, pErr)
 				forAll { (list: List[Int]) =>
-					intercept[Exception] { pN.parse(list) } shouldEqual dummyException
+					intercept[Exception] { pN.parse(list) } should matchPattern { case SpacException.CaughtError(`dummyException`) => }
 				}
 			}
 			it("should abort execution upon encountering an error from an underlying parser") {
@@ -438,7 +438,11 @@ class ParserCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPrope
 							.map(tryFlattenTuple)
 						val expectedResults = Traverse[List]
 							.sequence(parsers.map(_.attempt.parseSeq(list)))
-						compoundResults shouldEqual expectedResults
+
+						expectedResults match {
+							case Left(err) => compoundResults should matchPattern { case Left(SpacException.CaughtError(`err`)) => }
+							case Right(value) => compoundResults shouldEqual Right(value)
+						}
 					}
 				}
 			}

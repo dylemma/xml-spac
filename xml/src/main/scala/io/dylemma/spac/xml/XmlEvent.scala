@@ -4,6 +4,7 @@ import cats.Show
 import cats.data.Chain
 import cats.implicits._
 import io.dylemma.spac._
+import io.dylemma.spac.xml.XmlEvent.ShowableQName
 
 /** Spac's internal representation of XML "events".
   * Third-party xml streaming classes like `javax.xml.stream` or `fs2-data` can be supported
@@ -11,12 +12,11 @@ import io.dylemma.spac._
   *
   * @group event
   */
-sealed trait XmlEvent {
+sealed trait XmlEvent extends HasLocation {
 	import XmlEvent._
 	def asElemStart: Option[ElemStart] = None
 	def asElemEnd: Option[ElemEnd] = None
 	def asText: Option[Text] = None
-	def location: ContextLocation
 }
 
 /** Adapter for various representations of QName
@@ -32,6 +32,7 @@ trait AsQName[N] {
 /** @group event */
 object AsQName {
 	def apply[N](implicit instance: AsQName[N]): AsQName[N] = instance
+	def show[N: AsQName](n: N) = show"${AsQName[ShowableQName].convert(n)}"
 
 	implicit val stringAsQNameIgnoringNamespace: AsQName[String] = new AsQName[String] {
 		def name(n: String): String = n
@@ -118,7 +119,7 @@ object XmlEvent {
 			sb append show"${ e.qName[ShowableQName] }"
 			for {(k, v) <- e.attrs[ShowableQName]} {
 				sb append ", "
-				sb append k
+				sb append show"$k"
 				sb append '='
 				sb append v
 			}

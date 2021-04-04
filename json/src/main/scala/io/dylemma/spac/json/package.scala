@@ -25,7 +25,7 @@ package object json {
 		def forBoolean: JsonParser[Boolean] = jsonParserForPrimitiveBoolean
 		def forNull: JsonParser[None.type] = jsonParserForPrimitiveNull
 
-		def listOf[T: TypeName: JsonParser]: JsonParser[List[T]] = listOf[T](implicitly[JsonParser[T]])
+		def listOf[T: TypeName : JsonParser]: JsonParser[List[T]] = listOf[T](implicitly[JsonParser[T]])
 		def listOf[T: TypeName](parser: JsonParser[T]): JsonParser[List[T]] = Splitter.json(anyIndex).joinBy(parser).parseToList
 			.expectInputs[JsonEvent](List("a '[' token" -> { _.isArrayStart }))
 			.withName(s"JsonParser.listOf[${ implicitly[TypeName[T]].value }]")
@@ -68,10 +68,11 @@ package object json {
 		  *
 		  * @param matcher A ContextMatcher used to identify where each sub-stream begins and ends,
 		  *                and extracts some context value to identify each sub-stream.
+		  * @param pos     Used to construct a SpacFrameElement if a parser constructed from this splitter fails
 		  * @tparam C The type of the "context" matched by the `matcher`
 		  * @return A new JsonSplitter that will split a stream into sub-streams identified by the `matcher`
 		  */
-		def json[C](matcher: ContextMatcher[JsonStackElem, C]): JsonSplitter[C] = splitter.fromMatcher(matcher)
+		def json[C](matcher: ContextMatcher[JsonStackElem, C])(implicit pos: util.Pos): JsonSplitter[C] = splitter.fromMatcher(matcher)
 	}
 
 	// ------------------------------------------------------

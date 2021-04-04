@@ -62,10 +62,10 @@ object JsonPopEventInjector {
 			// in theory the stack should be empty if the JSON terminates naturally,
 			// but if for some reason it doesn't, we'll inject "opposite" events to close out whatever stack state remains
 			def unwind(remainingStack: List[JsonStackElem]): Emit[JsonEvent] = remainingStack match {
-				case ArrayStart() :: tail => ArrayEnd(ContextLocation.empty) +: unwind(tail)
-				case ObjectStart() :: tail => ObjectEnd(ContextLocation.empty) +: unwind(tail)
-				case FieldStart(_) :: tail => FieldEnd(ContextLocation.empty) +: unwind(tail)
-				case IndexStart(_) :: tail => IndexEnd(ContextLocation.empty) +: unwind(tail)
+				case (_: ArrayStart) :: tail => ArrayEnd(ContextLocation.empty) +: unwind(tail)
+				case (_: ObjectStart) :: tail => ObjectEnd(ContextLocation.empty) +: unwind(tail)
+				case (_: FieldStart) :: tail => FieldEnd(ContextLocation.empty) +: unwind(tail)
+				case (_: IndexStart) :: tail => IndexEnd(ContextLocation.empty) +: unwind(tail)
 				case Nil => Emit.nil
 			}
 			unwind(contextStack)

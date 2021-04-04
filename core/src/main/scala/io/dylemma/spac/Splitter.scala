@@ -48,21 +48,28 @@ trait Splitter[In, +C] {
 	  * @tparam Out
 	  * @return
 	  */
-	def mapTraced[Out](parseMatches: ContextPush[In, C] => Parser[In, Out]): Transformer[In, Out] = flatMap(parseMatches(_).asTransformer)
+	def mapTraced[Out](parseMatches: ContextPush[In, C] => Parser[In, Out]): Transformer[In, Out] = flatMap { push =>
+		parseMatches(push).asTransformer
+	}
 
 	/** Like `map`, but when you want to use the same parser for each sub-stream, regardless of the context value
 	  */
-	def joinBy[Out](parser: Parser[In, Out]): Transformer[In, Out] = map(_ => parser)
+	def joinBy[Out](parser: Parser[In, Out]): Transformer[In, Out] = mapTraced(new ConstFunction(parser))
 
 	/** Like `joinBy`, but the parser is passed implicitly
 	  */
-	def as[Out](implicit parser: Parser[In, Out]) = map(_ => parser)
+	def as[Out](implicit parser: Parser[In, Out]) = mapTraced(new ConstFunction(parser))
+
+	private class ConstFunction[A](result: A) extends (Any => A) {
+		def apply(v1: Any) = result
+		override def toString = result.toString
+	}
 
 	/** Creates a new transformer by attaching an "inner" transformer to each sub-stream based on the sub-stream context.
 	  * For each sub-stream, a new transformer will be created, and the inputs from the sub-stream will be piped into the inner transformer.
 	  * Anything that the inner transformer emits will be emitted by the returned transformer.
 	  */
-	def flatMap[Out](transformMatches: ContextPush[In, C] => Transformer[In, Out]): Transformer[In, Out] = addBoundaries :>> SplitterJoiner(transformMatches)
+	def flatMap[Out](transformMatches: ContextPush[In, C] => Transformer[In, Out]): Transformer[In, Out] = addBoundaries through SplitterJoiner(transformMatches)
 }
 object Splitter {
 	/** Convenience for creating Splitters with a specific `In` type; useful when type inference can figure out the other type parameters. */
@@ -78,7 +85,7 @@ object Splitter {
 	  * For inputs that cause a push or pop to the stack, whether that input is included as "inside"
 	  * the pushed context is up to the specific `StackLike` implementation.
 	  */
-	def fromMatcher[In, Elem, C](matcher: ContextMatcher[Elem, C])(implicit S: StackLike[In, Elem]): Splitter[In, C] = new SplitterByContextMatch(matcher)
+	def fromMatcher[In, Elem, C](matcher: ContextMatcher[Elem, C])(implicit S: StackLike[In, Elem], pos: util.Pos): Splitter[In, C] = new SplitterByContextMatch(matcher, pos)
 
 	/** Create a splitter that starts a new substream every time the `matcher` matches.
 	  * Any events passed through before the initial match will be discarded, but every event
@@ -155,7 +162,7 @@ object Splitter {
 
 class SplitterApplyWithBoundInput[In] {
 	/** See `Splitter.fromMatcher` */
-	def fromMatcher[Elem, C](matcher: ContextMatcher[Elem, C])(implicit S: StackLike[In, Elem]): Splitter[In, C] = Splitter.fromMatcher(matcher)
+	def fromMatcher[Elem, C](matcher: ContextMatcher[Elem, C])(implicit S: StackLike[In, Elem], pos: util.Pos): Splitter[In, C] = Splitter.fromMatcher(matcher)
 	/** See `Splitter.splitOnMatch` */
 	def splitOnMatch[C](matcher: PartialFunction[In, C]): Splitter[In, C] = Splitter.splitOnMatch(matcher)
 	/** See `Splitter.splitOnMatch` */

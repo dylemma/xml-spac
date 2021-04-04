@@ -1,5 +1,6 @@
 package io.dylemma.spac
 
+import cats.data.{Chain, NonEmptyChain}
 import io.dylemma.spac.impl._
 import io.dylemma.spac.types.Unconsable
 import org.tpolecat.typename.TypeName
@@ -162,7 +163,13 @@ trait Transformer[-In, +Out] {
 	  * @return
 	  * @group combinator
 	  */
-	def through[Out2](next: Transformer[Out, Out2]): Transformer[In, Out2] = new TransformerThrough(this, next)
+	def through[Out2](next: Transformer[Out, Out2]): Transformer[In, Out2] = {
+		@inline def asChain(t: Transformer[_, _]) = t match {
+			case TransformerStack(nec) => nec.toChain
+			case _ => Chain.one(t.asInstanceOf[Transformer[Any, Any]])
+		}
+		TransformerStack(NonEmptyChain.fromChainUnsafe(asChain(this) ++ asChain(next)))
+	}
 
 	@deprecated("This method is being renamed to `through`", "v0.9")
 	def andThen[Out2](next: Transformer[Out, Out2]) = through(next)
@@ -188,7 +195,7 @@ trait Transformer[-In, +Out] {
 	  * @return
 	  * @group parse
 	  */
-	def parseWith[Out2](parser: Parser[Out, Out2]): Parser[In, Out2] = this :> parser
+	def parseWith[Out2](parser: Parser[Out, Out2]): Parser[In, Out2] = new TransformerIntoParser(this, parser)
 
 	/** Operator version of `parseWith`
 	  *
@@ -197,7 +204,7 @@ trait Transformer[-In, +Out] {
 	  * @return
 	  * @group parse
 	  */
-	def :>[Out2](parser: Parser[Out, Out2]): Parser[In, Out2] = new TransformerIntoParser(this, parser)
+	def :>[Out2](parser: Parser[Out, Out2]): Parser[In, Out2] = parseWith(parser)
 
 	@deprecated("Due to troubles with operator precedence and type inference, this operator is being phased out in favor of `:>`", "v0.9")
 	def >>[Out2](parser: Parser[Out, Out2]): Parser[In, Out2] = :>(parser)
@@ -296,6 +303,7 @@ object Transformer {
 	trait Handler[-In, +Out] {
 		def step(in: In): (Emit[Out], Option[Handler[In, Out]])
 		def finish(): Emit[Out]
+		def unwind(err: Throwable): Throwable = err
 
 		def stepMany[C[_], In2 <: In](_ins: C[In2])(implicit C: Unconsable[C]): (Emit[Out], Either[C[In2], Handler[In, Out]]) = {
 			// fold inputs from `_ins` into this transformer, accumulating a buffer of `outs` and updating the transformer state along the way,
@@ -344,6 +352,7 @@ object Transformer {
 	def take[In](n: Int): Transformer[In, In] = new TransformerTake(n)
 	def takeWhile[In](f: In => Boolean): Transformer[In, In] = new TransformerTakeWhile(f)
 	def tap[In](f: In => Unit): Transformer[In, In] = new TransformerTap(f)
+	def spacFrame[In](elems: SpacTraceElement*): Transformer[In, In] = new TransformerSpacFrame[In](Chain(elems: _*))
 }
 
 /** Convenience version of the `Transformer` companion object,
@@ -359,4 +368,5 @@ class TransformerApplyBound[In] {
 	def take(n: Int): Transformer[In, In] = Transformer.take(n)
 	def takeWhile(f: In => Boolean): Transformer[In, In] = Transformer.takeWhile(f)
 	def tap(f: In => Unit): Transformer[In, In] = Transformer.tap(f)
+	def spacFrame(elems: SpacTraceElement*): Transformer[In, In] = Transformer.spacFrame(elems: _*)
 }
