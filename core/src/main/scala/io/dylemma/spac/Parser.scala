@@ -183,6 +183,7 @@ trait Parser[-In, +Out] { self =>
 	  *
 	  * @param source   A sequence of `In` values, represented as some collection that can be consumed via an `uncons` operation
 	  * @param srcAsSeq Typeclass instance that knows how to split the `source` into a `head` and `tail`
+	  * @param pos      Captures the caller filename and line number, used to fill in the 'spac trace' if the parser throws an exception
 	  * @tparam C   A collection type with an efficient `uncons` operation. Out of the box, only `List` and `cats.data.Chain` are included
 	  * @tparam In2 Either `In` or a subtype of `In` (to satisfy contravariance of the `In` type on Parser)
 	  * @group consumers
@@ -203,6 +204,7 @@ trait Parser[-In, +Out] { self =>
 	  * This method does not concern itself with resource management, it simply consumes the iterator.
 	  *
 	  * @param iterator An iterator of `In` values
+	  * @param pos      Captures the caller filename and line number, used to fill in the 'spac trace' if the parser throws an exception
 	  * @return The parse result
 	  * @group consumers
 	  */
@@ -228,6 +230,7 @@ trait Parser[-In, +Out] { self =>
 	  *
 	  * @param source        The source of a data stream
 	  * @param srcToPullable Typeclass instance that provides the capability to interpret the `source` as a "pullable" data stream
+	  * @param pos           Captures the caller filename and line number, used to fill in the 'spac trace' if the parser throws an exception
 	  * @tparam Src The source type. Will typically be a `File` or a `List[In]`.
 	  * @return
 	  * @group consumers
@@ -243,6 +246,7 @@ trait Parser[-In, +Out] { self =>
 	  *
 	  * @param source        The source of a data stream
 	  * @param srcToPullable Typeclass instance that provides the capability to interpret the `source` as a "pullable" data stream
+	  * @param pos           Captures the caller filename and line number, used to fill in the 'spac trace' if the parser throws an exception
 	  * @param F             Monad for the `F` context
 	  * @param Fb            try/catch logic for the `F` context
 	  * @tparam F   An effect type in which the data-pull and handler logic will be run

@@ -85,7 +85,6 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 				  |      </data>
 				  |      <data id="123">
 				  |         <foo stuff="C"/>
-				  |         <neat>not a number!</neat>
 				  |      </data>
 				  |   </thing>
 				  |</root>""".stripMargin
@@ -117,7 +116,6 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 				  |      </data>
 				  |      <data id="123">
 				  |         <foo stuff="C"/>
-				  |         <neat>not a number!</neat>
 				  |      </data>
 				  |   </thing>
 				  |</root>""".stripMargin
@@ -160,7 +158,6 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 				  |      </data>
 				  |      <data id="123">
 				  |         <foo stuff="C"/>
-				  |         <neat>not a number!</neat>
 				  |      </data>
 				  |   </thing>
 				  |</root>""".stripMargin
@@ -205,7 +202,6 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 				  |      </data>
 				  |      <data id="123">
 				  |         <foo stuff="C"/>
-				  |         <neat>not a number!</neat>
 				  |      </data>
 				  |   </thing>
 				  |</root>""".stripMargin
@@ -251,7 +247,6 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 				  |      </data>
 				  |      <data id="123">
 				  |         <foo stuff="C"/>
-				  |         <neat>not a number!</neat>
 				  |      </data>
 				  |   </thing>
 				  |</root>""".stripMargin
