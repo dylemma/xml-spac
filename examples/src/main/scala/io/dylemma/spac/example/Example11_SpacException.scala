@@ -60,14 +60,14 @@ object Example11_SpacException extends App {
 		catch { case NonFatal(e) => e.printStackTrace() }
 		/* Prints:
 		io.dylemma.spac.SpacException$MissingFirstException: Parser context ended before the first String could be found.
-        at Input(</data>) - {line: 11, col: 14, offset: 230}
-        at Splitter(elem(data) \ elem(bar)) - Example11_SpacException.scala:47
-        at Compound Parser member 3 of 3
-        at InputContext(<data id="123">) - {line: 8, col: 22, offset: 151}
-        at InputContext(<thing>) - {line: 2, col: 11, offset: 18}
-        at InputContext(<root>) - {line: 1, col: 7, offset: 6}
-        at Splitter(elem(root) \ elem(thing) \ elem(data)) - Example11_SpacException.scala:49
-        at parse - Example11_SpacException.scala:52
+			at Input(</data>) - {line: 11, col: 14, offset: 230}
+			at Splitter(elem(data) \ elem(bar)) - Example11_SpacException.scala:47
+			at Compound Parser member 3 of 3
+			at InputContext(<data id="123">) - {line: 8, col: 22, offset: 151}
+			at InputContext(<thing>) - {line: 2, col: 11, offset: 18}
+			at InputContext(<root>) - {line: 1, col: 7, offset: 6}
+			at Splitter(elem(root) \ elem(thing) \ elem(data)) - Example11_SpacException.scala:49
+			at parse - Example11_SpacException.scala:52
 		 */
 		println()
 	}
