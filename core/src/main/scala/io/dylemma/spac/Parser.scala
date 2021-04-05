@@ -159,7 +159,7 @@ trait Parser[-In, +Out] { self =>
 	def beforeContext[I2 <: In, StackElem](matcher: ContextMatcher[StackElem, Any])(implicit stackable: StackLike[I2, StackElem], pos: util.Pos): Parser[I2, Out] = {
 		// use ContextMatchSplitter to drive the stackable+matcher together, and pipe it into a parser that returns when a ContextPush is interpreted,
 		// i.e. the `interrupter` will yield a result upon entering a context matched by the `matcher`
-		interruptedBy { Splitter[I2].fromMatcher(matcher).addBoundaries.collect { case Left(ContextPush(_, _)) => () } :> Parser.firstOpt }
+		interruptedBy { Splitter[I2].fromMatcher(matcher).addBoundaries.collect { case Left(ContextPush(_, _)) => () } into Parser.firstOpt }
 	}
 
 	/** Returns this parser, with the output type widened to `Out2`, which is some supertype of `Out`.

@@ -103,5 +103,5 @@ object Example6_NestedContexts extends App {
 	// ...
 	// Data(DYLAN, B, 568
 	// Data(DYLAN, B, 569)
-	/*printEvent >>*/ verboseSelectDataFromStuff :> printData parse xml
+	/*printEvent >>*/ verboseSelectDataFromStuff into printData parse xml
 }

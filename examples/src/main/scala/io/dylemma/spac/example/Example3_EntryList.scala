@@ -90,7 +90,7 @@ object Example3_EntryList extends App {
 	Note the difference between V1 and V2 is the addition of `.andThen(kvToEntryTransformer)`
 	 */
 	val entryListParserV2: XmlParser[List[Entry]] = {
-		keyOrValueTransformer :>> kvToEntryTransformer :> Parser.toList
+		keyOrValueTransformer through kvToEntryTransformer into Parser.toList
 	}
 
 	println("V2 results:")

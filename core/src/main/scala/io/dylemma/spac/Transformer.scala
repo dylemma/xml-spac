@@ -174,16 +174,7 @@ trait Transformer[-In, +Out] {
 	@deprecated("This method is being renamed to `through`", "v0.9")
 	def andThen[Out2](next: Transformer[Out, Out2]) = through(next)
 
-	/** Operator version of `through`
-	  *
-	  * @param next
-	  * @tparam Out2
-	  * @return
-	  * @group combinator
-	  */
-	def :>>[Out2](next: Transformer[Out, Out2]): Transformer[In, Out2] = through(next)
-
-	@deprecated("Due to troubles with operator precedence and type inference, this operator is being phased out in favor of `:>>`", "v0.9")
+	@deprecated("Due to troubles with operator precedence and type inference, this operator is being phased out in favor of `through`", "v0.9")
 	def >>[Out2](next: Transformer[Out, Out2]): Transformer[In, Out2] = through(next)
 
 	/** Attach this transformer to a `parser`, creating a new parser that encapsulates the pair.
@@ -195,24 +186,18 @@ trait Transformer[-In, +Out] {
 	  * @return
 	  * @group parse
 	  */
-	def parseWith[Out2](parser: Parser[Out, Out2]): Parser[In, Out2] = new TransformerIntoParser(this, parser)
+	def into[Out2](parser: Parser[Out, Out2]): Parser[In, Out2] = new TransformerIntoParser(this, parser)
 
-	/** Operator version of `parseWith`
-	  *
-	  * @param parser
-	  * @tparam Out2
-	  * @return
-	  * @group parse
-	  */
-	def :>[Out2](parser: Parser[Out, Out2]): Parser[In, Out2] = parseWith(parser)
+	@deprecated("Use `into` instead")
+	def parseWith[Out2](parser: Parser[Out, Out2]): Parser[In, Out2] = into(parser)
 
 	@deprecated("Due to troubles with operator precedence and type inference, this operator is being phased out in favor of `:>`", "v0.9")
-	def >>[Out2](parser: Parser[Out, Out2]): Parser[In, Out2] = :>(parser)
+	def >>[Out2](parser: Parser[Out, Out2]): Parser[In, Out2] = into(parser)
 
-	@deprecated("Use the single-argument version of `parseWith`, then call `withName` on the resulting parser", "v0.9")
+	@deprecated("Use the single-argument version of `into`, then call `withName` on the resulting parser", "v0.9")
 	def parseWith[Out2](parser: Parser[Out, Out2], setDebugName: Option[String]): Parser[In, Out2] = setDebugName match {
-		case None => parseWith(parser)
-		case Some(name) => parseWith(parser).withName(name)
+		case None => into(parser)
+		case Some(name) => into(parser).withName(name)
 	}
 
 	/** Convenience for `this :> Parser.toList`
@@ -220,14 +205,14 @@ trait Transformer[-In, +Out] {
 	  * @return
 	  * @group parse
 	  */
-	def parseToList: Parser[In, List[Out]] = parseWith(Parser.toList)
+	def parseToList: Parser[In, List[Out]] = into(Parser.toList)
 
 	/** Convenience for `this :> Parser.firstOpt`
 	  *
 	  * @return
 	  * @group parse
 	  */
-	def parseFirstOpt: Parser[In, Option[Out]] = parseWith(Parser.firstOpt)
+	def parseFirstOpt: Parser[In, Option[Out]] = into(Parser.firstOpt)
 
 	@deprecated("This method is being renamed to `parseFirstOpt`", "v0.9")
 	def parseFirstOption = parseFirstOpt
@@ -240,7 +225,7 @@ trait Transformer[-In, +Out] {
 	  * @return
 	  * @group parse
 	  */
-	def parseAsFold[Out2](init: Out2)(f: (Out2, Out) => Out2): Parser[In, Out2] = parseWith(Parser.fold(init)(f))
+	def parseAsFold[Out2](init: Out2)(f: (Out2, Out) => Out2): Parser[In, Out2] = into(Parser.fold(init)(f))
 
 	/** Convenience for `this :> Parser.tap(f)`
 	  *
@@ -248,7 +233,7 @@ trait Transformer[-In, +Out] {
 	  * @return
 	  * @group parse
 	  */
-	def parseTap(f: Out => Unit): Parser[In, Unit] = parseWith(Parser.tap(f))
+	def parseTap(f: Out => Unit): Parser[In, Unit] = into(Parser.tap(f))
 
 	@deprecated("This method is being renamed to `parseTap`", "v0.9")
 	def parseForeach(f: Out => Any): Parser[In, Unit] = parseTap(in => f(in))
@@ -258,7 +243,7 @@ trait Transformer[-In, +Out] {
 	  * @return
 	  * @group parse
 	  */
-	def drain: Parser[In, Unit] = parseWith(Parser.drain)
+	def drain: Parser[In, Unit] = into(Parser.drain)
 
 	@deprecated("This method is being renamed to `drain`", "v0.9")
 	def sink = drain
@@ -283,7 +268,7 @@ object Transformer {
 		  * @return
 		  * @group parse
 		  */
-		def parseFirst(implicit A: TypeName[A]): Parser[In, A] = self :> Parser.first
+		def parseFirst(implicit A: TypeName[A]): Parser[In, A] = self into Parser.first
 	}
 
 	/** Extra methods for transformers whose `Out` type is a Tuple2 */
@@ -294,7 +279,7 @@ object Transformer {
 		  * @return
 		  * @group parse
 		  */
-		def parseToMap: Parser[In, Map[K, V]] = self.parseWith(Parser.toMap)
+		def parseToMap: Parser[In, Map[K, V]] = self.into(Parser.toMap)
 	}
 
 	trait Stateless[-In, +Out] extends Transformer[In, Out] with Handler[In, Out] {

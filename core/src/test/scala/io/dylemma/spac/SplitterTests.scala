@@ -6,7 +6,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class SplitterTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks {
 	describe("Splitter.splitOnMatch") {
-		val listsStartingWithOne = Splitter[Int].splitOnMatch(_ == 1).joinBy(Parser.toList) :> Parser.toList
+		val listsStartingWithOne = Splitter[Int].splitOnMatch(_ == 1).joinBy(Parser.toList) into Parser.toList
 
 		it("should create a new substream when an input matches the predicate") {
 			listsStartingWithOne.parse(List(1, 2, 3, 1, 2, 1, 2, 3, 4, 5)) shouldEqual List(

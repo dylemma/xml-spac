@@ -183,7 +183,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 
 	describe("Parser # interruptedBy") {
 		val p1 = Parser.toList[Int]
-		val interrupter = Transformer.op[Int, Any] { Emit.one(_).filter(_ == 0) } :> Parser.firstOpt
+		val interrupter = Transformer.op[Int, Any] { Emit.one(_).filter(_ == 0) } into Parser.firstOpt
 		val parser = p1 interruptedBy interrupter
 
 		it("should proceed normally if the interrupter never yields a result") {
@@ -226,7 +226,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		}
 		val matcher = new SingleItemContextMatcher.Predicate[String](_ == "one") \ new SingleItemContextMatcher.Predicate[String](_ == "two")
 
-		val p1 = Transformer[In].map(_._2) :> Parser.toList
+		val p1 = Transformer[In].map(_._2) into Parser.toList
 		val parser = p1.beforeContext(matcher)
 
 		it("should delegate to `interruptedBy`") {
@@ -270,20 +270,20 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 			implicit val testStackable: StackLike[Int, Nothing] = NoStackChanges
 			val base = Parser[Int].first.withName("base")
 
-			val parser = base.followedBy { i => Transformer[Int].map(_ * i) :> Parser.toList.withName("toList") }
+			val parser = base.followedBy { i => Transformer[Int].map(_ * i) into Parser.toList.withName("toList") }
 			parser.parseSeq(List(1, 2, 3, 4)) shouldEqual List(2, 3, 4)
 			parser.parseSeq(List(2, 3, 4, 5)) shouldEqual List(6, 8, 10)
 
 			val transformer = base.followedByStream { i => Transformer[Int].map(_ * i) }
-			(transformer :> Parser.toList).parseSeq(List(1, 2, 3, 4)) shouldEqual List(2, 3, 4)
-			(transformer :> Parser.toList).parseSeq(List(2, 3, 4, 5)) shouldEqual List(6, 8, 10)
+			(transformer into Parser.toList).parseSeq(List(1, 2, 3, 4)) shouldEqual List(2, 3, 4)
+			(transformer into Parser.toList).parseSeq(List(2, 3, 4, 5)) shouldEqual List(6, 8, 10)
 		}
 
 		it("should feed the stack-accumulating events to the follow-up parser before continuing") {
 			implicit val testStackable: StackLike[Int, Int] = StackOnTens
 
 			val match10 = new SingleItemContextMatcher.Predicate[Int](_ == 10)
-			val base = Splitter.fromMatcher(match10).map(_ => Transformer[Int].take(3) :> Parser.toList).parseFirst
+			val base = Splitter.fromMatcher(match10).map(_ => Transformer[Int].take(3) into Parser.toList).parseFirst
 			val input = List(
 				1, 2, 3, 4, // all of this should end up ignored by the `base`
 				10, // context push to start the base off, plus the follow-up should see this during the reply
@@ -297,7 +297,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 			}
 
 			val transformer = base.followedByStream(initialList => Transformer[Int].map(initialList -> _))
-			(transformer :> Parser.toList).parseSeq(input) shouldEqual List(
+			(transformer into Parser.toList).parseSeq(input) shouldEqual List(
 				List(5, 6, 7) -> 10,
 				List(5, 6, 7) -> 9,
 				List(5, 6, 7) -> 8,
@@ -308,7 +308,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		it("should properly accumulate the stack for replaying to the follow-up") {
 			implicit val testStackable: StackLike[Int, Int] = StackOnTens
 
-			val base = Transformer[Int].filter(_ == 42) :> Parser.first
+			val base = Transformer[Int].filter(_ == 42) into Parser.first
 			val input = List(
 				10, 20, -20, -10, // at this point the stack should go back to Nil
 				10, 11, 20, 21, 30, 31, // the 10, 20, and 30 should be saved on the stack and get replayed to the follow-up
@@ -323,7 +323,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 			}
 
 			val transformer = base.followedByStream(i => Transformer[Int].map(i - _))
-			(transformer :> Parser.toList).parseSeq(input) shouldEqual {
+			(transformer into Parser.toList).parseSeq(input) shouldEqual {
 				List(32, 22, 12, 41, 40, 39)
 			}
 		}
@@ -331,7 +331,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		it("should be able to end the follow-up parser if that parser would finish during the stack replay") {
 			implicit val testStackable: StackLike[Int, Int] = StackOnTens
 
-			val base = Transformer[Int].filter(_ == 42) :> Parser.firstOpt
+			val base = Transformer[Int].filter(_ == 42) into Parser.firstOpt
 
 			val parser = base.followedBy(_ => Parser.firstOpt)
 			parser.parseSeq(List(10, 42, 11)) shouldEqual Some(10)
@@ -341,7 +341,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		it("should `finish` the follow-up parser immediately if the base parser consumes the whole input and there is no stack") {
 			implicit val testStackable: StackLike[Int, Int] = StackOnTens
 
-			val base = Transformer[Int].filter(_ == 42) :> Parser.firstOpt
+			val base = Transformer[Int].filter(_ == 42) into Parser.firstOpt
 			val parser = base.followedBy(_ => Parser.firstOpt)
 
 			parser.parseSeq(List(1, 2, 3, 42)) shouldEqual None
@@ -349,8 +349,8 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 
 		it("should allow chaining of the followedBy relationship") {
 			implicit val testStackable: StackLike[Int, Int] = NoStackChanges
-			val find42 = Transformer[Int].filter(_ == 42) :> Parser.firstOpt
-			val find69 = Transformer[Int].filter(_ == 69) :> Parser.firstOpt
+			val find42 = Transformer[Int].filter(_ == 42) into Parser.firstOpt
+			val find69 = Transformer[Int].filter(_ == 69) into Parser.firstOpt
 			val getFirst = Parser.firstOpt[Int]
 
 			val parser = find42.followedBy(_42 => find69.followedBy(_69 => getFirst))
