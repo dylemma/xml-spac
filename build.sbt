@@ -61,7 +61,7 @@ lazy val xmlJavax = (project in file("xml-javax"))
 	.settings(testSettings: _*)
 	.settings(apiDocSettings: _*)
 	.settings(publishingSettings: _*)
-	.dependsOn(xml)
+	.dependsOn(xml % "compile->compile;test->test")
 
 lazy val json = (project in file("json"))
 	.settings(name := "json-spac")

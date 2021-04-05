@@ -3,6 +3,7 @@ package impl
 
 import scala.annotation.tailrec
 import scala.collection.AbstractIterator
+import scala.util.control.NonFatal
 
 class IteratorTransform[In, Out](itr: Iterator[In], transformer: Transformer[In, Out]) extends AbstractIterator[Out] {
 	private var emitItr: Iterator[Out] = Iterator.empty
@@ -15,6 +16,7 @@ class IteratorTransform[In, Out](itr: Iterator[In], transformer: Transformer[In,
 			emitItr.next() // will throw if `stepUntilEmit` was false
 		}
 	}
+
 	def hasNext = {
 		if (emitItr.hasNext) true
 		else stepUntilEmit()
@@ -28,7 +30,10 @@ class IteratorTransform[In, Out](itr: Iterator[In], transformer: Transformer[In,
 			// There is still a handler, which means we can try to feed inputs to it to get outputs
 			if (itr.hasNext) {
 				// feed the next input to the handler
-				val (nextEmit, contHandler) = handler.step(itr.next())
+				val in = itr.next()
+				val (nextEmit, contHandler) =
+					try handler.step(in)
+					catch { case NonFatal(e) => throw SpacException.addEarlyTrace(e, SpacTraceElement.InInput(in)) }
 				emitItr = nextEmit.iterator
 				nextHandler = contHandler
 				if (emitItr.hasNext) {
@@ -38,7 +43,9 @@ class IteratorTransform[In, Out](itr: Iterator[In], transformer: Transformer[In,
 				}
 			} else {
 				// no more inputs, so feed an EOF to the handler
-				emitItr = handler.finish().iterator
+				emitItr =
+					try handler.finish().iterator
+					catch { case NonFatal(e) => throw SpacException.addEarlyTrace(e, SpacTraceElement.AtInputEnd) }
 				nextHandler = None
 				emitItr.hasNext
 			}

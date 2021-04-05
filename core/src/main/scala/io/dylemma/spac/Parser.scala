@@ -211,10 +211,7 @@ trait Parser[-In, +Out] { self =>
 		@tailrec def loop(handler: Parser.Handler[In, Out]): Out = {
 			if (iterator.hasNext) {
 				val in = iterator.next()
-				val stepResult =
-					try handler.step(in)
-					catch { case NonFatal(e) => throw SpacException.addEarlyTrace(e, SpacTraceElement.InInput(in)) }
-				stepResult match {
+				handler.step(in) match {
 					case Left(out) => out
 					case Right(cont) => loop(cont)
 				}
@@ -223,7 +220,7 @@ trait Parser[-In, +Out] { self =>
 			}
 		}
 
-		loop(newHandler.asTopLevelHandler(SpacTraceElement.InParse("parseSeq", pos)))
+		loop(newHandler.asTopLevelHandler(SpacTraceElement.InParse("parseIterator", pos)))
 	}
 
 	/** Interpret the given `source` as a data stream of type `In`, using this parser to produce a result of type `Out`.
