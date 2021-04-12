@@ -36,6 +36,14 @@ package object json {
 			.parseToMap
 			.expectInputs[JsonEvent](List("a '{' token" -> { _.isObjectStart }))
 			.withName(s"JsonParser.objectOf[${ implicitly[TypeName[T]].value }]")
+
+		def objectOfNullable[T: TypeName : JsonParser]: JsonParser[Map[String, T]] = objectOfNullable[T](implicitly[JsonParser[T]])
+		def objectOfNullable[T: TypeName](parser: JsonParser[T]): JsonParser[Map[String, T]] = Splitter.json(anyField)
+			.map { field => nullable(parser).map(field -> _) }
+			.collect { case (field, Some(value)) => field -> value }
+			.parseToMap
+			.expectInputs[JsonEvent](List("a '{' token" -> { _.isObjectStart }))
+			.withName(s"JsonParser.objectOfNullable[${ implicitly[TypeName[T]].value }]")
 	}
 
 	implicit val jsonParserForPrimitiveString: JsonParser[String] = JsonParser.forPrimitive("a String value", _.asString.map(_.stringValue))

@@ -81,6 +81,25 @@ trait JsonParserBehaviors { this: AnyFunSpec with Matchers =>
 			}
 		}
 
+		describe("JsonParser.objectOfNullable") {
+			it should behave like basicParser("object", JsonParser.objectOfNullable[Int], """{ "a": 1, "b": null }""", Map("a" -> 1))
+			it("should work properly when the inner parser is complex") {
+				val json =
+					"""{
+					  | "x": {
+					  |  "foo": 3
+					  | },
+					  | "y": null,
+					  | "z": {
+					  |  "foo": 4
+					  | }
+					  |}
+				""".stripMargin
+				val fooParser = Splitter.json("foo").as[Int].parseFirst
+				JsonParser.objectOfNullable(fooParser).parse(json) should be(Map("x" -> 3, "z" -> 4))
+			}
+		}
+
 		describe("JsonParser.oneOf") {
 			it("should succeed if the input causes one of the parsers to succeed") {
 				val oneOf = JsonParser.oneOf[Any](JsonParser[Int], JsonParser[String], JsonParser[Boolean])
