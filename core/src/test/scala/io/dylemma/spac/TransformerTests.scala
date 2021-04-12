@@ -47,7 +47,7 @@ class TransformerTests extends AnyFunSpec with Matchers with ScalaCheckPropertyC
 			val t = Transformer[Int].map(_ * 2)
 			val p = Parser[Int].toList
 			forAll { (list: List[Int]) =>
-				(t into p).parseSeq(list) shouldEqual list.map(_ * 2)
+				(t into p).parse(list) shouldEqual list.map(_ * 2)
 			}
 		}
 
@@ -65,7 +65,7 @@ class TransformerTests extends AnyFunSpec with Matchers with ScalaCheckPropertyC
 			val p = Transformer[Int].take(1) into Parser.toList
 			forAll { (list: List[Int]) =>
 				whenever(list.nonEmpty) {
-					p.parseSeq(list) shouldEqual List(list.head)
+					p.parse(list) shouldEqual List(list.head)
 				}
 			}
 		}
@@ -73,7 +73,7 @@ class TransformerTests extends AnyFunSpec with Matchers with ScalaCheckPropertyC
 		it("should finish the parser when the input ends") {
 			val p = Transformer[Int].map(_ * 2) into Parser.toList
 			forAll { (list: List[Int]) =>
-				p.parseSeq(list) shouldEqual list.map(_ * 2)
+				p.parse(list) shouldEqual list.map(_ * 2)
 			}
 		}
 	}

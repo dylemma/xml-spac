@@ -1,5 +1,6 @@
-package io.dylemma
-package spac
+package io.dylemma.spac.impl
+
+import io.dylemma.spac.{Emit, Transformer}
 
 class TransformerScan[In, Out](init: Out, op: (Out, In) => Out) extends Transformer[In, Out] {
 	def newHandler = new TransformerScan.Handler(init, op)

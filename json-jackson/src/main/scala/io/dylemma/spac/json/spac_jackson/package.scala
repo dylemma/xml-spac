@@ -1,20 +1,28 @@
 package io.dylemma.spac
 package json
 
-import cats.effect.Sync
+import cats.effect.{Sync, SyncIO}
 import com.fasterxml.jackson.core.JsonFactory
+import io.dylemma.spac.impl.ParsableByIterator
 
 package object spac_jackson {
 
-	implicit def jacksonParserAsImpureJsonPull[F[+_], R](
+	implicit def jacksonParsableAsParsableF[F[_], S](
 		implicit F: Sync[F],
-		intoJacksonJsonParser: IntoJacksonJsonParser[F, R],
-		factory: JsonFactory = defaultJacksonParserFactory
-	): ToPullable[F, R, JsonEvent] = {
-		new ToPullable[F, R, JsonEvent] {
-			def apply(source: R) = intoJacksonJsonParser(factory, source).map[F[*], Pullable[F, JsonEvent]](JacksonJsonPullable(_))
+		S: IntoJacksonJsonParser[F, S],
+		factory: JsonFactory = JacksonSource.defaultFactory,
+		chunkSize: ChunkSize = ChunkSize.default,
+	): Parsable[F, S, JsonEvent] = {
+		Parsable.forFs2Stream[F, JsonEvent].contramapSource(JacksonSource[F](_))
+	}
+
+	implicit def jacksonParsableAsParsable[S](
+		implicit S: IntoJacksonJsonParser[SyncIO, S],
+		factory: JsonFactory = JacksonSource.defaultFactory,
+	): Parsable[cats.Id, S, JsonEvent] = new ParsableByIterator[S, JsonEvent] {
+		protected def lendIterator[Out](source: S, f: Iterator[JsonEvent] => Out) = {
+			JacksonSource.syncIO.iteratorResource(source).use(itr => SyncIO { f(itr) }).unsafeRunSync()
 		}
 	}
 
-	lazy val defaultJacksonParserFactory: JsonFactory = new JsonFactory
 }

@@ -131,7 +131,7 @@ package object xml {
 		  * @tparam C The context type returned by the `matcher`
 		  * @return A new Splitter that splits the source into sub-streams identified by the `matcher`
 		  */
-		def xml[C](matcher: ContextMatcher[XmlEvent.ElemStart, C])(implicit pos: util.Pos): XmlSplitter[C] = splitter.fromMatcher(matcher)
+		def xml[C](matcher: ContextMatcher[XmlEvent.ElemStart, C])(implicit pos: CallerPos): XmlSplitter[C] = splitter.fromMatcher(matcher)
 	}
 
 	// ----------------------------------------------------------------------------

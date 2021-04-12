@@ -2,30 +2,19 @@ package io.dylemma.spac
 package xml
 package spac_javax
 
-import cats.effect.{Resource, Sync}
 import javax.xml.namespace.QName
-import javax.xml.stream.{Location, XMLStreamReader}
+import javax.xml.stream.{Location, XMLStreamException, XMLStreamReader}
 
-object WrappedStreamReader {
-	def resourceAsXmlPull[F[+_]](resource: Resource[F, WrappedStreamReader])(implicit F: Sync[F]): Resource[F, Pullable[F, XmlEvent]] = resource
-		.map[F[*], Pullable[F, XmlEvent]] { reader => // the type hint on `.map` seems to be necessary in scala 2.12
-			new Pullable[F, XmlEvent] { self =>
-				def uncons: F[Option[(XmlEvent, Pullable[F, XmlEvent])]] = F.delay {
-					if(reader.hasNext) Some(reader.next() -> self)
-					else None
-				}
-			}
-		}
-}
-
-class WrappedStreamReader(reader: XMLStreamReader) extends Iterator[XmlEvent] with AutoCloseable {
+/** Used internally by `JavaxSource` as part of the conversion from a "source" to a `Stream[F, XmlEvent]`.
+  */
+private[spac_javax] class WrappedStreamReader(reader: XMLStreamReader) extends Iterator[XmlEvent] with AutoCloseable {
 	def close(): Unit = reader.close()
 	def hasNext: Boolean = {
-		while(nextEvent.isEmpty && reader.hasNext) advanceToNext()
+		while(nextEvent.isEmpty && reader.hasNext) tryAdvanceToNext()
 		nextEvent.isDefined
 	}
 	def next(): XmlEvent = {
-		while(nextEvent.isEmpty && reader.hasNext) advanceToNext()
+		while(nextEvent.isEmpty && reader.hasNext) tryAdvanceToNext()
 		nextEvent match {
 			case Some(e) =>
 				nextEvent = None
@@ -36,6 +25,23 @@ class WrappedStreamReader(reader: XMLStreamReader) extends Iterator[XmlEvent] wi
 	}
 
 	private var nextEvent: Option[XmlEvent] = None
+	private var lastCheckedLocation: Option[ContextLocation] = None
+
+	private def updateCheckedLocation(f: => ContextLocation) = {
+		val result = f
+		lastCheckedLocation = Some(result)
+		result
+	}
+
+	private def tryAdvanceToNext() = {
+		try advanceToNext()
+		catch { case e: XMLStreamException =>
+			lastCheckedLocation match {
+				case None => throw e
+				case Some(loc) => throw SpacException.addTrace(e, SpacTraceElement.NearLocation(loc))
+			}
+		}
+	}
 
 	private def advanceToNext(): Unit = {
 		if(reader.hasNext) {
@@ -67,7 +73,9 @@ class WrappedStreamReader(reader: XMLStreamReader) extends Iterator[XmlEvent] wi
 		}
 	}
 
-	private def getContextLocation(loc: Location): ContextLocation = {
+
+
+	private def getContextLocation(loc: Location): ContextLocation = updateCheckedLocation {
 		var result = ContextLocation.empty
 		if(loc == null) result
 		else {

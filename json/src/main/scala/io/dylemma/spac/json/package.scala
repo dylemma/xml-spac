@@ -72,7 +72,7 @@ package object json {
 		  * @tparam C The type of the "context" matched by the `matcher`
 		  * @return A new JsonSplitter that will split a stream into sub-streams identified by the `matcher`
 		  */
-		def json[C](matcher: ContextMatcher[JsonStackElem, C])(implicit pos: util.Pos): JsonSplitter[C] = splitter.fromMatcher(matcher)
+		def json[C](matcher: ContextMatcher[JsonStackElem, C])(implicit pos: CallerPos): JsonSplitter[C] = splitter.fromMatcher(matcher)
 	}
 
 	// ------------------------------------------------------

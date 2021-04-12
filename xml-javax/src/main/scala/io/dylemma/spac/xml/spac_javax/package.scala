@@ -1,33 +1,46 @@
 package io.dylemma.spac
 package xml
 
-import cats.effect.{Resource, Sync}
+import cats.effect.{Sync, SyncIO}
+import io.dylemma.spac.impl.ParsableByIterator
 import javax.xml.XMLConstants
 import javax.xml.namespace.QName
 import javax.xml.stream.XMLInputFactory
 
 /** Provides support for `javax.xml.stream` to be used with `io.dylemma.spac.xml`.
   *
-  * Provides an implicit `AsXmlPull` instance for the following types that can be plugged into a `javax.xml.stream.XMLInputFactory` to create an XMLStreamReader:
+  * Provides an implicit `Parsable` instance for the following types that can be plugged into a `javax.xml.stream.XMLInputFactory` to create an XMLStreamReader:
   *
   *  - `String`
   *  - `File`
   *  - `Resource[F, java.io.InputStream]`
   *  - `Resource[F, java.io.Reader]`
   *
-  * Note that because javax's `XMLStreamReader` is internally mutable, the resulting XmlPull instances will not be referentially transparent.
+  * A rough outline of the derivation/implementation of a `Parsable[F, Source]` is:
+  * {{{
+  *    Source -> Resource[F, XMLInputFactory] -> Stream[F, XmlEvent] -> Parsable[Source]
+  * }}}
   */
 package object spac_javax {
+
 	/** Allows types which can be opened as a javax XMLStreamReader to be passed to an XmlParser's `parse` method.
 	  * The "open as javax XMLStreamReader" logic is defined by the `IntoXmlStreamReader` typeclass.
 	  */
-	implicit def xmlStreamReadableAsImpureXmlPull[F[+_], R](implicit F: Sync[F], intoXmlStreamReader: IntoXmlStreamReader[F, R], factory: XMLInputFactory = defaultFactory): ToPullable[F, R, XmlEvent] = new ToPullable[F, R, XmlEvent] {
-		def apply(source: R): Resource[F, Pullable[F, XmlEvent]] = {
-			val readerResource: Resource[F, WrappedStreamReader] = intoXmlStreamReader(factory, source)
-				.flatMap[F[*], WrappedStreamReader] { streamReader => // the explicit type hint seems to be necessary on scala 2.12
-					Resource.fromAutoCloseable(F.delay {new WrappedStreamReader(streamReader)})
-				}
-			WrappedStreamReader.resourceAsXmlPull(readerResource)
+	implicit def xmlStreamReadableAsParsableF[F[_], S](
+		implicit F: Sync[F],
+		S: IntoXmlStreamReader[F, S],
+		factory: XMLInputFactory = JavaxSource.defaultFactory,
+		chunkSize: ChunkSize = ChunkSize.default
+	): Parsable[F, S, XmlEvent] = {
+		Parsable.forFs2Stream[F, XmlEvent].contramapSource(JavaxSource[F](_))
+	}
+
+	implicit def xmlStreamReadableAsParsable[S](
+		implicit S: IntoXmlStreamReader[SyncIO, S],
+		factory: XMLInputFactory = JavaxSource.defaultFactory,
+	): Parsable[cats.Id, S, XmlEvent] = new ParsableByIterator[S, XmlEvent] {
+		protected def lendIterator[Out](source: S, f: Iterator[XmlEvent] => Out) = {
+			JavaxSource.syncIO.iteratorResource(source).use(itr => SyncIO { f(itr) }).unsafeRunSync()
 		}
 	}
 
@@ -48,10 +61,4 @@ package object spac_javax {
 		}
 	}
 
-	lazy val defaultFactory: XMLInputFactory = {
-		val factory = XMLInputFactory.newInstance
-		factory.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, false)
-		factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false)
-		factory
-	}
 }

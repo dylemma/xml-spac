@@ -9,7 +9,7 @@ import org.scalatest.matchers.should.Matchers
 class JavaxInteropTests extends AnyFunSpec with Matchers with XmlErrorHandlingBehaviors {
 	describe("XML with Javax support") {
 		describe("Exception 'spac' trace handling") {
-			it should behave like jsonParserWithStringSource
+			it should behave like xmlParserWithStringSource
 		}
 	}
 }

@@ -7,7 +7,7 @@ import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 
 trait JsonParserBehaviors { this: AnyFunSpec with Matchers =>
-	def jsonParserWithStringSource(implicit toPullable: ToPullable[SyncIO, String, JsonEvent]) = {
+	def jsonParserWithStringSource(implicit parsable: Parsable[cats.Id, String, JsonEvent]) = {
 
 		def basicParser[A](successType: String, parser: JsonParser[A], successInput: String, expected: A): Unit = {
 			val failInputs = List(

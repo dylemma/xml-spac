@@ -18,7 +18,7 @@ object SpacTraceElement {
 	/** The bottom of a typical SpacException's `spacTrace`, representing the specific `parse` method
 	  * that was called in order to run the parser, and the location of the caller.
 	  */
-	case class InParse(methodName: String, callerPos: util.Pos) extends SpacTraceElement {
+	case class InParse(methodName: String, callerPos: CallerPos) extends SpacTraceElement {
 		def render = {
 			s"$methodName - ${callerPos.render}"
 		}
@@ -27,7 +27,7 @@ object SpacTraceElement {
 	/** Indicates the usage of a splitter, and the source location that constructed that splitter.
 	  * Generally, the `splitterNote` will be the `.toString` of whichever ContextMatcher was used to construct the splitter.
 	  */
-	case class InSplitter(splitterNote: String, pos: util.Pos) extends SpacTraceElement {
+	case class InSplitter(splitterNote: String, pos: CallerPos) extends SpacTraceElement {
 		def render = {
 			s"Splitter(${truncateNote(splitterNote)}) - ${pos.render}"
 		}
@@ -53,6 +53,18 @@ object SpacTraceElement {
 	case object AtInputEnd extends SpacTraceElement {
 		def render = {
 			"InputEnd"
+		}
+	}
+
+	/** Used when an error occurs in an underlying parser (e.g. javax or jackson)
+	  * to indicate the location of the last successfully-parsed token.
+	  * Happens for example when parsing invalid XML or JSON.
+	  *
+	  * @param location
+	  */
+	case class NearLocation(location: ContextLocation) extends SpacTraceElement {
+		def render = {
+			s"Near($location)"
 		}
 	}
 

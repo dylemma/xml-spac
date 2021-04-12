@@ -85,7 +85,7 @@ object Splitter {
 	  * For inputs that cause a push or pop to the stack, whether that input is included as "inside"
 	  * the pushed context is up to the specific `StackLike` implementation.
 	  */
-	def fromMatcher[In, Elem, C](matcher: ContextMatcher[Elem, C])(implicit S: StackLike[In, Elem], pos: util.Pos): Splitter[In, C] = new SplitterByContextMatch(matcher, pos)
+	def fromMatcher[In, Elem, C](matcher: ContextMatcher[Elem, C])(implicit S: StackLike[In, Elem], pos: CallerPos): Splitter[In, C] = new SplitterByContextMatch(matcher, pos)
 
 	/** Create a splitter that starts a new substream every time the `matcher` matches.
 	  * Any events passed through before the initial match will be discarded, but every event
@@ -162,7 +162,7 @@ object Splitter {
 
 class SplitterApplyWithBoundInput[In] {
 	/** See `Splitter.fromMatcher` */
-	def fromMatcher[Elem, C](matcher: ContextMatcher[Elem, C])(implicit S: StackLike[In, Elem], pos: util.Pos): Splitter[In, C] = Splitter.fromMatcher(matcher)
+	def fromMatcher[Elem, C](matcher: ContextMatcher[Elem, C])(implicit S: StackLike[In, Elem], pos: CallerPos): Splitter[In, C] = Splitter.fromMatcher(matcher)
 	/** See `Splitter.splitOnMatch` */
 	def splitOnMatch[C](matcher: PartialFunction[In, C]): Splitter[In, C] = Splitter.splitOnMatch(matcher)
 	/** See `Splitter.splitOnMatch` */

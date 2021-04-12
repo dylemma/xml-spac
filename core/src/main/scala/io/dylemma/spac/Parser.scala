@@ -1,15 +1,14 @@
 package io.dylemma.spac
 
 import cats.data.Chain
-import cats.effect.{Bracket, SyncIO}
+import cats.effect.{Sync, SyncIO}
 import cats.{Applicative, Monad}
+import fs2.{Pipe, Stream}
 import io.dylemma.spac.impl._
-import io.dylemma.spac.types.Unconsable
 import org.tpolecat.typename.TypeName
 
 import scala.annotation.tailrec
 import scala.util.Try
-import scala.util.control.NonFatal
 
 /** Primary "spac" abstraction which represents a sink for data events.
   *
@@ -156,7 +155,7 @@ trait Parser[-In, +Out] { self =>
 	  * @return A parser which will perform an early `finish()` when a matching context is encountered
 	  * @group combinators
 	  */
-	def beforeContext[I2 <: In, StackElem](matcher: ContextMatcher[StackElem, Any])(implicit stackable: StackLike[I2, StackElem], pos: util.Pos): Parser[I2, Out] = {
+	def beforeContext[I2 <: In, StackElem](matcher: ContextMatcher[StackElem, Any])(implicit stackable: StackLike[I2, StackElem], pos: CallerPos): Parser[I2, Out] = {
 		// use ContextMatchSplitter to drive the stackable+matcher together, and pipe it into a parser that returns when a ContextPush is interpreted,
 		// i.e. the `interrupter` will yield a result upon entering a context matched by the `matcher`
 		interruptedBy { Splitter[I2].fromMatcher(matcher).addBoundaries.collect { case Left(ContextPush(_, _)) => () } into Parser.firstOpt }
@@ -175,106 +174,33 @@ trait Parser[-In, +Out] { self =>
 	  */
 	def asTransformer: Transformer[In, Out] = new ParserAsTransformer(this)
 
-	/** Specialization of `parse` that skips the resource-allocation step and instead directly consumes the `source` as if it were a `List[In]`.
-	  *
-	  * Note that any `source` that can be passed to this method can also be passed to `parse`, since a `ToPullable[SyncIO, C[In], In]` exists
-	  * for any `C` that belongs to the `Unconsable` typeclass. However, this method should be a tiny bit more efficient since the underlying
-	  * operations don't deal with effects.
-	  *
-	  * @param source   A sequence of `In` values, represented as some collection that can be consumed via an `uncons` operation
-	  * @param srcAsSeq Typeclass instance that knows how to split the `source` into a `head` and `tail`
-	  * @param pos      Captures the caller filename and line number, used to fill in the 'spac trace' if the parser throws an exception
-	  * @tparam C   A collection type with an efficient `uncons` operation. Out of the box, only `List` and `cats.data.Chain` are included
-	  * @tparam In2 Either `In` or a subtype of `In` (to satisfy contravariance of the `In` type on Parser)
-	  * @group consumers
-	  */
-	@throws[SpacException[_]]
-	def parseSeq[C[_], In2 <: In](source: C[In2])(implicit srcAsSeq: Unconsable[C], pos: util.Pos): Out = {
-		newHandler.asTopLevelHandler(SpacTraceElement.InParse("parseSeq", pos)).stepMany(source) match {
-			case Left((out, _)) => out
-			case Right(cont) => cont.finish()
-		}
-	}
-
-	/** Specialization of `parse` which operates on a raw Iterator of inputs.
-	  *
-	  * Creates a new handler, and pulls values from the iterator until the handler produces a result.
-	  * If the iterator ends before the handler produces a result, the handler's `finish` method will be called.
-	  *
-	  * This method does not concern itself with resource management, it simply consumes the iterator.
-	  *
-	  * @param iterator An iterator of `In` values
-	  * @param pos      Captures the caller filename and line number, used to fill in the 'spac trace' if the parser throws an exception
-	  * @return The parse result
-	  * @group consumers
-	  */
-	@throws[SpacException[_]]
-	def parseIterator(iterator: Iterator[In])(implicit pos: util.Pos): Out = {
-		@tailrec def loop(handler: Parser.Handler[In, Out]): Out = {
-			if (iterator.hasNext) {
-				val in = iterator.next()
-				handler.step(in) match {
-					case Left(out) => out
-					case Right(cont) => loop(cont)
-				}
-			} else {
-				handler.finish()
-			}
-		}
-
-		loop(newHandler.asTopLevelHandler(SpacTraceElement.InParse("parseIterator", pos)))
-	}
-
 	/** Interpret the given `source` as a data stream of type `In`, using this parser to produce a result of type `Out`.
 	  * Exceptions thrown by the underlying parser logic will bubble up and be thrown by this method.
 	  *
-	  * @param source        The source of a data stream
-	  * @param srcToPullable Typeclass instance that provides the capability to interpret the `source` as a "pullable" data stream
-	  * @param pos           Captures the caller filename and line number, used to fill in the 'spac trace' if the parser throws an exception
-	  * @tparam Src The source type. Will typically be a `File` or a `List[In]`.
+	  * @param source The source of a data stream
+	  * @param S      Typeclass instance that provides the logic for feeding values from `source` into this parser
+	  * @param pos    Captures the caller filename and line number, used to fill in the 'spac trace' if the parser throws an exception
+	  * @tparam S The source type. Will typically be a `File` or a `List[In]`.
 	  * @return
 	  * @group consumers
 	  */
 	@throws[SpacException[_]]
-	def parse[Src](source: Src)(implicit srcToPullable: ToPullable[SyncIO, Src, In], pos: util.Pos): Out = {
-		parsePullable[SyncIO, Src](source, SpacTraceElement.InParse("parse", pos)).unsafeRunSync()
+	def parse[S](source: S)(implicit S: Parsable[cats.Id, S, In], pos: CallerPos): Out = {
+		S.parse[Out](source, SpacTraceElement.InParse("parse", pos), this)
 	}
 
-	/** Interpret the given `source` as a data stream of type `In`, using this parser to produce a result of type `Out`.
-	  * In this version of the `parse` method, the data-pull and handler logic is run in the `F` context.
-	  * Exceptions thrown by the underlying parser logic will be raised in the F context instead of thrown.
+	/** Convert this parser to a FS2 "Pipe".
+	  * The resulting pipe will forward inputs from the upstream into this parser,
+	  * emitting a single value to the downstream when this parser finishes.
+	  * Since a `Parser` may abort early (e.g. with `Parser.first`),
+	  * the pipe may not pull the entire input stream.
 	  *
-	  * @param source        The source of a data stream
-	  * @param srcToPullable Typeclass instance that provides the capability to interpret the `source` as a "pullable" data stream
-	  * @param pos           Captures the caller filename and line number, used to fill in the 'spac trace' if the parser throws an exception
-	  * @param F             Monad for the `F` context
-	  * @param Fb            try/catch logic for the `F` context
-	  * @tparam F   An effect type in which the data-pull and handler logic will be run
-	  * @tparam Src The source type. Will typically be a `File` or a `List[In]`.
-	  * @return An effect which, when evaluated, will consume data events from the `source` using this parser to produce a result.
-	  *         Note that if the `F` type isn't "lazy", the actual evaluation of the stream may happen as part of the *construction*
-	  *         of the `F[Out]`, rather than during the *evaluation*.
-	  * @group consumers
+	  * @param pos
+	  * @tparam F
+	  * @return
 	  */
-	def parseF[F[+_], Src](source: Src)(implicit srcToPullable: ToPullable[F, Src, In], F: Monad[F], Fb: Bracket[F, Throwable], pos: util.Pos): F[Out] = {
-		parsePullable(source, SpacTraceElement.InParse("parseF", pos))
-	}
+	def toPipe[F[_]](implicit pos: CallerPos): Pipe[F, In, Out] = ParserToPipe(this, SpacTraceElement.InParse("toPipe", pos))
 
-	protected def parsePullable[F[+_], Src](source: Src, callerFrame: SpacTraceElement)(implicit srcToPullable: ToPullable[F, Src, In], F: Monad[F], Fb: Bracket[F, Throwable]): F[Out] = {
-		srcToPullable(source).use[F[+*], Out] { srcPullable =>
-			F.tailRecM(srcPullable -> newHandler.asTopLevelHandler(callerFrame)) { case (inputs, handler) =>
-				F.map(inputs.uncons) {
-					case Some((in, nextInputs)) =>
-						handler.step(in) match {
-							case Left(result) => Right(result)
-							case Right(cont) => Left(nextInputs -> cont)
-						}
-					case None =>
-						Right(handler.finish())
-				}
-			}
-		}
-	}
 }
 
 /** Convenience version of the `Parser` companion object, which provides parser constructors with the `In` type already specified.
@@ -374,6 +300,27 @@ object Parser {
 		  * Used internally by `Parser`'s `parse` methods.
 		  */
 		def asTopLevelHandler(caller: SpacTraceElement): Handler[In, Out] = new TopLevelParserHandler(this, caller)
+	}
+
+	implicit final class InvariantOps[In, Out](private val self: Parser[In, Out]) extends AnyVal {
+		/** Interpret the given `source` as a data stream of type `In`, using this parser to produce a result of type `Out`.
+		  * In this version of the `parse` method, the data-pull and handler logic is run in the `F` context.
+		  * Exceptions thrown by the underlying parser logic will be raised in the F context instead of thrown.
+		  *
+		  * @param source The source of a data stream
+		  * @param S      Typeclass instance that provides the logic for feeding values from `source` into this parser
+		  * @param pos    Captures the caller filename and line number, used to fill in the 'spac trace' if the parser throws an exception
+		  * @param F      Monad for the `F` context
+		  * @tparam F An effect type in which the data-pull and handler logic will be run
+		  * @tparam S The source type. Will typically be a `File` or a `List[In]`.
+		  * @return An effect which, when evaluated, will consume data events from the `source` using this parser to produce a result.
+		  *         Note that if the `F` type isn't "lazy", the actual evaluation of the stream may happen as part of the *construction*
+		  *         of the `F[Out]`, rather than during the *evaluation*.
+		  * @group consumers
+		  */
+		def parseF[F[_], S](source: S)(implicit S: Parsable[F, S, In], F: Monad[F], pos: CallerPos): F[Out] = {
+			S.parse[Out](source, SpacTraceElement.InParse("parseF", pos), self)
+		}
 	}
 
 	/** Convenience for creating parsers whose input type is bound to `In`.

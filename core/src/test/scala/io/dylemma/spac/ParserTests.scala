@@ -48,7 +48,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 			}
 			it("should not throw the exception until the base parser has yielded a result") {
 				forAll { (list: List[Int]) =>
-					countPullsIn(list) { s => intercept[Exception] { errorProneParser.parse(s) } } shouldEqual (list.size + 1)
+					countPullsIn(list) { s => intercept[Exception] { errorProneParser.parse(s) } } shouldEqual list.size
 				}
 			}
 		}
@@ -117,14 +117,14 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 
 		it("should wrap a successful parser's result in a `Right`") {
 			forAll { (list: List[Int]) =>
-				p1.attempt.parseSeq(list) shouldEqual Right(42)
+				p1.attempt.parse(list) shouldEqual Right(42)
 			}
 		}
 		it("should catch an exception thrown by a failed parser if the Err type is Throwable") {
-			p2.attempt.parseSeq(Nil) should matchPattern { case Left(e: SpacException.MissingFirstException[_]) => }
-			p2.attempt.parseSeq(List("hi")) should matchPattern { case Left(e: NumberFormatException) => }
-			p2.attempt.parseSeq(List("42")) shouldEqual Right(42)
-			pErr.attempt.parseSeq(List("...")) shouldEqual Left(err)
+			p2.attempt.parse(Nil) should matchPattern { case Left(e: SpacException.MissingFirstException[_]) => }
+			p2.attempt.parse(List("hi")) should matchPattern { case Left(e: NumberFormatException) => }
+			p2.attempt.parse(List("42")) shouldEqual Right(42)
+			pErr.attempt.parse(List("...")) shouldEqual Left(err)
 		}
 	}
 
@@ -134,11 +134,11 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		val p2 = Parser.pure(Failure(err))
 
 		it("should unwrap a Success result as a plain result instead") {
-			p1.unwrapSafe.parseSeq(List(1, 2, 3)) shouldEqual 42
+			p1.unwrapSafe.parse(List(1, 2, 3)) shouldEqual 42
 		}
 
 		it("should treat a successful `Failure` result as an error in the effect context instead") {
-			intercept[Exception] { p2.unwrapSafe.parseSeq(List(1, 2, 3)) } should matchPattern { case SpacException.CaughtError(`err`) => }
+			intercept[Exception] { p2.unwrapSafe.parse(List(1, 2, 3)) } should matchPattern { case SpacException.CaughtError(`err`) => }
 		}
 	}
 
@@ -153,13 +153,13 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		it("should not interrupt the underlying parser if all of the inputs match the expectations") {
 			forAll { (tail: List[Int]) =>
 				val list = 1 :: 2 :: 3 :: tail
-				p2.parseSeq(list) shouldEqual list
+				p2.parse(list) shouldEqual list
 			}
 		}
 
 		it("should raise an UnfulfilledInputsException which lists the remaining expected inputs, upon encountering an early EOF") {
 			def expectUnfulfilled(expectations: List[String], inputs: List[Int]) = {
-				intercept[SpacException.UnfulfilledInputsException] { p2.parseSeq(inputs) }
+				intercept[SpacException.UnfulfilledInputsException] { p2.parse(inputs) }
 					.expectations.shouldEqual(expectations)
 			}
 
@@ -170,7 +170,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 
 		it("should raise an UnexpectedInputException which lists the current and remaining expected inputs, upon encountering an input that doesn't match the predicate") {
 			def expectUnexpected(unexpected: Int, expectations: List[String], inputs: List[Int]) = {
-				val captured = intercept[SpacException.UnexpectedInputException[Int]] { p2.parseSeq(inputs) }
+				val captured = intercept[SpacException.UnexpectedInputException[Int]] { p2.parse(inputs) }
 				captured.expectations shouldEqual expectations
 				captured.input shouldEqual unexpected
 			}
@@ -189,12 +189,12 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		it("should proceed normally if the interrupter never yields a result") {
 			forAll { (_list: List[Int]) =>
 				val list = _list.filterNot(_ == 0) // 0 is the interruption criteria
-				parser.parseSeq(list) shouldEqual list
+				parser.parse(list) shouldEqual list
 			}
 		}
 
 		it("should stop parsing when the interrupter yields a result, not sending the input that triggered the interruption") {
-			parser.parseSeq(List(3, 2, 1, 0, 5, 4, 3, 2, 1)) shouldEqual List(3, 2, 1)
+			parser.parse(List(3, 2, 1, 0, 5, 4, 3, 2, 1)) shouldEqual List(3, 2, 1)
 		}
 
 		it("should bubble up exceptions thrown by the interrupter") {
@@ -212,8 +212,8 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 				if (nextSum > 5) throw dummyException else nextSum
 			}
 			val pE = p2.interruptedBy(interrupter)
-			pE.parseSeq(List(1, 1, 1, 1)) shouldEqual 4
-			intercept[Exception] { pE.parseSeq(List(1, 2, 3, 4)) } should matchPattern { case SpacException.CaughtError(`dummyException`) => }
+			pE.parse(List(1, 1, 1, 1)) shouldEqual 4
+			intercept[Exception] { pE.parse(List(1, 2, 3, 4)) } should matchPattern { case SpacException.CaughtError(`dummyException`) => }
 		}
 	}
 
@@ -234,7 +234,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		}
 
 		it("should not interrupt the main parser if the `matcher` never causes a ContextPush") {
-			parser.parseSeq(List(
+			parser.parse(List(
 				0 -> "A",
 				0 -> "B",
 				1 -> "C", // stack push "C"
@@ -243,7 +243,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 		}
 
 		it("should interrupt the main parser immediately when the `matcher` causes a ContextPush") {
-			parser.parseSeq(List(
+			parser.parse(List(
 				0 -> "A",
 				1 -> "one", // stack push "one"
 				1 -> "two", // stack push "two" --> `matcher` should match here and interrupt the toList parser
@@ -271,12 +271,12 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 			val base = Parser[Int].first.withName("base")
 
 			val parser = base.followedBy { i => Transformer[Int].map(_ * i) into Parser.toList.withName("toList") }
-			parser.parseSeq(List(1, 2, 3, 4)) shouldEqual List(2, 3, 4)
-			parser.parseSeq(List(2, 3, 4, 5)) shouldEqual List(6, 8, 10)
+			parser.parse(List(1, 2, 3, 4)) shouldEqual List(2, 3, 4)
+			parser.parse(List(2, 3, 4, 5)) shouldEqual List(6, 8, 10)
 
 			val transformer = base.followedByStream { i => Transformer[Int].map(_ * i) }
-			(transformer into Parser.toList).parseSeq(List(1, 2, 3, 4)) shouldEqual List(2, 3, 4)
-			(transformer into Parser.toList).parseSeq(List(2, 3, 4, 5)) shouldEqual List(6, 8, 10)
+			(transformer into Parser.toList).parse(List(1, 2, 3, 4)) shouldEqual List(2, 3, 4)
+			(transformer into Parser.toList).parse(List(2, 3, 4, 5)) shouldEqual List(6, 8, 10)
 		}
 
 		it("should feed the stack-accumulating events to the follow-up parser before continuing") {
@@ -292,12 +292,12 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 			)
 
 			val parser = base.followedBy(initialList => Parser[Int].toList.map(initialList -> _))
-			parser.parseSeq(input) shouldEqual {
+			parser.parse(input) shouldEqual {
 				List(5, 6, 7) -> List(10, 9, 8, 7)
 			}
 
 			val transformer = base.followedByStream(initialList => Transformer[Int].map(initialList -> _))
-			(transformer into Parser.toList).parseSeq(input) shouldEqual List(
+			(transformer into Parser.toList).parse(input) shouldEqual List(
 				List(5, 6, 7) -> 10,
 				List(5, 6, 7) -> 9,
 				List(5, 6, 7) -> 8,
@@ -318,12 +318,12 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 			)
 
 			val parser = base.followedBy(_ => Parser.toList)
-			parser.parseSeq(input) shouldEqual {
+			parser.parse(input) shouldEqual {
 				List(10, 20, 30, 1, 2, 3)
 			}
 
 			val transformer = base.followedByStream(i => Transformer[Int].map(i - _))
-			(transformer into Parser.toList).parseSeq(input) shouldEqual {
+			(transformer into Parser.toList).parse(input) shouldEqual {
 				List(32, 22, 12, 41, 40, 39)
 			}
 		}
@@ -334,8 +334,8 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 			val base = Transformer[Int].filter(_ == 42) into Parser.firstOpt
 
 			val parser = base.followedBy(_ => Parser.firstOpt)
-			parser.parseSeq(List(10, 42, 11)) shouldEqual Some(10)
-			parser.parseSeq(List(42, 11)) shouldEqual Some(11)
+			parser.parse(List(10, 42, 11)) shouldEqual Some(10)
+			parser.parse(List(42, 11)) shouldEqual Some(11)
 		}
 
 		it("should `finish` the follow-up parser immediately if the base parser consumes the whole input and there is no stack") {
@@ -344,7 +344,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 			val base = Transformer[Int].filter(_ == 42) into Parser.firstOpt
 			val parser = base.followedBy(_ => Parser.firstOpt)
 
-			parser.parseSeq(List(1, 2, 3, 42)) shouldEqual None
+			parser.parse(List(1, 2, 3, 42)) shouldEqual None
 		}
 
 		it("should allow chaining of the followedBy relationship") {

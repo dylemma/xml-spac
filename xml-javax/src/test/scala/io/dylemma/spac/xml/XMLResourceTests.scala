@@ -82,7 +82,7 @@ class XMLResourceTests extends AnyFunSpec with Matchers {
 						super.close()
 					}
 				}
-				val nonClosingResource = Resource.liftF(SyncIO.pure(in))
+				val nonClosingResource = Resource.eval(SyncIO.pure(in))
 				assert(!attemptedClose, "Stream should not be closed initially")
 				XmlParser.forText.parse(nonClosingResource) shouldEqual "hi"
 				assert(!attemptedClose, "Stream should not be closed after being `.parse`d")
@@ -98,7 +98,7 @@ class XMLResourceTests extends AnyFunSpec with Matchers {
 						super.close()
 					}
 				}
-				val nonClosingSource = Resource.liftF(SyncIO.pure(reader))
+				val nonClosingSource = Resource.eval(SyncIO.pure(reader))
 				XmlParser.forText.parse(nonClosingSource)
 				attemptedClose should be(false)
 			}

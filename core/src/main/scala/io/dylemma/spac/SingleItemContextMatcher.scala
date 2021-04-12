@@ -1,7 +1,5 @@
 package io.dylemma.spac
 
-import io.dylemma.spac.types.TypeReduce
-
 import scala.collection.IndexedSeq
 
 /** Specialization of ContextMatcher which only checks the first element in the stack for matching operations.

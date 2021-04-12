@@ -3,7 +3,7 @@ package impl
 
 import cats.data.Chain
 
-case class SplitterByContextMatch[In, Elem, C](matcher: ContextMatcher[Elem, C], matcherPos: util.Pos)(implicit S: StackLike[In, Elem]) extends Splitter[In, C] {
+case class SplitterByContextMatch[In, Elem, C](matcher: ContextMatcher[Elem, C], matcherPos: CallerPos)(implicit S: StackLike[In, Elem]) extends Splitter[In, C] {
 	val addBoundaries = Transformer
 		.spacFrame(SpacTraceElement.InSplitter(matcher.toString, matcherPos))
 		.through(S.interpret)

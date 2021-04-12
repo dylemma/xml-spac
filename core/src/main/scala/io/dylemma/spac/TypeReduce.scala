@@ -1,4 +1,4 @@
-package io.dylemma.spac.types
+package io.dylemma.spac
 
 /** Type-level tuple reduction function that treats `Unit` as an Identity.
 	* For example:

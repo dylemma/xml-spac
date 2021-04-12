@@ -2,9 +2,7 @@ package io.dylemma.spac
 package example
 
 import cats.effect.{ExitCode, IO, IOApp}
-import cats.implicits._
 import fs2.Pipe
-import io.dylemma.spac.Fs2Support._
 import io.dylemma.spac.xml._
 import io.dylemma.spac.xml.spac_javax._
 
@@ -22,11 +20,10 @@ object Example10_Fs2 extends IOApp {
 		// just to show the types
 		val bodyTextT: Transformer[XmlEvent, String] = Splitter.xml("html" \ "body").text
 		val bodyTextP: Pipe[IO, XmlEvent, String] = bodyTextT.toPipe[IO]
-		val xmlStream: fs2.Stream[IO, XmlEvent] = rawXml.toFs2Stream[IO, XmlEvent]
+		val xmlStream: fs2.Stream[IO, XmlEvent] = JavaxSource[IO](rawXml)
 
 		// nice chained method call syntax
-		rawXml
-			.toFs2Stream[IO, XmlEvent]
+		JavaxSource[IO](rawXml)
 			.through {
 				Splitter.xml("html" \ "body").text.toPipe
 			}

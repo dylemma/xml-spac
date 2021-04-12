@@ -11,10 +11,9 @@ package impl
   * Users of the spac library shouldn't have to use this class; support libraries (like json-spac-jackson)
   * should include this functionality as part of the `AsPullable` typeclass that they provide.
   */
-class JsonPopEventInjector extends Transformer[JsonEvent, JsonEvent] {
-	def newHandler = new JsonPopEventInjector.Handler(Nil)
-}
-object JsonPopEventInjector {
+object JsonPopEventInjector extends Transformer[JsonEvent, JsonEvent] {
+	def newHandler = new Handler(Nil)
+
 	class Handler(val contextStack: List[JsonStackElem]) extends Transformer.Handler[JsonEvent, JsonEvent] {
 		import JsonEvent._
 		def step(in: JsonEvent) = {

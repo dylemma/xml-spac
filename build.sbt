@@ -12,9 +12,9 @@ lazy val commonSettings = Seq(
 	addCompilerPlugin("org.typelevel" % "kind-projector" % "0.11.3" cross CrossVersion.full)
 )
 
-lazy val catsCore = "org.typelevel" %% "cats-core" % "2.1.0"
-lazy val catsEffect = "org.typelevel" %% "cats-effect" % "2.1.0"
-lazy val fs2Core = "co.fs2" %% "fs2-core" % "2.2.1"
+lazy val catsCore = "org.typelevel" %% "cats-core" % "2.5.0"
+lazy val catsEffect = "org.typelevel" %% "cats-effect" % "3.0.1"
+lazy val fs2Core = "co.fs2" %% "fs2-core" % "3.0.1"
 lazy val jacksonCore = "com.fasterxml.jackson.core" % "jackson-core" % "2.10.0"
 lazy val jodaTime = "joda-time" % "joda-time" % "2.9.4"
 lazy val typeName = "org.tpolecat" %% "typename" % "0.1.5"
@@ -33,18 +33,7 @@ lazy val core = (project in file("core"))
 	.settings(testSettings: _*)
 	.settings(apiDocSettings: _*)
 	.settings(publishingSettings: _*)
-	.settings(libraryDependencies ++= Seq(catsCore, catsEffect, typeName))
-
-lazy val coreFs2 = (project in file("core-fs2"))
-	.settings(name := "spac-fs2")
-	.settings(commonSettings: _*)
-	.settings(testSettings: _*)
-	.settings(apiDocSettings: _*)
-	.settings(publishingSettings: _*)
-	.dependsOn(core)
-   .settings(
-	   libraryDependencies += fs2Core
-   )
+	.settings(libraryDependencies ++= Seq(catsCore, catsEffect, fs2Core, typeName))
 
 lazy val xml = (project in file("xml"))
 	.settings(name := "xml-spac")
@@ -52,7 +41,7 @@ lazy val xml = (project in file("xml"))
 	.settings(testSettings: _*)
 	.settings(apiDocSettings: _*)
 	.settings(publishingSettings: _*)
-	.settings(libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2")
+	.settings(libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2" % "test")
 	.dependsOn(core)
 
 lazy val xmlJavax = (project in file("xml-javax"))
@@ -85,12 +74,11 @@ lazy val examples = (project in file("examples"))
 	.settings(
 		publish := {},
 		libraryDependencies ++= Seq(catsEffect, fs2Core, jodaTime),
-		scalacOptions += "-Xlog-implicits"
 	)
-	.dependsOn(core, coreFs2, xml, xmlJavax)
+	.dependsOn(core, xml, xmlJavax)
 
 lazy val root = (project in file("."))
-	.aggregate(core, coreFs2, xml, json, xmlJavax, jsonJackson)
+	.aggregate(core, xml, json, xmlJavax, jsonJackson)
 	.settings(
 		publish := {},
 		publishArtifact := false

@@ -11,7 +11,7 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 	/** Behavior suite that inspect the 'spac trace' of exceptions thrown in a handful of
 	  * situations where the parse logic is somehow "wrong".
 	  */
-	def jsonParserWithStringSource(implicit toPullable: ToPullable[SyncIO, String, XmlEvent]) = {
+	def xmlParserWithStringSource(implicit stringParsable: Parsable[cats.Id, String, XmlEvent]) = {
 
 		/** Since the tests in this file are sensitive to line numbers,
 		  * this utility helps us capture the line number of whatever subject we're trying to test,
@@ -20,14 +20,14 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 		  */
 		class LineNumberCell {
 			var valueOpt: Option[Int] = None
-			def capture()(implicit pos: util.Pos) = {
+			def capture()(implicit pos: CallerPos) = {
 				valueOpt = Some(pos.line)
 				this
 			}
 			def get = valueOpt.getOrElse { fail("Expected to have a line number here") }
 			def &[A](rhs: => A) = rhs
 
-			def unapply(pos: util.Pos): Boolean = valueOpt match {
+			def unapply(pos: CallerPos): Boolean = valueOpt match {
 				case Some(line) => line == pos.line
 				case _ => false
 			}
@@ -38,18 +38,18 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 			def eventsItr = events.iterator
 
 			def runParse(): A = parser.parse(rawXml)
-			def runParseSeq(): A = parser.parseSeq(events)
-			def runParseIterator(): A = parser.parseIterator(eventsItr)
+			def runParseSeq(): A = parser.parse(events)
+			def runParseIterator(): A = parser.parse(fs2.Stream.fromIterator[SyncIO](eventsItr, 1))
 
 			def checkBehaviorsWith(baseBehavior: (String, () => A) => Unit) = {
-				describe(".parse") {
+				describe(".parse(rawSource)") {
 					it should behave like baseBehavior("parse", runParse _)
 				}
-				describe(".parseSeq") {
-					it should behave like baseBehavior("parseSeq", runParseSeq _)
+				describe(".parse(eventSequence)") {
+					it should behave like baseBehavior("parse", runParseSeq _)
 				}
-				describe(".parseIterator") {
-					it should behave like baseBehavior("parseIterator", runParseIterator _)
+				describe(".parse(eventStream)") {
+					it should behave like baseBehavior("parse", runParseIterator _)
 				}
 			}
 		}
@@ -67,7 +67,7 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 			}
 		}
 		object PosWithLine {
-			def unapply(pos: util.Pos) = Some(pos.line)
+			def unapply(pos: CallerPos) = Some(pos.line)
 		}
 
 		object ContextWithLine {

@@ -1,6 +1,7 @@
 package io.dylemma.spac
 package example
 
+import cats.effect.{Resource, SyncIO}
 import cats.syntax.apply._
 import io.dylemma.spac.xml._
 import io.dylemma.spac.xml.spac_javax._
@@ -80,17 +81,15 @@ object Example8_RecursiveTypes {
 	}
 
 	def main(args: Array[String]): Unit = {
-		val xmlEvents: Iterator[XmlEvent] with AutoCloseable = xml.toCloseableIterator[XmlEvent]
-		try {
+		val eventSource: Resource[SyncIO, Iterator[XmlEvent]] = JavaxSource.syncIO.iteratorResource(xml)
+		eventSource.use(xmlEvents => SyncIO {
 			val itr = groupTransformer(Nil).transform(xmlEvents)
 
 			// this will print:
 			// List(GroupContext(1, a))
 			// List(GroupContext(2, b), GroupContext(1, a))
 			for (ctx <- itr) println(ctx)
-			/* What you do with this stream is left as an exercise for the reader */
-		} finally {
-			xmlEvents.close()
-		}
+			/* What to do with this `itr` is left as an exercise for the reader */
+		}).unsafeRunSync()
 	}
 }

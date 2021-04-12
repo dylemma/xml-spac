@@ -1,8 +1,9 @@
 package io.dylemma.spac
 
+import cats.Monad
 import cats.data.{Chain, NonEmptyChain}
+import fs2.Pipe
 import io.dylemma.spac.impl._
-import io.dylemma.spac.types.Unconsable
 import org.tpolecat.typename.TypeName
 
 import scala.annotation.tailrec
@@ -188,7 +189,7 @@ trait Transformer[-In, +Out] {
 	  */
 	def into[Out2](parser: Parser[Out, Out2]): Parser[In, Out2] = new TransformerIntoParser(this, parser)
 
-	@deprecated("Use `into` instead")
+	@deprecated("Use `into` instead", "v0.9")
 	def parseWith[Out2](parser: Parser[Out, Out2]): Parser[In, Out2] = into(parser)
 
 	@deprecated("Due to troubles with operator precedence and type inference, this operator is being phased out in favor of `:>`", "v0.9")
@@ -256,6 +257,8 @@ trait Transformer[-In, +Out] {
 	  * @group util
 	  */
 	def transform(itr: Iterator[In]): Iterator[Out] = new IteratorTransform(itr, this)
+
+	def toPipe[F[_]: Monad]: Pipe[F, In, Out] = TransformerToPipe(this)
 }
 
 object Transformer {
