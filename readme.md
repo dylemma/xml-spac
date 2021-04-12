@@ -1,6 +1,7 @@
-XML SPaC [![Build Status](https://travis-ci.org/dylemma/xml-spac.svg?branch=master)](https://travis-ci.org/dylemma/xml-spac)
+XML SPaC
 ========
 
+> *Note: the main branch currently has yet-to-be-released code for the upcoming 0.9 release. See [here](https://github.com/dylemma/xml-spac/tree/0.8) to view the code and readme from the latest release*
 
 **API Docs:** [spac-core](https://javadoc.io/doc/io.dylemma/spac-core_2.13/0.8/io/dylemma/spac/index.html) | [xml-spac](https://javadoc.io/doc/io.dylemma/xml-spac_2.13/0.8/io/dylemma/spac/xml/index.html) | [json-spac](https://javadoc.io/doc/io.dylemma/json-spac_2.13/0.8/io/dylemma/spac/json/index.html)
 
