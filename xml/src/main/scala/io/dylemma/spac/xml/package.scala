@@ -251,8 +251,24 @@ package object xml {
 	  */
 	def attr[N: AsQName](attrName: N): ElemContextMatcher[String] = {
 		SingleItemContextMatcher(
-			show"attr(${ AsQName[XmlEvent.ShowableQName].convert(attrName) })",
+			show"attr(${AsQName show attrName})",
 			{ e: XmlEvent.ElemStart => e.attr(attrName) }
+		)
+	}
+
+	/** Context matcher that extracts the given optional attribute from the element at the head of the stack.
+	  * If the attribute is missing from the head element, this matcher will succeed with a result of None,
+	  * as opposed to the `attr` matcher which would fail.
+	  *
+	  * @param attrName The name of the attribute to extract
+	  * @tparam N The name *type* - usually `String`, but can be any member of the `[[AsQName]]` typeclass.
+	  *           Note that for `javax.xml.namespace.QName` you will need to include the "spac-javax" support library.
+	  * @group contextMatcherSyntax
+	  */
+	def attrOpt[N: AsQName](attrName: N): ElemContextMatcher[Option[String]] = {
+		SingleItemContextMatcher(
+			show"attrOpt(${AsQName show attrName})",
+			{ e: XmlEvent.ElemStart => Some(e.attr(attrName)) }
 		)
 	}
 

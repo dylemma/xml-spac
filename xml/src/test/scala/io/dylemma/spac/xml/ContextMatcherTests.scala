@@ -68,6 +68,33 @@ class ContextMatcherTests extends AnyFunSpec with Matchers {
 		}
 	}
 
+	describe("attrOpt matcher") {
+		it("should succeed with None if the first element of the stack is missing the requested attribute") {
+			val stack = Array(testElem("top"), testElem("next", "a" -> "1"))
+			val m = attrOpt("a")
+			m(stack, 0, 2) shouldEqual Some(None)
+		}
+		it("should capture the requested attribute from the first element in the stack") {
+			val stack = Array(testElem("top", "a" -> "1"), testElem("next", "a" -> "2"))
+			val m = attrOpt("a")
+			m(stack, 0, 2) shouldEqual Some(Some("1"))
+		}
+		it("should fail if the stack is empty") {
+			val m = attrOpt("a")
+			m(IndexedSeq.empty, 0, 0) shouldEqual None
+		}
+		it("should combine with other single-element matchers") {
+			val m = attrOpt("a") & attr("b")
+
+			m(Array(testElem("top", "a" -> "1", "b" -> "hi")), 0, 1) shouldEqual Some(Some("1") -> "hi")
+			m(Array(testElem("top", "a" -> "1")), 0, 1) shouldEqual None
+		}
+		it("should chain with other matchers") {
+			val m = attrOpt("a") \ attrOpt("b")
+			m(Array(testElem("top", "a" -> "1"), testElem("next", "b" -> "2")), 0, 2) shouldEqual Some(Some("1") -> Some("2"))
+		}
+	}
+
 	describe("single-element `or` matcher"){
 		it("should succeed when at least one of the combined matchers would succeed"){
 			val m1 = elem("x")
