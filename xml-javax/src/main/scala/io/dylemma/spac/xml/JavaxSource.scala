@@ -1,9 +1,8 @@
-package io.dylemma.spac
-package xml
-package spac_javax
+package io.dylemma.spac.xml
 
 import cats.effect.{Resource, Sync, SyncIO}
 import fs2.Stream
+import io.dylemma.spac.ChunkSize
 import javax.xml.stream.XMLInputFactory
 
 object JavaxSource {

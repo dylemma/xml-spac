@@ -1,4 +1,5 @@
-package io.dylemma.spac.json.spac_jackson
+package io.dylemma.spac
+package json
 
 import java.io.{File, InputStream, Reader}
 

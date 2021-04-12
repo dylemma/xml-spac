@@ -2,7 +2,7 @@ package io.dylemma.spac.example
 
 import io.dylemma.spac._
 import io.dylemma.spac.xml._
-import io.dylemma.spac.xml.spac_javax._
+import io.dylemma.spac.xml.JavaxSupport._
 
 import scala.util.Try
 

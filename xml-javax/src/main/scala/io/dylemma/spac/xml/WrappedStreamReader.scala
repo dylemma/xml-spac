@@ -1,13 +1,12 @@
 package io.dylemma.spac
 package xml
-package spac_javax
 
 import javax.xml.namespace.QName
 import javax.xml.stream.{Location, XMLStreamException, XMLStreamReader}
 
 /** Used internally by `JavaxSource` as part of the conversion from a "source" to a `Stream[F, XmlEvent]`.
   */
-private[spac_javax] class WrappedStreamReader(reader: XMLStreamReader) extends Iterator[XmlEvent] with AutoCloseable {
+private[xml] class WrappedStreamReader(reader: XMLStreamReader) extends Iterator[XmlEvent] with AutoCloseable {
 	def close(): Unit = reader.close()
 	def hasNext: Boolean = {
 		while(nextEvent.isEmpty && reader.hasNext) tryAdvanceToNext()

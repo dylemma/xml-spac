@@ -2,7 +2,7 @@ package io.dylemma.spac
 package example
 
 import io.dylemma.spac.xml._
-import io.dylemma.spac.xml.spac_javax._
+import io.dylemma.spac.xml.JavaxSupport._
 
 /**
  * Created by dylan on 11/24/2015.

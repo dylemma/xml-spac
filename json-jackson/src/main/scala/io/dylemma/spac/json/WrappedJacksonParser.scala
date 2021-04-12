@@ -1,6 +1,5 @@
 package io.dylemma.spac
 package json
-package spac_jackson
 
 import java.io.IOException
 
@@ -8,7 +7,7 @@ import com.fasterxml.jackson.core.{JsonToken, JsonParser => JacksonParser}
 
 import scala.annotation.tailrec
 
-private[spac_jackson] class WrappedJacksonParser(parser: JacksonParser) extends Iterator[JsonEvent] with AutoCloseable {
+private[json] class WrappedJacksonParser(parser: JacksonParser) extends Iterator[JsonEvent] with AutoCloseable {
 	def close() = parser.close()
 
 	private var pendingNext: Option[JsonEvent] = None

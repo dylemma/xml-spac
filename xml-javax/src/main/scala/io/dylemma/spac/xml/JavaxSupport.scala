@@ -21,7 +21,7 @@ import javax.xml.stream.XMLInputFactory
   *    Source -> Resource[F, XMLInputFactory] -> Stream[F, XmlEvent] -> Parsable[Source]
   * }}}
   */
-package object spac_javax {
+object JavaxSupport {
 
 	/** Allows types which can be opened as a javax XMLStreamReader to be passed to an XmlParser's `parse` method.
 	  * The "open as javax XMLStreamReader" logic is defined by the `IntoXmlStreamReader` typeclass.

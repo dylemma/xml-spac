@@ -1,12 +1,11 @@
-package io.dylemma.spac
-package json
+package io.dylemma.spac.json
 
 import cats.effect.{Sync, SyncIO}
 import com.fasterxml.jackson.core.JsonFactory
+import io.dylemma.spac.{ChunkSize, Parsable}
 import io.dylemma.spac.impl.ParsableByIterator
 
-package object spac_jackson {
-
+object JacksonSupport {
 	implicit def jacksonParsableAsParsableF[F[_], S](
 		implicit F: Sync[F],
 		S: IntoJacksonJsonParser[F, S],
@@ -24,5 +23,4 @@ package object spac_jackson {
 			JacksonSource.syncIO.iteratorResource(source).use(itr => SyncIO { f(itr) }).unsafeRunSync()
 		}
 	}
-
 }

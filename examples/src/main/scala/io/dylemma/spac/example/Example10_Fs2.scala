@@ -4,7 +4,7 @@ package example
 import cats.effect.{ExitCode, IO, IOApp}
 import fs2.Pipe
 import io.dylemma.spac.xml._
-import io.dylemma.spac.xml.spac_javax._
+import io.dylemma.spac.xml.JavaxSupport._
 
 object Example10_Fs2 extends IOApp {
 	val rawXml =

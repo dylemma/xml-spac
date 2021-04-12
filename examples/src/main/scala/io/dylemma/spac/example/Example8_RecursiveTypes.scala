@@ -4,7 +4,7 @@ package example
 import cats.effect.{Resource, SyncIO}
 import cats.syntax.apply._
 import io.dylemma.spac.xml._
-import io.dylemma.spac.xml.spac_javax._
+import io.dylemma.spac.xml.JavaxSupport._
 
 // based on https://github.com/dylemma/xml-spac/issues/19
 object Example8_RecursiveTypes {

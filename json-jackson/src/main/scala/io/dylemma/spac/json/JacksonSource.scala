@@ -1,6 +1,5 @@
 package io.dylemma.spac
 package json
-package spac_jackson
 
 import cats.effect.{Resource, Sync, SyncIO}
 import com.fasterxml.jackson.core.JsonFactory

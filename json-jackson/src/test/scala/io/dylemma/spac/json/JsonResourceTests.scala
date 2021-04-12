@@ -1,10 +1,9 @@
-package io.dylemma.spac
-package json
-package spac_jackson
+package io.dylemma.spac.json
 
 import java.io.{ByteArrayInputStream, StringReader}
 
 import cats.effect.{Resource, SyncIO}
+import io.dylemma.spac.json.JacksonSupport._
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 

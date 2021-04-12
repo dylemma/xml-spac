@@ -6,7 +6,7 @@ import java.util.Date
 
 import cats.syntax.apply._
 import io.dylemma.spac.xml._
-import io.dylemma.spac.xml.spac_javax._
+import io.dylemma.spac.xml.JavaxSupport._
 
 /**
  * Created by dylan on 10/11/2015.

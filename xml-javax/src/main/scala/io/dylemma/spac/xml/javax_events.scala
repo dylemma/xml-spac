@@ -1,7 +1,7 @@
-package io.dylemma.spac
-package xml
-package spac_javax
+package io.dylemma.spac.xml
 
+import io.dylemma.spac.ContextLocation
+import io.dylemma.spac.xml.JavaxSupport.javaxQNameAsQName
 import io.dylemma.spac.xml.XmlEvent._
 import javax.xml.namespace.QName
 

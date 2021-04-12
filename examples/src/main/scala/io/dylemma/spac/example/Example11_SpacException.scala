@@ -3,7 +3,7 @@ package example
 
 import cats.syntax.apply._
 import io.dylemma.spac.xml._
-import io.dylemma.spac.xml.spac_javax._
+import io.dylemma.spac.xml.JavaxSupport._
 
 import scala.util.control.NonFatal
 

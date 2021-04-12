@@ -4,7 +4,7 @@ package xml
 import java.io.{ByteArrayInputStream, StringReader}
 
 import cats.effect.{Resource, SyncIO}
-import io.dylemma.spac.xml.spac_javax._
+import io.dylemma.spac.xml.JavaxSupport._
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 

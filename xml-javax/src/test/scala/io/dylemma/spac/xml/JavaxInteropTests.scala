@@ -1,8 +1,7 @@
 package io.dylemma.spac
 package xml
 
-import spac_javax._
-
+import io.dylemma.spac.xml.JavaxSupport._
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 
