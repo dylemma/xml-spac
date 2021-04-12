@@ -1,7 +1,5 @@
 package io.dylemma.spac
 
-import io.dylemma.spac.types.TypeReduce
-
 import scala.collection.IndexedSeq
 
 /** An object responsible for inspecting a stack of `StartElement` events and determining if they correspond
