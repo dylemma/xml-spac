@@ -20,12 +20,15 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 		  */
 		class LineNumberCell {
 			var valueOpt: Option[Int] = None
-			def capture()(implicit pos: CallerPos) = {
-				valueOpt = Some(pos.line)
-				this
-			}
 			def get = valueOpt.getOrElse { fail("Expected to have a line number here") }
-			def &[A](rhs: => A) = rhs
+			def &[A](rhs: => A)(implicit pos: CallerPos) = {
+				valueOpt = Some(pos.line)
+				rhs
+			}
+			def &:[A](lhs: => A)(implicit pos: CallerPos) = {
+				valueOpt = Some(pos.line)
+				lhs
+			}
 
 			def unapply(pos: CallerPos): Boolean = valueOpt match {
 				case Some(line) => line == pos.line
@@ -121,6 +124,7 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 				  |</root>""".stripMargin
 
 			val RootSplitterLine = new LineNumberCell
+			val CompoundMemberLine = new LineNumberCell
 
 			val barParser = XmlParser.attr("id")
 			val fooParser = XmlParser.attrOpt("stuff")
@@ -128,14 +132,14 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 				XmlParser.attr("id"),
 				Splitter.xml("data" \ "foo").joinBy(fooParser).parseToList,
 				Splitter.xml("data" \ "bar").joinBy(barParser).parseFirstOpt,
-			).tupled
-			val rootParser = RootSplitterLine.capture() & Splitter.xml("root" \ "thing" \ "data").joinBy(dataParser).parseToList
+			).tupled &: CompoundMemberLine
+			val rootParser = RootSplitterLine & Splitter.xml("root" \ "thing" \ "data").joinBy(dataParser).parseToList
 
 			ParserCase(rootParser, rawXml).checkBehaviorsWith { (methodName, doParse) =>
 				it ("should include 'spac trace' information for the missing attribute") {
 					intercept[XmlSpacException.MissingMandatoryAttributeException](doParse()).spacTrace.toList should matchPattern {
 						case SpacTraceElement.InInput(StartElemNamed("data")) ::
-							SpacTraceElement.InCompound(0, 3) ::
+							SpacTraceElement.InCompound(0, 3, CompoundMemberLine()) ::
 							SpacTraceElement.InInputContext(StartElemNamed("data"), ContextWithLine(3)) ::
 							SpacTraceElement.InInputContext(StartElemNamed("thing"), ContextWithLine(2)) ::
 							SpacTraceElement.InInputContext(StartElemNamed("root"), ContextWithLine(1)) ::
@@ -164,22 +168,23 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 
 			val BarSplitterLine = new LineNumberCell
 			val RootSplitterLine = new LineNumberCell
+			val CompoundLine = new LineNumberCell
 
 			val barParser = XmlParser.attr("id")
 			val fooParser = XmlParser.attrOpt("stuff")
 			val dataParser = (
 				XmlParser.attr("id"),
 				Splitter.xml("data" \ "foo").joinBy(fooParser).parseToList,
-				BarSplitterLine.capture() & Splitter.xml("data" \ "bar").joinBy(barParser).parseFirst,
-			).tupled
-			val rootParser = RootSplitterLine.capture() & Splitter.xml("root" \ "thing" \ "data").joinBy(dataParser).parseToList
+				BarSplitterLine & Splitter.xml("data" \ "bar").joinBy(barParser).parseFirst,
+			).tupled &: CompoundLine
+			val rootParser = RootSplitterLine & Splitter.xml("root" \ "thing" \ "data").joinBy(dataParser).parseToList
 
 			ParserCase(rootParser, rawXml).checkBehaviorsWith { (methodName, doParse) =>
 				it ("should include 'spac trace' information for the missing item") {
 					intercept[SpacException.MissingFirstException[_]](doParse()).spacTrace.toList should matchPattern {
 						case SpacTraceElement.InInput(EndElemNamed("data")) ::
 							SpacTraceElement.InSplitter(_, BarSplitterLine()) :: // splitter for the 3rd parser in dataParser
-							SpacTraceElement.InCompound(2, 3) :: // index=2, meaning the 3rd parser
+							SpacTraceElement.InCompound(2, 3, CompoundLine()) :: // index=2, meaning the 3rd parser
 							SpacTraceElement.InInputContext(StartElemNamed("data"), _) ::
 							SpacTraceElement.InInputContext(StartElemNamed("thing"), _) ::
 							SpacTraceElement.InInputContext(StartElemNamed("root"), _) ::
@@ -207,6 +212,7 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 				  |</root>""".stripMargin
 
 			val RootSplitterLine = new LineNumberCell
+			val CompoundLine = new LineNumberCell
 
 			val barParser = XmlParser.attr("id")
 			val fooParser = XmlParser.attrOpt("stuff")
@@ -214,8 +220,8 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 				XmlParser.attr("id").map(_.toInt),
 				Splitter.xml("data" \ "foo").joinBy(fooParser).parseToList,
 				Splitter.xml("data" \ "bar").joinBy(barParser).parseFirstOpt,
-			).tupled
-			val rootParser = RootSplitterLine.capture() & Splitter.xml("root" \ "thing" \ "data").joinBy(dataParser).parseToList
+			).tupled &: CompoundLine
+			val rootParser = RootSplitterLine & Splitter.xml("root" \ "thing" \ "data").joinBy(dataParser).parseToList
 
 			ParserCase(rootParser, rawXml).checkBehaviorsWith { (methodName, doParse) =>
 				it("should capture the thrown exception and add 'spac trace' information") {
@@ -223,7 +229,7 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 					caughtError.nonSpacCause should matchPattern { case e: NumberFormatException => }
 					caughtError.spacTrace.toList should matchPattern {
 						case SpacTraceElement.InInput(StartElemNamed("data")) ::
-							SpacTraceElement.InCompound(0, 3) :: // "id" parser is the 1st member of dataParser
+							SpacTraceElement.InCompound(0, 3, CompoundLine()) :: // "id" parser is the 1st member of dataParser
 							SpacTraceElement.InInputContext(StartElemNamed("data"), ContextWithLine(3)) ::
 							SpacTraceElement.InInputContext(StartElemNamed("thing"), ContextWithLine(2)) ::
 							SpacTraceElement.InInputContext(StartElemNamed("root"), ContextWithLine(1)) ::
@@ -252,6 +258,7 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 				  |</root>""".stripMargin
 
 			val RootSplitterLine = new LineNumberCell
+			val CompoundLine = new LineNumberCell
 
 			val barParser = XmlParser.attr("id")
 			val fooParser = XmlParser.attrOpt("stuff")
@@ -259,8 +266,8 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 				XmlParser.attr("id").map(_.toInt),
 				Splitter.xml("data" \ "foo").joinBy(fooParser).parseToList,
 				Splitter.xml("data" \ "bar").joinBy(barParser).parseFirstOpt,
-				).tupled
-			val rootTransformer = RootSplitterLine.capture() & Splitter.xml("root" \ "thing" \ "data").joinBy(dataParser)
+			).tupled &: CompoundLine
+			val rootTransformer = RootSplitterLine & Splitter.xml("root" \ "thing" \ "data").joinBy(dataParser)
 			val outputItr = rootTransformer.transform {
 				XmlParser.toList.parse(rawXml).iterator
 			}
@@ -268,7 +275,7 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 			it ("should provide 'spac trace' information with the thrown exception") {
 				intercept[SpacException.CaughtError] { outputItr.toList }.spacTrace.toList should matchPattern {
 					case SpacTraceElement.InInput(StartElemNamed("data")) ::
-						SpacTraceElement.InCompound(0, 3) ::
+						SpacTraceElement.InCompound(0, 3, CompoundLine()) ::
 						SpacTraceElement.InInputContext(StartElemNamed("data"), ContextWithLine(3)) ::
 						SpacTraceElement.InInputContext(StartElemNamed("thing"), ContextWithLine(2)) ::
 						SpacTraceElement.InInputContext(StartElemNamed("root"), ContextWithLine(1)) ::

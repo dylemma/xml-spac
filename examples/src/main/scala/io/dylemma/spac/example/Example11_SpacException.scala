@@ -60,14 +60,14 @@ object Example11_SpacException extends App {
 		catch { case NonFatal(e) => e.printStackTrace() }
 		/* Prints:
 		io.dylemma.spac.SpacException$MissingFirstException: Parser context ended before the first String could be found.
-			at Input(</data>) - {line: 11, col: 14, offset: 230}
-			at Splitter(elem(data) \ elem(bar)) - Example11_SpacException.scala:47
-			at Compound Parser member 3 of 3
-			at InputContext(<data id="123">) - {line: 8, col: 22, offset: 151}
-			at InputContext(<thing>) - {line: 2, col: 11, offset: 18}
-			at InputContext(<root>) - {line: 1, col: 7, offset: 6}
-			at Splitter(elem(root) \ elem(thing) \ elem(data)) - Example11_SpacException.scala:49
-			at parse - Example11_SpacException.scala:52
+			at input.event(</data>) @ {line: 10, col: 14, offset: 193} (data source)
+			at client.splitter(elem(data) \ elem(bar)) (Example11_SpacException.scala:54)
+			at parser.compound member 3 of 3 (Example11_SpacException.scala:55)
+			at input.context(<data id="123">) @ {line: 8, col: 22, offset: 151} (data source)
+			at input.context(<thing>) @ {line: 2, col: 11, offset: 18} (data source)
+			at input.context(<root>) @ {line: 1, col: 7, offset: 6} (data source)
+			at client.splitter(elem(root) \ elem(thing) \ elem(data)) (Example11_SpacException.scala:56)
+			at parser.parse(Example11_SpacException.scala:59)
 		 */
 		println()
 	}
@@ -87,20 +87,21 @@ object Example11_SpacException extends App {
 		catch { case NonFatal(e) => e.printStackTrace() }
 		/* Prints:
 		io.dylemma.spac.SpacException$CaughtError: Downstream logic error: java.lang.NumberFormatException: For input string: "hello"
-			at Input(<data id="hello">) - {line: 3, col: 24, offset: 43}
-			at Compound Parser member 1 of 3
-			at InputContext(<data id="hello">) - {line: 3, col: 24, offset: 43}
-			at InputContext(<thing>) - {line: 2, col: 11, offset: 18}
-			at InputContext(<root>) - {line: 1, col: 7, offset: 6}
-			at Splitter(elem(root) \ elem(thing) \ elem(data)) - Example11_SpacException.scala:76
-			at parse - Example11_SpacException.scala:79
+			at input.event(<data id="hello">) @ {line: 3, col: 24, offset: 43} (data source)
+			at parser.compound member 1 of 3 (Example11_SpacException.scala:82)
+			at input.context(<data id="hello">) @ {line: 3, col: 24, offset: 43} (data source)
+			at input.context(<thing>) @ {line: 2, col: 11, offset: 18} (data source)
+			at input.context(<root>) @ {line: 1, col: 7, offset: 6} (data source)
+			at client.splitter(elem(root) \ elem(thing) \ elem(data)) (Example11_SpacException.scala:83)
+			at parser.parse(Example11_SpacException.scala:86)
 		Caused by: java.lang.NumberFormatException: For input string: "hello"
 			at java.lang.NumberFormatException.forInputString(Unknown Source)
 			at java.lang.Integer.parseInt(Unknown Source)
 			at java.lang.Integer.parseInt(Unknown Source)
-			at scala.collection.StringOps$.toInt$extension(StringOps.scala:910)
-			at io.dylemma.spac.example.Example11_SpacException$.$anonfun$new$2(Example11_SpacException.scala:72)
-			...
+			at scala.collection.StringOps$.toInt$extension(StringOps.scala:889)
+			at io.dylemma.spac.example.Example11_SpacException$.$anonfun$new$2(Example11_SpacException.scala:79)
+			at io.dylemma.spac.example.Example11_SpacException$.$anonfun$new$2$adapted(Example11_SpacException.scala:79)
+			at ...(truncated)
 		 */
 		println()
 	}

@@ -7,10 +7,10 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.util.control.NonFatal
 
-case class ParserCompoundN[In, Out](members: Chain[Parser[In, Any]], assemble: (Int => Any) => Out) extends Parser[In, Out] {
+case class ParserCompoundN[In, Out](members: Chain[Parser[In, Any]], assemble: (Int => Any) => Out, callerPos: CallerPos) extends Parser[In, Out] {
 	def newHandler = {
 		val pending = members.iterator.zipWithIndex.map { case (p, i) => i -> p.newHandler }.toArray
-		new ParserCompoundN.Handler(pending, pending.length, mutable.Map.empty, assemble)
+		new ParserCompoundN.Handler(pending, pending.length, mutable.Map.empty, assemble, callerPos)
 	}
 
 	override def toString = {
@@ -25,7 +25,7 @@ case class ParserCompoundN[In, Out](members: Chain[Parser[In, Any]], assemble: (
 	  * a new `MappedParser` at every step.
 	  */
 	override def map[Out2](f: Out => Out2): Parser[In, Out2] = {
-		ParserCompoundN(members, (get: Int => Any) => f(assemble(get)))
+		ParserCompoundN(members, (get: Int => Any) => f(assemble(get)), callerPos)
 	}
 }
 
@@ -35,6 +35,7 @@ object ParserCompoundN {
 		private var numPending: Int,
 		finished: mutable.Map[Int, Any],
 		assemble: (Int => Any) => Out,
+		callerPos: CallerPos,
 	) extends Parser.Handler[In, Out]
 	{
 
@@ -58,7 +59,7 @@ object ParserCompoundN {
 			for ((j, p) <- pending.iterator.take(numPending)) {
 				finished(j) =
 					try p.finish()
-					catch { case NonFatal(e) => throw SpacException.addTrace(e, SpacTraceElement.InCompound(j, pending.length)) }
+					catch { case NonFatal(e) => throw SpacException.addTrace(e, SpacTraceElement.InCompound(j, pending.length, callerPos)) }
 			}
 			assemble(finished)
 		}
@@ -69,7 +70,7 @@ object ParserCompoundN {
 					val (j, p) = pending(i)
 					val stepResult =
 						try p.step(in)
-						catch { case NonFatal(e) => throw SpacException.addTrace(e, SpacTraceElement.InCompound(j, pending.length)) }
+						catch { case NonFatal(e) => throw SpacException.addTrace(e, SpacTraceElement.InCompound(j, pending.length, callerPos)) }
 					stepResult match {
 						case Right(cont) =>
 							pending(i) = j -> cont

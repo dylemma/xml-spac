@@ -209,8 +209,6 @@ trait Parser[-In, +Out] { self =>
   * @tparam In
   */
 class ParserApplyWithBoundInput[In] {
-	def app: Applicative[Parser[In, *]] = Parser.catsApplicativeForParser
-
 	def firstOpt: Parser[In, Option[In]] = Parser.firstOpt
 	def first(implicit In: TypeName[In]): Parser[In, In] = Parser.first
 	def find(predicate: In => Boolean): Parser[In, Option[In]] = Parser.find(predicate)
@@ -511,7 +509,7 @@ object Parser {
 	}
 
 	/** Applicative for Parser with a fixed `In` type. */
-	implicit def catsApplicativeForParser[In]: Applicative[Parser[In, *]] = new Applicative[Parser[In, *]] {
+	implicit def catsApplicativeForParser[In](implicit callerPos: CallerPos): Applicative[Parser[In, *]] = new Applicative[Parser[In, *]] {
 		def pure[A](x: A) = new ParserPure(x)
 		def ap[A, B](ff: Parser[In, A => B])(fa: Parser[In, A]) = product(fa, ff).map { case (a, f) => f(a) }
 		override def product[A, B](fa: Parser[In, A], fb: Parser[In, B]) = {
@@ -520,23 +518,27 @@ object Parser {
 					val offset = faCompound.members.size.toInt
 					new ParserCompoundN(
 						faCompound.members ++ fbCompound.members,
-						get => faCompound.assemble(get) -> fbCompound.assemble(OffsetGet(offset, get))
+						get => faCompound.assemble(get) -> fbCompound.assemble(OffsetGet(offset, get)),
+						callerPos,
 					)
 				case (fa, fbCompound: ParserCompoundN[In, B]) =>
 					new ParserCompoundN(
 						fa +: fbCompound.members,
-						get => get(0).asInstanceOf[A] -> fbCompound.assemble(OffsetGet(1, get))
+						get => get(0).asInstanceOf[A] -> fbCompound.assemble(OffsetGet(1, get)),
+						callerPos,
 					)
 				case (faCompound: ParserCompoundN[In, A], fb) =>
 					val offset = faCompound.members.size.toInt
 					new ParserCompoundN(
 						faCompound.members :+ fb,
-						get => faCompound.assemble(get) -> get(offset).asInstanceOf[B]
+						get => faCompound.assemble(get) -> get(offset).asInstanceOf[B],
+						callerPos,
 					)
 				case (fa, fb) =>
 					new ParserCompoundN(
 						Chain(fa, fb),
-						results => (results(0).asInstanceOf[A], results(1).asInstanceOf[B])
+						results => (results(0).asInstanceOf[A], results(1).asInstanceOf[B]),
+						callerPos,
 					)
 			}
 		}

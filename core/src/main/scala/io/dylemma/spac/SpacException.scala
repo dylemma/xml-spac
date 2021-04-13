@@ -21,11 +21,10 @@ abstract class SpacException[Self <: SpacException[Self]](
 	val detail: Either[String, Throwable],
 ) extends Exception(
 	/* message */ {
-		val headLine = detail match {
+		detail match {
 			case Left(spacMessage) => spacMessage
 			case Right(nonSpacCause) => s"Downstream logic error: $nonSpacCause"
 		}
-		spacTrace.iterator.map(e => s"\n\tat ${ e.render }").mkString(headLine, "", "")
 	},
 	/* cause */ {
 		detail match {
@@ -37,6 +36,12 @@ abstract class SpacException[Self <: SpacException[Self]](
 {
 	def this(spacTrace: Chain[SpacTraceElement], spacMessage: String) = this(spacTrace, Left(spacMessage))
 	def this(spacTrace: Chain[SpacTraceElement], nonSpacCause: Throwable) = this(spacTrace, Right(nonSpacCause))
+
+	override def fillInStackTrace() = {
+		super.fillInStackTrace()
+		setStackTrace(spacTrace.iterator.map(_.toStackTraceElement).toArray)
+		this
+	}
 
 	/** Used internally by the framework, typically in a Transformer.Handler's `unwind` method */
 	def withSpacTrace(spacTrace2: Chain[SpacTraceElement]): Self
@@ -70,6 +75,20 @@ object SpacException {
 	class CaughtError(val nonSpacCause: Throwable, spacTrace: Chain[SpacTraceElement])
 		extends SpacException[CaughtError](spacTrace, nonSpacCause)
 	{
+		val causeOriginalStackTrace = Option(nonSpacCause).map(_.getStackTrace).getOrElse(Array.empty)
+		locally {
+			val implStackIndex = causeOriginalStackTrace.indexWhere(_.getClassName.startsWith("io.dylemma.spac.impl"))
+			if (implStackIndex >= 0) {
+				val truncationNotice = new StackTraceElement(".", ".", "truncated", -1)
+				val b = Array.newBuilder[StackTraceElement]
+				b.sizeHint(implStackIndex + 1)
+				for (e <- causeOriginalStackTrace.iterator.take(implStackIndex)) b += e
+				b += truncationNotice
+				for(t <- Option(nonSpacCause)) t.setStackTrace(b.result())
+			}
+		}
+
+
 		def withSpacTrace(spacTrace2: Emit[SpacTraceElement]) = new CaughtError(nonSpacCause, spacTrace2)
 	}
 	object CaughtError {
