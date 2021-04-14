@@ -1,6 +1,7 @@
 package io.dylemma.spac
 package example
 
+import cats.effect.SyncIO
 import cats.syntax.apply._
 import io.dylemma.spac.xml._
 import io.dylemma.spac.xml.JavaxSupport._
@@ -103,6 +104,30 @@ object Example11_SpacException extends App {
 			at io.dylemma.spac.example.Example11_SpacException$.$anonfun$new$2$adapted(Example11_SpacException.scala:79)
 			at ...(truncated)
 		 */
+		println()
+	}
+
+	locally {
+		val barParser = XmlParser.attr("id")
+		val fooParser = XmlParser.attrOpt("stuff")
+		val dataParser = (
+			XmlParser.attr("id").map(_.toInt),
+			Splitter.xml("data" \ "foo").joinBy(fooParser).parseToList,
+			Splitter.xml("data" \ "bar").joinBy(barParser).parseFirstOpt,
+		).tupled
+
+		println("--fourth example (id.toInt exception, but from a Stream")
+		JavaxSource
+			.syncIO(rawXml)
+			.through { Splitter.xml("root" \ "thing" \ "data").joinBy(dataParser).toPipe }
+			.compile
+			.toList
+			.attempt
+			.unsafeRunSync()
+		match {
+			case Left(e) => e.printStackTrace()
+			case Right(_) => println("I expected this to fail")
+		}
 		println()
 	}
 }

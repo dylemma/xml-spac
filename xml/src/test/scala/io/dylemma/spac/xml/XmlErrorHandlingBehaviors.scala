@@ -3,6 +3,7 @@ package xml
 
 import cats.effect.SyncIO
 import cats.syntax.apply._
+import fs2.Stream
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -11,7 +12,7 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 	/** Behavior suite that inspect the 'spac trace' of exceptions thrown in a handful of
 	  * situations where the parse logic is somehow "wrong".
 	  */
-	def xmlParserWithStringSource(implicit stringParsable: Parsable[cats.Id, String, XmlEvent]) = {
+	def xmlParserWithStringSource(stringToXmlStream: String => Stream[SyncIO, XmlEvent])(implicit stringParsable: Parsable[cats.Id, String, XmlEvent]) = {
 
 		/** Since the tests in this file are sensitive to line numbers,
 		  * this utility helps us capture the line number of whatever subject we're trying to test,
@@ -43,6 +44,7 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 			def runParse(): A = parser.parse(rawXml)
 			def runParseSeq(): A = parser.parse(events)
 			def runParseIterator(): A = parser.parse(fs2.Stream.fromIterator[SyncIO](eventsItr, 1))
+			def runParserAsPipe(): A = stringToXmlStream(rawXml).through(parser.toPipe).compile.lastOrError.unsafeRunSync()
 
 			def checkBehaviorsWith(baseBehavior: (String, () => A) => Unit) = {
 				describe(".parse(rawSource)") {
@@ -53,6 +55,9 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 				}
 				describe(".parse(eventStream)") {
 					it should behave like baseBehavior("parse", runParseIterator _)
+				}
+				describe(".toPipe") {
+					it should behave like baseBehavior("toPipe", runParserAsPipe _)
 				}
 			}
 		}
@@ -144,7 +149,7 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 							SpacTraceElement.InInputContext(StartElemNamed("thing"), ContextWithLine(2)) ::
 							SpacTraceElement.InInputContext(StartElemNamed("root"), ContextWithLine(1)) ::
 							SpacTraceElement.InSplitter(_, RootSplitterLine()) :: // line number of rootParser in this test block
-							SpacTraceElement.InParse(`methodName`, _) ::
+							SpacTraceElement.InParse("parser", `methodName`, _) ::
 							Nil =>
 					}
 				}
@@ -189,7 +194,7 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 							SpacTraceElement.InInputContext(StartElemNamed("thing"), _) ::
 							SpacTraceElement.InInputContext(StartElemNamed("root"), _) ::
 							SpacTraceElement.InSplitter(_, RootSplitterLine()) :: // the splitter for rootParser
-							SpacTraceElement.InParse(`methodName`, _) ::
+							SpacTraceElement.InParse("parser", `methodName`, _) ::
 							Nil =>
 					}
 				}
@@ -234,7 +239,7 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 							SpacTraceElement.InInputContext(StartElemNamed("thing"), ContextWithLine(2)) ::
 							SpacTraceElement.InInputContext(StartElemNamed("root"), ContextWithLine(1)) ::
 							SpacTraceElement.InSplitter(_, RootSplitterLine()) ::
-							SpacTraceElement.InParse(`methodName`, _)
+							SpacTraceElement.InParse("parser", `methodName`, _)
 							:: Nil =>
 						case 1 =>
 					}
@@ -242,7 +247,7 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 			}
 		}
 
-		describe("exception thrown from transformed iterator") {
+		describe("running an exception-throwing transformer") {
 			val rawXml =
 				"""<root>
 				  |   <thing>
@@ -260,6 +265,7 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 			val RootSplitterLine = new LineNumberCell
 			val CompoundLine = new LineNumberCell
 
+
 			val barParser = XmlParser.attr("id")
 			val fooParser = XmlParser.attrOpt("stuff")
 			val dataParser = (
@@ -268,20 +274,34 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 				Splitter.xml("data" \ "bar").joinBy(barParser).parseFirstOpt,
 			).tupled &: CompoundLine
 			val rootTransformer = RootSplitterLine & Splitter.xml("root" \ "thing" \ "data").joinBy(dataParser)
-			val outputItr = rootTransformer.transform {
-				XmlParser.toList.parse(rawXml).iterator
+
+
+			def expectedSpacTrace(parseMethod: String, ParseLine: LineNumberCell): PartialFunction[Any, _] = {
+				case SpacTraceElement.InInput(StartElemNamed("data")) ::
+					SpacTraceElement.InCompound(0, 3, CompoundLine()) ::
+					SpacTraceElement.InInputContext(StartElemNamed("data"), ContextWithLine(3)) ::
+					SpacTraceElement.InInputContext(StartElemNamed("thing"), ContextWithLine(2)) ::
+					SpacTraceElement.InInputContext(StartElemNamed("root"), ContextWithLine(1)) ::
+					SpacTraceElement.InSplitter(_, RootSplitterLine()) ::
+					SpacTraceElement.InParse("transformer", `parseMethod`, ParseLine()) ::
+					Nil => // ok
 			}
 
-			it ("should provide 'spac trace' information with the thrown exception") {
-				intercept[SpacException.CaughtError] { outputItr.toList }.spacTrace.toList should matchPattern {
-					case SpacTraceElement.InInput(StartElemNamed("data")) ::
-						SpacTraceElement.InCompound(0, 3, CompoundLine()) ::
-						SpacTraceElement.InInputContext(StartElemNamed("data"), ContextWithLine(3)) ::
-						SpacTraceElement.InInputContext(StartElemNamed("thing"), ContextWithLine(2)) ::
-						SpacTraceElement.InInputContext(StartElemNamed("root"), ContextWithLine(1)) ::
-						SpacTraceElement.InSplitter(_, RootSplitterLine()) ::
-						Nil => // doesn't end with `InParse` since there's no parser
+			it ("as an iterator should provide 'spac trace' information") {
+				val TransformLine = new LineNumberCell
+				val outputItr = TransformLine & rootTransformer.transform {
+					XmlParser.toList.parse(rawXml).iterator
 				}
+				intercept[SpacException.CaughtError] { outputItr.toList }.spacTrace.toList should matchPattern(expectedSpacTrace("transform", TransformLine))
+			}
+
+			it ("as an fs2.Pipe should provide 'spac trace' information") {
+				val ToPipeLine = new LineNumberCell
+				val drainStreamIO = ToPipeLine & stringToXmlStream(rawXml).through(rootTransformer.toPipe).compile.drain
+
+				intercept[SpacException.CaughtError] { drainStreamIO.unsafeRunSync() }
+					.spacTrace.toList
+					.should(matchPattern(expectedSpacTrace("toPipe", ToPipeLine)))
 			}
 		}
 	}

@@ -5,8 +5,8 @@ import cats.Monad
 import fs2.{Chunk, Pipe, Pull, Stream}
 
 object TransformerToPipe {
-	def apply[F[_]: Monad, A, B](t: Transformer[A, B]): Pipe[F, A, B] = {
-		stream => pullTransformed(stream, t).stream
+	def apply[F[_]: Monad, A, B](t: Transformer[A, B], caller: SpacTraceElement): Pipe[F, A, B] = {
+		stream => pullTransformed(stream, t.newHandler.asTopLevelHandler(caller)).stream
 	}
 
 	def pullTransformed[F[_]: Monad, A, B](stream: Stream[F, A], transformer: Transformer[A, B]): Pull[F, B, Unit] = {

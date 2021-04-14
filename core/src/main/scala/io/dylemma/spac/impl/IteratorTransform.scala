@@ -5,9 +5,9 @@ import scala.annotation.tailrec
 import scala.collection.AbstractIterator
 import scala.util.control.NonFatal
 
-class IteratorTransform[In, Out](itr: Iterator[In], transformer: Transformer[In, Out]) extends AbstractIterator[Out] {
+class IteratorTransform[In, Out](itr: Iterator[In], transformer: Transformer[In, Out], callerFrame: SpacTraceElement) extends AbstractIterator[Out] {
 	private var emitItr: Iterator[Out] = Iterator.empty
-	private var nextHandler: Option[Transformer.Handler[In, Out]] = Some(transformer.newHandler)
+	private var nextHandler: Option[Transformer.Handler[In, Out]] = Some(transformer.newHandler.asTopLevelHandler(callerFrame))
 
 	def next() = {
 		if (emitItr.hasNext) emitItr.next()
@@ -31,9 +31,7 @@ class IteratorTransform[In, Out](itr: Iterator[In], transformer: Transformer[In,
 			if (itr.hasNext) {
 				// feed the next input to the handler
 				val in = itr.next()
-				val (nextEmit, contHandler) =
-					try handler.step(in)
-					catch { case NonFatal(e) => throw SpacException.addEarlyTrace(e, SpacTraceElement.InInput(in)) }
+				val (nextEmit, contHandler) = handler.step(in)
 				emitItr = nextEmit.iterator
 				nextHandler = contHandler
 				if (emitItr.hasNext) {
@@ -43,9 +41,7 @@ class IteratorTransform[In, Out](itr: Iterator[In], transformer: Transformer[In,
 				}
 			} else {
 				// no more inputs, so feed an EOF to the handler
-				emitItr =
-					try handler.finish().iterator
-					catch { case NonFatal(e) => throw SpacException.addEarlyTrace(e, SpacTraceElement.AtInputEnd) }
+				emitItr = handler.finish().iterator
 				nextHandler = None
 				emitItr.hasNext
 			}

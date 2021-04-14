@@ -186,7 +186,7 @@ trait Parser[-In, +Out] { self =>
 	  */
 	@throws[SpacException[_]]
 	def parse[S](source: S)(implicit S: Parsable[cats.Id, S, In], pos: CallerPos): Out = {
-		S.parse[Out](source, SpacTraceElement.InParse("parse", pos), this)
+		S.parse[Out](source, SpacTraceElement.InParse("parser", "parse", pos), this)
 	}
 
 	/** Convert this parser to a FS2 "Pipe".
@@ -199,7 +199,7 @@ trait Parser[-In, +Out] { self =>
 	  * @tparam F
 	  * @return
 	  */
-	def toPipe[F[_]](implicit pos: CallerPos): Pipe[F, In, Out] = ParserToPipe(this, SpacTraceElement.InParse("toPipe", pos))
+	def toPipe[F[_]](implicit pos: CallerPos): Pipe[F, In, Out] = ParserToPipe(this, SpacTraceElement.InParse("parser", "toPipe", pos))
 
 }
 
@@ -317,7 +317,7 @@ object Parser {
 		  * @group consumers
 		  */
 		def parseF[F[_], S](source: S)(implicit S: Parsable[F, S, In], F: Monad[F], pos: CallerPos): F[Out] = {
-			S.parse[Out](source, SpacTraceElement.InParse("parseF", pos), self)
+			S.parse[Out](source, SpacTraceElement.InParse("parser", "parseF", pos), self)
 		}
 	}
 

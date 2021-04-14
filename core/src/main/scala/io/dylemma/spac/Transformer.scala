@@ -256,9 +256,9 @@ trait Transformer[-In, +Out] {
 	  * @return A wrapped version of `itr`, transformed via this transformer
 	  * @group util
 	  */
-	def transform(itr: Iterator[In]): Iterator[Out] = new IteratorTransform(itr, this)
+	def transform(itr: Iterator[In])(implicit pos: CallerPos): Iterator[Out] = new IteratorTransform(itr, this, SpacTraceElement.InParse("transformer", "transform", pos))
 
-	def toPipe[F[_]: Monad]: Pipe[F, In, Out] = TransformerToPipe(this)
+	def toPipe[F[_]](implicit pos: CallerPos, F: Monad[F]): Pipe[F, In, Out] = TransformerToPipe(this, SpacTraceElement.InParse("transformer", "toPipe", pos))
 }
 
 object Transformer {
@@ -318,6 +318,14 @@ object Transformer {
 			val endState = loop(this, _ins)
 			out -> endState
 		}
+
+		/** Wraps this handler as a "top level" handler, which will inject a SpacTraceElement
+		  * (representing the current input or the "EOF" signal)
+		  * to any exception is thrown by this handler when calling its `step` or `finish` methods.
+		  *
+		  * Used internally by Transformers `transform` and `toPipe` methods.
+		  */
+		def asTopLevelHandler(caller: SpacTraceElement): Handler[In, Out] = new TopLevelTransformerHandler(this, caller)
 	}
 
 	/** Convenience for creating transformers whose input type is bound to `In`.

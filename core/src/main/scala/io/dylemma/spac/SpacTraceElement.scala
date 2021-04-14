@@ -31,11 +31,11 @@ object SpacTraceElement {
 	/** The bottom of a typical SpacException's `spacTrace`, representing the specific `parse` method
 	  * that was called in order to run the parser, and the location of the caller.
 	  */
-	case class InParse(methodName: String, callerPos: CallerPos) extends SpacTraceElement {
+	case class InParse(className: String, methodName: String, callerPos: CallerPos) extends SpacTraceElement {
 		def render = {
-			s"$methodName - ${callerPos.render}"
+			s"$className.$methodName - ${callerPos.render}"
 		}
-		def toStackTraceElement = new StackTraceElement("parser", methodName, callerPos.filename, callerPos.line)
+		def toStackTraceElement = new StackTraceElement(className, methodName, callerPos.filename, callerPos.line)
 	}
 
 	/** Indicates the usage of a splitter, and the source location that constructed that splitter.
