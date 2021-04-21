@@ -4,7 +4,7 @@ package json
 import cats.effect.{Resource, Sync, SyncIO}
 import com.fasterxml.jackson.core.JsonFactory
 import fs2.Stream
-import io.dylemma.spac.json.impl.JsonPopEventInjector
+import io.dylemma.spac.json.impl.JsonStackFixer
 
 object JacksonSource {
 
@@ -20,7 +20,7 @@ object JacksonSource {
 				jsonParser <- S(factory, source)
 				wrappedJP <- Resource.fromAutoCloseable(F.delay { new WrappedJacksonParser(jsonParser) })
 			} yield {
-				JsonPopEventInjector.transform(wrappedJP)
+				JsonStackFixer.transform(wrappedJP)
 			}
 		}
 

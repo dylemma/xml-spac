@@ -14,7 +14,6 @@ package object json {
 	implicit class JsonParserApplyOps(val parserApply: ParserApplyWithBoundInput[JsonEvent]) extends AnyVal {
 		def forPrimitive[A](describePrimitive: String, matchPrimitive: JsonEvent => Option[A]): JsonParser[A] = new JsonParserTypedFirst(describePrimitive, matchPrimitive)
 
-		def apply[T](implicit parser: JsonParser[T]): JsonParser[T] = parser
 		def nullable[T](implicit parser: JsonParser[T]): JsonParser[Option[T]] = JsonParser.oneOf(parser.map(Some(_)), forNull)
 
 		def forString: JsonParser[String] = jsonParserForPrimitiveString
@@ -25,20 +24,31 @@ package object json {
 		def forBoolean: JsonParser[Boolean] = jsonParserForPrimitiveBoolean
 		def forNull: JsonParser[None.type] = jsonParserForPrimitiveNull
 
-		def listOf[T: TypeName : JsonParser]: JsonParser[List[T]] = listOf[T](implicitly[JsonParser[T]])
-		def listOf[T: TypeName](parser: JsonParser[T]): JsonParser[List[T]] = Splitter.json(anyIndex).joinBy(parser).parseToList
+		def fieldOf[T: TypeName : JsonParser](fieldName: String)(implicit callerPos: CallerPos): JsonParser[T] = fieldOf[T](fieldName, implicitly[JsonParser[T]])
+		def fieldOf[T: TypeName](fieldName: String, parser: JsonParser[T])(implicit callerPos: CallerPos): JsonParser[T] = Splitter.json(fieldName).joinBy(parser).parseFirst
+			.expectInputs[JsonEvent](List("a '{' token" -> { _.isObjectStart }))
+			.withName(s"JsonParser.fieldOf[${implicitly[TypeName[T]].value}]($fieldName)")
+
+		def nullableFieldOf[T: TypeName: JsonParser](fieldName: String)(implicit callerPos: CallerPos): JsonParser[Option[T]] = nullableFieldOf[T](fieldName, implicitly[JsonParser[T]])
+		def nullableFieldOf[T: TypeName](fieldName: String, parser: JsonParser[T])(implicit callerPos: CallerPos): JsonParser[Option[T]] = Splitter.json(fieldName).joinBy(nullable(parser)).parseFirstOpt
+			.map(_.flatten)
+			.expectInputs[JsonEvent](List("a '{' token" -> { _.isObjectStart }))
+			.withName(s"JsonParser.nullableFieldOf[${implicitly[TypeName[T]].value}]($fieldName)")
+
+		def listOf[T: TypeName : JsonParser](implicit callerPos: CallerPos): JsonParser[List[T]] = listOf[T](implicitly[JsonParser[T]])
+		def listOf[T: TypeName](parser: JsonParser[T])(implicit callerPos: CallerPos): JsonParser[List[T]] = Splitter.json(anyIndex).joinBy(parser).parseToList
 			.expectInputs[JsonEvent](List("a '[' token" -> { _.isArrayStart }))
 			.withName(s"JsonParser.listOf[${ implicitly[TypeName[T]].value }]")
 
-		def objectOf[T: TypeName : JsonParser]: JsonParser[Map[String, T]] = objectOf[T](implicitly[JsonParser[T]])
-		def objectOf[T: TypeName](parser: JsonParser[T]): JsonParser[Map[String, T]] = Splitter.json(anyField)
+		def objectOf[T: TypeName : JsonParser](implicit callerPos: CallerPos): JsonParser[Map[String, T]] = objectOf[T](implicitly[JsonParser[T]])
+		def objectOf[T: TypeName](parser: JsonParser[T])(implicit callerPos: CallerPos): JsonParser[Map[String, T]] = Splitter.json(anyField)
 			.map { field => parser.map(field -> _) }
 			.parseToMap
 			.expectInputs[JsonEvent](List("a '{' token" -> { _.isObjectStart }))
 			.withName(s"JsonParser.objectOf[${ implicitly[TypeName[T]].value }]")
 
-		def objectOfNullable[T: TypeName : JsonParser]: JsonParser[Map[String, T]] = objectOfNullable[T](implicitly[JsonParser[T]])
-		def objectOfNullable[T: TypeName](parser: JsonParser[T]): JsonParser[Map[String, T]] = Splitter.json(anyField)
+		def objectOfNullable[T: TypeName : JsonParser](implicit callerPos: CallerPos): JsonParser[Map[String, T]] = objectOfNullable[T](implicitly[JsonParser[T]])
+		def objectOfNullable[T: TypeName](parser: JsonParser[T])(implicit callerPos: CallerPos): JsonParser[Map[String, T]] = Splitter.json(anyField)
 			.map { field => nullable(parser).map(field -> _) }
 			.collect { case (field, Some(value)) => field -> value }
 			.parseToMap

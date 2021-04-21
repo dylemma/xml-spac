@@ -11,35 +11,39 @@ package impl
   * Users of the spac library shouldn't have to use this class; support libraries (like json-spac-jackson)
   * should include this functionality as part of the `AsPullable` typeclass that they provide.
   */
-object JsonPopEventInjector extends Transformer[JsonEvent, JsonEvent] {
-	def newHandler = new Handler(Nil)
+object JsonStackFixer extends Transformer[JsonEvent, JsonEvent] {
+	def newHandler = new Handler
 
-	class Handler(val contextStack: List[JsonStackElem]) extends Transformer.Handler[JsonEvent, JsonEvent] {
+	class Handler extends Transformer.Handler[JsonEvent, JsonEvent] {
+
 		import JsonEvent._
+		private var contextStack: List[JsonStackElem] = Nil
+		private var lastEventLocation = ContextLocation.empty
+
 		def step(in: JsonEvent) = {
 			val toEmit = contextStack.headOption match {
 				case Some(ArrayStart()) if !in.isArrayEnd =>
 					// If an array just started, any event but ArrayEnd should push an Index(0) context.
 					val s = IndexStart(0, in.location)
-					Emit(s, in) //-> Some(new Handler(s :: contextStack))
+					Emit(s, in)
 
-				case Some(IndexStart(s)) if !in.isArrayEnd =>
+				case Some(IndexStart(index)) if !in.isArrayEnd =>
 					// If we're in the middle of an array, any event but ArrayEnd should advance the index.
-					val e = IndexEnd(in.location)
-					val c = IndexStart(s.index + 1, in.location)
-					Emit(e, c, in) //-> Some(new Handler(c :: contextStack.tail))
+					val e = IndexEnd(index, lastEventLocation)
+					val c = IndexStart(index + 1, in.location)
+					Emit(e, c, in)
 
-				case Some(IndexStart(_)) if in.isArrayEnd =>
+				case Some(IndexStart(index)) if in.isArrayEnd =>
 					// If we're inside an array index when the array ends, inject an IndexEnd first.
-					Emit(IndexEnd(in.location), in) //-> Some(new Handler(contextStack.tail))
+					Emit(IndexEnd(index, lastEventLocation), in)
 
-				case Some(FieldStart(_)) if in.asFieldStart.isDefined =>
+				case Some(FieldStart(name)) if in.asFieldStart.isDefined =>
 					// If we encounter a new field while already in a field, inject a FieldEnd first
-					Emit(FieldEnd(in.location), in)
+					Emit(FieldEnd(name, lastEventLocation), in)
 
-				case Some(FieldStart(_)) if in.isObjectEnd =>
+				case Some(FieldStart(name)) if in.isObjectEnd =>
 					// If the object ends while we're in a field, inject a FieldEnd first
-					Emit(FieldEnd(in.location), in)
+					Emit(FieldEnd(name, lastEventLocation), in)
 
 				case _ =>
 					// All other events can be passed through normally
@@ -54,7 +58,10 @@ object JsonPopEventInjector extends Transformer[JsonEvent, JsonEvent] {
 				}
 			}
 
-			toEmit -> Some(new Handler(stackAfter))
+			lastEventLocation = in.location
+			contextStack = stackAfter
+
+			toEmit -> Some(this)
 		}
 
 		def finish() = {
@@ -63,9 +70,9 @@ object JsonPopEventInjector extends Transformer[JsonEvent, JsonEvent] {
 			def unwind(remainingStack: List[JsonStackElem]): Emit[JsonEvent] = remainingStack match {
 				case (_: ArrayStart) :: tail => ArrayEnd(ContextLocation.empty) +: unwind(tail)
 				case (_: ObjectStart) :: tail => ObjectEnd(ContextLocation.empty) +: unwind(tail)
-				case (_: FieldStart) :: tail => FieldEnd(ContextLocation.empty) +: unwind(tail)
-				case (_: IndexStart) :: tail => IndexEnd(ContextLocation.empty) +: unwind(tail)
-				case Nil => Emit.nil
+				case FieldStart(name) :: tail => FieldEnd(name, ContextLocation.empty) +: unwind(tail)
+				case IndexStart(index) :: tail => IndexEnd(index, ContextLocation.empty) +: unwind(tail)
+				case _ => Emit.nil
 			}
 			unwind(contextStack)
 		}

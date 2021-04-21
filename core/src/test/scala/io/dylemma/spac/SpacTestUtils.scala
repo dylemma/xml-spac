@@ -16,24 +16,6 @@ trait SpacTestUtils {
 			wrappedSeq.pullCount
 		}
 	}
-//	class UnconsCountingArbitrarySequence[A](implicit A: Arbitrary[A]) {
-//		private var _unconsCounter = 0
-//		private var _current: Option[A] = None
-//		def doUncons() = {
-//			_unconsCounter += 1
-//			_current = A.arbitrary.sample
-//		}
-//		def head = _current.get
-//		def unconsCount = _unconsCounter
-//	}
-//	object UnconsCountingArbitrarySequence {
-//		implicit val asUnconsable: Unconsable[UnconsCountingArbitrarySequence] = new Unconsable[UnconsCountingArbitrarySequence] {
-//			def uncons[A](coll: UnconsCountingArbitrarySequence[A]) = {
-//				coll.doUncons()
-//				Some(coll.head -> coll)
-//			}
-//		}
-//	}
 
 	trait PullCountingIterable[A] extends Iterable[A] {
 		def pullCount: Int
@@ -66,31 +48,6 @@ trait SpacTestUtils {
 			}
 		}
 	}
-
-//	trait UnconsCountingWrappedSequence[A] {
-//		def unconsCount: Int
-//		def doUncons(): Option[(A, UnconsCountingWrappedSequence[A])]
-//	}
-//	object UnconsCountingWrappedSequence {
-//		implicit def asUnconsable: Unconsable[UnconsCountingWrappedSequence] = {
-//			new Unconsable[UnconsCountingWrappedSequence] {
-//				def uncons[A](coll: UnconsCountingWrappedSequence[A]) = coll.doUncons()
-//			}
-//		}
-//		class Instance[C[_], A](original: C[A])(implicit C: Unconsable[C]) extends UnconsCountingWrappedSequence[A] {
-//			private var _unconsCounter = 0
-//			private var _current: Option[C[A]] = Some(original)
-//			def unconsCount = _unconsCounter
-//			def doUncons() = {
-//				_unconsCounter += 1
-//				_current.flatMap { seq =>
-//					val innerUncons = Unconsable[C].uncons(seq)
-//					_current = innerUncons.map(_._2)
-//					innerUncons map { _._1 -> this }
-//				}
-//			}
-//		}
-//	}
 
 	def tryFlattenTuple(maybeTuple: Any): List[Any] = maybeTuple match {
 		case (a, b, c, d, e, f) => List(a, b, c, d, e, f).flatMap(tryFlattenTuple)

@@ -209,6 +209,7 @@ trait Parser[-In, +Out] { self =>
   * @tparam In
   */
 class ParserApplyWithBoundInput[In] {
+	def apply[Out](implicit parser: Parser[In, Out]): Parser[In, Out] = parser
 	def firstOpt: Parser[In, Option[In]] = Parser.firstOpt
 	def first(implicit In: TypeName[In]): Parser[In, In] = Parser.first
 	def find(predicate: In => Boolean): Parser[In, Option[In]] = Parser.find(predicate)

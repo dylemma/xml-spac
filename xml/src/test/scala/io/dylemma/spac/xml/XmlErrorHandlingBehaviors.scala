@@ -14,29 +14,6 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 	  */
 	def xmlParserWithStringSource(stringToXmlStream: String => Stream[SyncIO, XmlEvent])(implicit stringParsable: Parsable[cats.Id, String, XmlEvent]) = {
 
-		/** Since the tests in this file are sensitive to line numbers,
-		  * this utility helps us capture the line number of whatever subject we're trying to test,
-		  * so we can compare line numbers against a "cell" instead of a hard-coded int,
-		  * and not worry about breaking tests when we add comments or imports
-		  */
-		class LineNumberCell {
-			var valueOpt: Option[Int] = None
-			def get = valueOpt.getOrElse { fail("Expected to have a line number here") }
-			def &[A](rhs: => A)(implicit pos: CallerPos) = {
-				valueOpt = Some(pos.line)
-				rhs
-			}
-			def &:[A](lhs: => A)(implicit pos: CallerPos) = {
-				valueOpt = Some(pos.line)
-				lhs
-			}
-
-			def unapply(pos: CallerPos): Boolean = valueOpt match {
-				case Some(line) => line == pos.line
-				case _ => false
-			}
-		}
-
 		case class ParserCase[A](parser: XmlParser[A], rawXml: String) {
 			lazy val events = XmlParser.toList.parse(rawXml)
 			def eventsItr = events.iterator
@@ -73,13 +50,6 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 				case XmlEvent.ElemEnd(ee) => Some(ee.name)
 				case _ => None
 			}
-		}
-		object PosWithLine {
-			def unapply(pos: CallerPos) = Some(pos.line)
-		}
-
-		object ContextWithLine {
-			def unapply(loc: ContextLocation) = loc.get(ContextLineNumber)
 		}
 
 		describe("control case") {
@@ -230,7 +200,7 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 
 			ParserCase(rootParser, rawXml).checkBehaviorsWith { (methodName, doParse) =>
 				it("should capture the thrown exception and add 'spac trace' information") {
-					val caughtError = intercept[SpacException.CaughtError](doParse())
+					val caughtError = intercept[SpacException.CaughtError] { doParse() }
 					caughtError.nonSpacCause should matchPattern { case e: NumberFormatException => }
 					caughtError.spacTrace.toList should matchPattern {
 						case SpacTraceElement.InInput(StartElemNamed("data")) ::
