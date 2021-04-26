@@ -1,6 +1,5 @@
 package io.dylemma.spac
 
-import cats.~>
 import org.scalacheck.Arbitrary
 
 trait SpacTestUtils {

@@ -2,6 +2,7 @@ package io.dylemma.spac
 
 import cats.data.Chain
 import cats.effect.{Sync, SyncIO}
+import cats.~>
 import fs2.Stream
 import io.dylemma.spac.impl.{ParsableByIterator, ParserToPipe}
 
@@ -23,6 +24,12 @@ import io.dylemma.spac.impl.{ParsableByIterator, ParserToPipe}
   */
 trait Parsable[F[_], -S, +In] { self =>
 	def parse[Out](source: S, callerFrame: SpacTraceElement, parser: Parser[In, Out]): F[Out]
+
+	def mapK[G[_]](f: F ~> G): Parsable[G, S, In] = new Parsable[G, S, In] {
+		def parse[Out](source: S, callerFrame: SpacTraceElement, parser: Parser[In, Out]): G[Out] = {
+			f(self.parse(source, callerFrame, parser))
+		}
+	}
 
 	def contramapSource[S2](f: S2 => S): Parsable[F, S2, In] = new Parsable[F, S2, In] {
 		def parse[Out](source: S2, callerFrame: SpacTraceElement, parser: Parser[In, Out]) = {

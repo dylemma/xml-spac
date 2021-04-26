@@ -8,6 +8,7 @@ import org.scalatest.matchers.should.Matchers
 class JavaxInteropTests extends AnyFunSpec with Matchers with XmlErrorHandlingBehaviors {
 	describe("XML with Javax support") {
 		describe("Exception 'spac' trace handling") {
+			implicit val contextLineNumberSupport: ContextLineNumberSupport = ContextLineNumberSupport.Enabled
 			it should behave like xmlParserWithStringSource(JavaxSource.syncIO(_))
 		}
 	}

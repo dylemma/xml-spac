@@ -15,6 +15,7 @@ lazy val commonSettings = Seq(
 lazy val catsCore = "org.typelevel" %% "cats-core" % "2.5.0"
 lazy val catsEffect = "org.typelevel" %% "cats-effect" % "3.0.1"
 lazy val fs2Core = "co.fs2" %% "fs2-core" % "3.0.1"
+lazy val fs2DataXml = "org.gnieh" %% "fs2-data-xml" % "1.0.0-RC1"
 lazy val jacksonCore = "com.fasterxml.jackson.core" % "jackson-core" % "2.10.0"
 lazy val jodaTime = "joda-time" % "joda-time" % "2.9.4"
 lazy val typeName = "org.tpolecat" %% "typename" % "0.1.5"
@@ -50,6 +51,15 @@ lazy val xmlJavax = (project in file("xml-javax"))
 	.settings(testSettings: _*)
 	.settings(apiDocSettings: _*)
 	.settings(publishingSettings: _*)
+	.dependsOn(xml % "compile->compile;test->test")
+
+lazy val xmlFs2Data = (project in file("xml-fs2-data"))
+	.settings(name := "xml-spac-fs2-data")
+	.settings(commonSettings: _*)
+	.settings(testSettings: _*)
+	.settings(apiDocSettings: _*)
+	.settings(publishingSettings: _*)
+	.settings(libraryDependencies += fs2DataXml)
 	.dependsOn(xml % "compile->compile;test->test")
 
 lazy val json = (project in file("json"))

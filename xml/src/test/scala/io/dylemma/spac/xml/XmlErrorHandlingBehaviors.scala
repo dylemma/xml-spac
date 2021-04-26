@@ -12,7 +12,7 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 	/** Behavior suite that inspect the 'spac trace' of exceptions thrown in a handful of
 	  * situations where the parse logic is somehow "wrong".
 	  */
-	def xmlParserWithStringSource(stringToXmlStream: String => Stream[SyncIO, XmlEvent])(implicit stringParsable: Parsable[cats.Id, String, XmlEvent]) = {
+	def xmlParserWithStringSource(stringToXmlStream: String => Stream[SyncIO, XmlEvent])(implicit stringParsable: Parsable[cats.Id, String, XmlEvent], support: ContextLineNumberSupport) = {
 
 		case class ParserCase[A](parser: XmlParser[A], rawXml: String) {
 			lazy val events = XmlParser.toList.parse(rawXml)
@@ -97,6 +97,9 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 				  |      </data>
 				  |   </thing>
 				  |</root>""".stripMargin
+			val RootLine = ContextLineMatcher(1)
+			val ThingLine = ContextLineMatcher(2)
+			val DataLine = ContextLineMatcher(3)
 
 			val RootSplitterLine = new LineNumberCell
 			val CompoundMemberLine = new LineNumberCell
@@ -115,9 +118,9 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 					intercept[XmlSpacException.MissingMandatoryAttributeException](doParse()).spacTrace.toList should matchPattern {
 						case SpacTraceElement.InInput(StartElemNamed("data")) ::
 							SpacTraceElement.InCompound(0, 3, CompoundMemberLine()) ::
-							SpacTraceElement.InInputContext(StartElemNamed("data"), ContextWithLine(3)) ::
-							SpacTraceElement.InInputContext(StartElemNamed("thing"), ContextWithLine(2)) ::
-							SpacTraceElement.InInputContext(StartElemNamed("root"), ContextWithLine(1)) ::
+							SpacTraceElement.InInputContext(StartElemNamed("data"), DataLine()) ::
+							SpacTraceElement.InInputContext(StartElemNamed("thing"), ThingLine()) ::
+							SpacTraceElement.InInputContext(StartElemNamed("root"), RootLine()) ::
 							SpacTraceElement.InSplitter(_, RootSplitterLine()) :: // line number of rootParser in this test block
 							SpacTraceElement.InParse("parser", `methodName`, _) ::
 							Nil =>
@@ -140,6 +143,9 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 				  |      </data>
 				  |   </thing>
 				  |</root>""".stripMargin
+			val RootLine = ContextLineMatcher(1)
+			val ThingLine = ContextLineMatcher(2)
+			val DataLine = ContextLineMatcher(8)
 
 			val BarSplitterLine = new LineNumberCell
 			val RootSplitterLine = new LineNumberCell
@@ -160,9 +166,9 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 						case SpacTraceElement.InInput(EndElemNamed("data")) ::
 							SpacTraceElement.InSplitter(_, BarSplitterLine()) :: // splitter for the 3rd parser in dataParser
 							SpacTraceElement.InCompound(2, 3, CompoundLine()) :: // index=2, meaning the 3rd parser
-							SpacTraceElement.InInputContext(StartElemNamed("data"), _) ::
-							SpacTraceElement.InInputContext(StartElemNamed("thing"), _) ::
-							SpacTraceElement.InInputContext(StartElemNamed("root"), _) ::
+							SpacTraceElement.InInputContext(StartElemNamed("data"), DataLine()) ::
+							SpacTraceElement.InInputContext(StartElemNamed("thing"), ThingLine()) ::
+							SpacTraceElement.InInputContext(StartElemNamed("root"), RootLine()) ::
 							SpacTraceElement.InSplitter(_, RootSplitterLine()) :: // the splitter for rootParser
 							SpacTraceElement.InParse("parser", `methodName`, _) ::
 							Nil =>
@@ -185,6 +191,9 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 				  |      </data>
 				  |   </thing>
 				  |</root>""".stripMargin
+			val RootLine = ContextLineMatcher(1)
+			val ThingLine = ContextLineMatcher(2)
+			val DataLine = ContextLineMatcher(3)
 
 			val RootSplitterLine = new LineNumberCell
 			val CompoundLine = new LineNumberCell
@@ -205,9 +214,9 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 					caughtError.spacTrace.toList should matchPattern {
 						case SpacTraceElement.InInput(StartElemNamed("data")) ::
 							SpacTraceElement.InCompound(0, 3, CompoundLine()) :: // "id" parser is the 1st member of dataParser
-							SpacTraceElement.InInputContext(StartElemNamed("data"), ContextWithLine(3)) ::
-							SpacTraceElement.InInputContext(StartElemNamed("thing"), ContextWithLine(2)) ::
-							SpacTraceElement.InInputContext(StartElemNamed("root"), ContextWithLine(1)) ::
+							SpacTraceElement.InInputContext(StartElemNamed("data"), DataLine()) ::
+							SpacTraceElement.InInputContext(StartElemNamed("thing"), ThingLine()) ::
+							SpacTraceElement.InInputContext(StartElemNamed("root"), RootLine()) ::
 							SpacTraceElement.InSplitter(_, RootSplitterLine()) ::
 							SpacTraceElement.InParse("parser", `methodName`, _)
 							:: Nil =>
@@ -231,10 +240,12 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 				  |      </data>
 				  |   </thing>
 				  |</root>""".stripMargin
+			val RootLine = ContextLineMatcher(1)
+			val ThingLine = ContextLineMatcher(2)
+			val DataLine = ContextLineMatcher(3)
 
 			val RootSplitterLine = new LineNumberCell
 			val CompoundLine = new LineNumberCell
-
 
 			val barParser = XmlParser.attr("id")
 			val fooParser = XmlParser.attrOpt("stuff")
@@ -249,9 +260,9 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 			def expectedSpacTrace(parseMethod: String, ParseLine: LineNumberCell): PartialFunction[Any, _] = {
 				case SpacTraceElement.InInput(StartElemNamed("data")) ::
 					SpacTraceElement.InCompound(0, 3, CompoundLine()) ::
-					SpacTraceElement.InInputContext(StartElemNamed("data"), ContextWithLine(3)) ::
-					SpacTraceElement.InInputContext(StartElemNamed("thing"), ContextWithLine(2)) ::
-					SpacTraceElement.InInputContext(StartElemNamed("root"), ContextWithLine(1)) ::
+					SpacTraceElement.InInputContext(StartElemNamed("data"), DataLine()) ::
+					SpacTraceElement.InInputContext(StartElemNamed("thing"), ThingLine()) ::
+					SpacTraceElement.InInputContext(StartElemNamed("root"), RootLine()) ::
 					SpacTraceElement.InSplitter(_, RootSplitterLine()) ::
 					SpacTraceElement.InParse("transformer", `parseMethod`, ParseLine()) ::
 					Nil => // ok
