@@ -62,6 +62,60 @@ trait JsonParserBehaviors { this: AnyFunSpec with Matchers =>
 			}
 		}
 
+		describe("JsonParser.fieldOf") {
+			it("should extract a value from the requested field") {
+				JsonParser.fieldOf[Int]("a").parse("""{ "a": 1 }""") shouldEqual 1
+			}
+			it("should still succeed if the requested field is not the first field in the object") {
+				JsonParser.fieldOf[Int]("a").parse("""{ "b": false, "a": 1 }""") shouldEqual 1
+			}
+			it("should fail if the requested field is not present in the object") {
+				intercept[SpacException.MissingFirstException[_]] {
+					JsonParser.fieldOf[Int]("a").parse("{}")
+				}
+			}
+			it("should fail if the requested field contains the wrong type of value") {
+				intercept[SpacException.UnexpectedInputException[_]] {
+					JsonParser.fieldOf[Int]("a").parse("""{ "a": "whoops" }""")
+				}
+			}
+			it("should fail if the requested field contains a null") {
+				intercept[SpacException.UnexpectedInputException[_]] {
+					JsonParser.fieldOf[Int]("a").parse("""{ "a": null }""")
+				}
+			}
+			it("should fail if the input is not an object") {
+				intercept[SpacException.UnexpectedInputException[_]] {
+					JsonParser.fieldOf[Int]("a").parse("true")
+				}
+			}
+		}
+
+		describe("JsonParser.nullableFieldOf") {
+			it("should extract a value from the requested field") {
+				JsonParser.nullableFieldOf[Int]("a").parse("""{ "a": 1 }""") shouldEqual Some(1)
+			}
+			it("should still succeed if the requested field is not the first field in the object") {
+				JsonParser.nullableFieldOf[Int]("a").parse("""{ "b": false, "a": 1 }""") shouldEqual Some(1)
+			}
+			it("should succeed with `None` as the result if the requested field is not present in the object") {
+				JsonParser.nullableFieldOf[Int]("a").parse("{}") shouldEqual None
+			}
+			it("should fail if the requested field contains the wrong type of value") {
+				intercept[SpacException.FallbackChainFailure] {
+					JsonParser.nullableFieldOf[Int]("a").parse("""{ "a": "whoops" }""")
+				}
+			}
+			it("should succeed with `None` if the requested field contains a null") {
+				JsonParser.nullableFieldOf[Int]("a").parse("""{ "a": null }""") shouldEqual None
+			}
+			it("should fail if the input is not an object") {
+				intercept[SpacException.UnexpectedInputException[_]] {
+					JsonParser.nullableFieldOf[Int]("a").parse("true")
+				}
+			}
+		}
+
 		describe("JsonParser.objectOf") {
 			it should behave like basicParser("object", JsonParser.objectOf[Int], """{"a": 1, "b": 2}""", Map("a" -> 1, "b" -> 2))
 			it("should work properly when the inner parser is complex") {
