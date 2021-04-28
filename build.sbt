@@ -12,13 +12,12 @@ lazy val commonSettings = Seq(
 	addCompilerPlugin("org.typelevel" % "kind-projector" % "0.11.3" cross CrossVersion.full)
 )
 
-lazy val catsCore = "org.typelevel" %% "cats-core" % "2.5.0"
-lazy val catsEffect = "org.typelevel" %% "cats-effect" % "3.0.1"
-lazy val fs2Core = "co.fs2" %% "fs2-core" % "3.0.1"
-lazy val fs2DataJson = "org.gnieh" %% "fs2-data-json" % "1.0.0-RC1"
-lazy val fs2DataXml = "org.gnieh" %% "fs2-data-xml" % "1.0.0-RC1"
+lazy val catsCore = "org.typelevel" %% "cats-core" % "2.6.0"
+lazy val catsEffect = "org.typelevel" %% "cats-effect" % "3.1.0"
+lazy val fs2Core = "co.fs2" %% "fs2-core" % "3.0.2"
+lazy val fs2DataJson = "org.gnieh" %% "fs2-data-json" % "1.0.0-RC2"
+lazy val fs2DataXml = "org.gnieh" %% "fs2-data-xml" % "1.0.0-RC2"
 lazy val jacksonCore = "com.fasterxml.jackson.core" % "jackson-core" % "2.10.0"
-lazy val jodaTime = "joda-time" % "joda-time" % "2.9.4"
 lazy val typeName = "org.tpolecat" %% "typename" % "0.1.5"
 
 lazy val testSettings = Seq(
@@ -92,7 +91,7 @@ lazy val examples = (project in file("examples"))
 	.settings(commonSettings: _*)
 	.settings(
 		publish := {},
-		libraryDependencies ++= Seq(catsEffect, fs2Core, jodaTime),
+		libraryDependencies ++= Seq(catsEffect, fs2Core),
 	)
 	.dependsOn(core, xml, xmlJavax, xmlFs2Data)
 

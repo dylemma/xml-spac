@@ -2,10 +2,11 @@ package io.dylemma.spac
 package example
 
 import cats.syntax.apply._
-import io.dylemma.spac.xml._
 import io.dylemma.spac.xml.JavaxSupport._
-import org.joda.time.LocalDate
-import org.joda.time.format.DateTimeFormat
+import io.dylemma.spac.xml._
+
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 object Example_FromReadme extends App {
 
@@ -39,8 +40,8 @@ object Example_FromReadme extends App {
 		|  </post>
 		|</blog>"""
 
-	val commentDateFormat = DateTimeFormat.forPattern("yyyy-MM-dd")
-	val dateAttributeParser = XmlParser.forMandatoryAttribute("date").map(commentDateFormat.parseLocalDate)
+	val commentDateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+	val dateAttributeParser = XmlParser.forMandatoryAttribute("date").map(LocalDate.parse(_, commentDateFormat))
 
 	implicit val AuthorParser: XmlParser[Author] = (
 		XmlParser.forMandatoryAttribute("id"),
