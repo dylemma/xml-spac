@@ -3,7 +3,7 @@ package io.dylemma.spac
 import cats.data.Chain
 import cats.effect.{Sync, SyncIO}
 import cats.~>
-import fs2.Stream
+import fs2.{Fallible, Stream}
 import io.dylemma.spac.impl.{ParsableByIterator, ParserToPipe}
 
 /** Typeclass used to provide functionality to `Parser#parse` and `Parser#parseF`.
@@ -56,6 +56,15 @@ object Parsable {
 	implicit def forFs2Stream[F[_] : Sync, In]: Parsable[F, Stream[F, In], In] = new Parsable[F, Stream[F, In], In] {
 		def parse[Out](source: Stream[F, In], callerFrame: SpacTraceElement, parser: Parser[In, Out]) = {
 			source.through(ParserToPipe(parser, callerFrame)).compile.lastOrError
+		}
+	}
+
+	implicit def forFs2FallibleStream[In]: Parsable[cats.Id, Stream[Fallible, In], In] = new Parsable[cats.Id, Stream[Fallible, In], In] {
+		def parse[Out](source: Stream[Fallible, In], callerFrame: SpacTraceElement, parser: Parser[In, Out]): Out = {
+			source.through(ParserToPipe(parser, callerFrame)).compile.lastOrError match {
+				case Left(err) => throw err
+				case Right(out) => out
+			}
 		}
 	}
 }
