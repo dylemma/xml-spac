@@ -49,8 +49,9 @@ object Fs2DataSource {
 		  * apply that conversion and further convert it to a stream of xml-spac XmlEvents.
 		  *
 		  * Via the default-available implicits, the source can be a `String`, a `Stream[F, String]`,
-		  * or a `Stream[F, fs2.data.xml.XmlEvent]`. For  String an String-Stream sources, a
-		  * `Middleware` can be provided implicitly to override the default XmlEvent stream creation.
+		  * or a `Stream[F, fs2.data.xml.XmlEvent]`. For String and String-Stream sources, a
+		  * `Middleware` can be provided implicitly to override the default XmlEvent stream creation
+		  * e.g. for the purposes of using custom normalization or entity resolution.
 		  */
 		def apply[S](source: S)(implicit S: ToFs2XmlEventStream[F, S]): Stream[F, XmlEvent] = {
 			S(source) through convert

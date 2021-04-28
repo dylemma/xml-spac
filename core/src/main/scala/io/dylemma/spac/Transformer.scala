@@ -1,6 +1,5 @@
 package io.dylemma.spac
 
-import cats.Monad
 import cats.data.{Chain, NonEmptyChain}
 import fs2.Pipe
 import io.dylemma.spac.impl._
@@ -258,7 +257,7 @@ trait Transformer[-In, +Out] {
 	  */
 	def transform(itr: Iterator[In])(implicit pos: CallerPos): Iterator[Out] = new IteratorTransform(itr, this, SpacTraceElement.InParse("transformer", "transform", pos))
 
-	def toPipe[F[_]](implicit pos: CallerPos, F: Monad[F]): Pipe[F, In, Out] = TransformerToPipe(this, SpacTraceElement.InParse("transformer", "toPipe", pos))
+	def toPipe[F[_]](implicit pos: CallerPos): Pipe[F, In, Out] = TransformerToPipe(this, SpacTraceElement.InParse("transformer", "toPipe", pos))
 }
 
 object Transformer {

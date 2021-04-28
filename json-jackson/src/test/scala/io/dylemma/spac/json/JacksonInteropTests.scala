@@ -1,4 +1,5 @@
-package io.dylemma.spac.json
+package io.dylemma.spac
+package json
 
 import io.dylemma.spac.json.JacksonSupport._
 import org.scalatest.funspec.AnyFunSpec
@@ -10,6 +11,7 @@ class JacksonInteropTests extends AnyFunSpec with Matchers with JsonParserBehavi
 			it should behave like jsonParserWithStringSource
 		}
 		describe("Exception 'spac' trace handling") {
+			implicit val contextLineNumberSupport: ContextLineNumberSupport = ContextLineNumberSupport.Enabled
 			it should behave like jsonErrorHandlingParserWithStringSource(JacksonSource.syncIO(_))
 		}
 	}

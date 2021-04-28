@@ -12,7 +12,7 @@ trait JsonErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 	/** Behavior suite that inspect the 'spac trace' of exceptions thrown in a handful of
 	  * situations where the parse logic is somehow "wrong".
 	  */
-	def jsonErrorHandlingParserWithStringSource(stringToJsonStream: String => Stream[SyncIO, JsonEvent])(implicit stringParsable: Parsable[cats.Id, String, JsonEvent]) = {
+	def jsonErrorHandlingParserWithStringSource(stringToJsonStream: String => Stream[SyncIO, JsonEvent])(implicit stringParsable: Parsable[cats.Id, String, JsonEvent], support: ContextLineNumberSupport) = {
 		case class ParserCase[A](parser: JsonParser[A], rawJson: String) {
 			lazy val events = JsonParser.toList.parse(rawJson)
 			def eventsItr = events.iterator
@@ -73,6 +73,8 @@ trait JsonErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 				  |    { "a": 3, "b": false }
 				  |  ]
 				  |}""".stripMargin
+			val InputLine1 = ContextLineMatcher(1)
+			val InputLine2 = ContextLineMatcher(2)
 
 			val IdLine = new LineNumberCell
 			val CompoundLine = new LineNumberCell
@@ -88,8 +90,8 @@ trait JsonErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 				it ("should include 'spac trace' information for the unexpected input exception") {
 					intercept[SpacException.UnexpectedInputException[_]]{ doParse() }.spacTrace.toList should matchPattern {
 						case SpacTraceElement.InInput(JString("hello")) ::
-							SpacTraceElement.InInputContext(FieldStart("id"), ContextWithLine(2)) ::
-							SpacTraceElement.InInputContext(ObjectStart(), ContextWithLine(1)) ::
+							SpacTraceElement.InInputContext(FieldStart("id"), InputLine2()) ::
+							SpacTraceElement.InInputContext(ObjectStart(), InputLine1()) ::
 							SpacTraceElement.InSplitter(_, IdLine()) ::
 							SpacTraceElement.InCompound(0, 2, CompoundLine()) ::
 							SpacTraceElement.InParse("parser", `methodName`, _) ::
@@ -109,6 +111,9 @@ trait JsonErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 				  |    { "a": 3, "b": false }
 				  |  ]
 				  |}""".stripMargin
+			val InputLine1 = ContextLineMatcher(1)
+			val InputLine3 = ContextLineMatcher(3)
+			val InputLine5 = ContextLineMatcher(5)
 
 			val InnerCompoundLine = new LineNumberCell
 			val CompoundLine = new LineNumberCell
@@ -131,11 +136,11 @@ trait JsonErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 						case SpacTraceElement.InInput(IndexEnd(1)) ::
 							SpacTraceElement.InSplitter("b", BFieldLine()) ::
 							SpacTraceElement.InCompound(1, 2, InnerCompoundLine()) ::
-							SpacTraceElement.InInputContext(IndexStart(1), ContextWithLine(5)) ::
-							SpacTraceElement.InInputContext(ArrayStart(), ContextWithLine(3)) ::
+							SpacTraceElement.InInputContext(IndexStart(1), InputLine5()) ::
+							SpacTraceElement.InInputContext(ArrayStart(), InputLine3()) ::
 							SpacTraceElement.InSplitter("anyIndex", DataFieldLine()) ::
-							SpacTraceElement.InInputContext(FieldStart("data"), ContextWithLine(3)) ::
-							SpacTraceElement.InInputContext(ObjectStart(), ContextWithLine(1)) ::
+							SpacTraceElement.InInputContext(FieldStart("data"), InputLine3()) ::
+							SpacTraceElement.InInputContext(ObjectStart(), InputLine1()) ::
 							SpacTraceElement.InSplitter("data", DataFieldLine()) ::
 							SpacTraceElement.InCompound(1, 2, CompoundLine()) ::
 							SpacTraceElement.InParse("parser", `methodName`, _) ::
@@ -154,6 +159,9 @@ trait JsonErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 				  |    "hello"
 				  |  ]
 				  |}""".stripMargin
+			val InputLine1 = ContextLineMatcher(1)
+			val InputLine2 = ContextLineMatcher(2)
+			val InputLine5 = ContextLineMatcher(5)
 
 			val SplitterLine = new LineNumberCell
 
@@ -168,10 +176,10 @@ trait JsonErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 					caughtError.nonSpacCause should matchPattern { case e: NumberFormatException => }
 					caughtError.spacTrace.toList should matchPattern {
 						case SpacTraceElement.InInput(JString("hello")) ::
-							SpacTraceElement.InInputContext(IndexStart(2), ContextWithLine(5)) ::
-							SpacTraceElement.InInputContext(ArrayStart(), ContextWithLine(2)) ::
-							SpacTraceElement.InInputContext(FieldStart("foo"), ContextWithLine(2)) ::
-							SpacTraceElement.InInputContext(ObjectStart(), ContextWithLine(1)) ::
+							SpacTraceElement.InInputContext(IndexStart(2), InputLine5()) ::
+							SpacTraceElement.InInputContext(ArrayStart(), InputLine2()) ::
+							SpacTraceElement.InInputContext(FieldStart("foo"), InputLine2()) ::
+							SpacTraceElement.InInputContext(ObjectStart(), InputLine1()) ::
 							SpacTraceElement.InSplitter("foo \\ anyIndex", SplitterLine()) ::
 							SpacTraceElement.InParse("parser", `methodName`, _) ::
 							Nil =>
@@ -188,6 +196,8 @@ trait JsonErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 				  |  { "a": 3, "b": null },
 				  |  { "a": 4, "b": true }
 				  |]""".stripMargin
+			val InputLine1 = ContextLineMatcher(1)
+			val InputLine4 = ContextLineMatcher(4)
 
 			val BFieldLine = new LineNumberCell
 			val CompoundLine = new LineNumberCell
@@ -202,12 +212,12 @@ trait JsonErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 
 			def expectedSpacTrace(parseMethod: String, ParseLine: LineNumberCell): PartialFunction[Any, _] = {
 				case SpacTraceElement.InInput(JNull()) ::
-					SpacTraceElement.InInputContext(FieldStart("b"), ContextWithLine(4)) ::
-					SpacTraceElement.InInputContext(ObjectStart(), ContextWithLine(4)) ::
+					SpacTraceElement.InInputContext(FieldStart("b"), InputLine4()) ::
+					SpacTraceElement.InInputContext(ObjectStart(), InputLine4()) ::
 					SpacTraceElement.InSplitter("b", BFieldLine()) ::
 					SpacTraceElement.InCompound(1, 2, CompoundLine()) ::
-					SpacTraceElement.InInputContext(IndexStart(2), ContextWithLine(4)) ::
-					SpacTraceElement.InInputContext(ArrayStart(), ContextWithLine(1)) ::
+					SpacTraceElement.InInputContext(IndexStart(2), InputLine4()) ::
+					SpacTraceElement.InInputContext(ArrayStart(), InputLine1()) ::
 					SpacTraceElement.InSplitter("anyIndex", MainSplitterLine()) ::
 					SpacTraceElement.InParse("transformer", `parseMethod`, ParseLine()) ::
 					Nil => // ok

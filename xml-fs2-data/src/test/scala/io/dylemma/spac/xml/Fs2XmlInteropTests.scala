@@ -5,7 +5,7 @@ import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 import Fs2DataSupport._
 
-class Fs2InteropTests extends AnyFunSpec with Matchers with XmlParserBehaviors with XmlErrorHandlingBehaviors {
+class Fs2XmlInteropTests extends AnyFunSpec with Matchers with XmlParserBehaviors with XmlErrorHandlingBehaviors {
 	describe("XML with fs2-data support") {
 		describe("Basic XML Parsing") {
 			it should behave like xmlParserWithStringSource

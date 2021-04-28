@@ -1,7 +1,6 @@
 package io.dylemma.spac
 package json
 
-import cats.effect.SyncIO
 import cats.syntax.apply._
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
