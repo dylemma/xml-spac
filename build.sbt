@@ -42,7 +42,6 @@ lazy val xml = (project in file("xml"))
 	.settings(testSettings: _*)
 	.settings(apiDocSettings: _*)
 	.settings(publishingSettings: _*)
-	.settings(libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2" % "test")
 	.dependsOn(core % "compile->compile;test->test")
 
 lazy val xmlJavax = (project in file("xml-javax"))
@@ -88,7 +87,12 @@ lazy val examples = (project in file("examples"))
 	.dependsOn(core, xml, xmlJavax)
 
 lazy val root = (project in file("."))
-	.aggregate(core, xml, json, xmlJavax, jsonJackson)
+	.aggregate(
+		core,
+		examples,
+		xml, xmlFs2Data, xmlJavax,
+		json, jsonJackson
+	)
 	.settings(
 		publish := {},
 		publishArtifact := false

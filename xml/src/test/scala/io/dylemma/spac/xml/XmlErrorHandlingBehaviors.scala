@@ -12,7 +12,7 @@ trait XmlErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 	/** Behavior suite that inspect the 'spac trace' of exceptions thrown in a handful of
 	  * situations where the parse logic is somehow "wrong".
 	  */
-	def xmlParserWithStringSource(stringToXmlStream: String => Stream[SyncIO, XmlEvent])(implicit stringParsable: Parsable[cats.Id, String, XmlEvent], support: ContextLineNumberSupport) = {
+	def xmlErrorHandlingParserWithStringSource(stringToXmlStream: String => Stream[SyncIO, XmlEvent])(implicit stringParsable: Parsable[cats.Id, String, XmlEvent], support: ContextLineNumberSupport) = {
 
 		case class ParserCase[A](parser: XmlParser[A], rawXml: String) {
 			lazy val events = XmlParser.toList.parse(rawXml)
