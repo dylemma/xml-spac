@@ -94,7 +94,7 @@ lazy val examples = (project in file("examples"))
 		publish := {},
 		libraryDependencies ++= Seq(catsEffect, fs2Core, jodaTime),
 	)
-	.dependsOn(core, xml, xmlJavax)
+	.dependsOn(core, xml, xmlJavax, xmlFs2Data)
 
 lazy val root = (project in file("."))
 	.aggregate(

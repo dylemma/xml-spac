@@ -4,7 +4,6 @@ package example
 import cats.effect.{ExitCode, IO, IOApp}
 import fs2.Pipe
 import io.dylemma.spac.xml._
-import io.dylemma.spac.xml.JavaxSupport._
 
 object Example10_Fs2 extends IOApp {
 	val rawXml =
@@ -16,6 +15,10 @@ object Example10_Fs2 extends IOApp {
 		  |</html>""".stripMargin
 
 	def run(args: List[String]): IO[ExitCode] = {
+
+		/* Instead of importing `JavaxSupport._` for the implicits,
+		 * you can just directly use the `JavaxSource` helper to construct a Stream.
+		 */
 
 		// just to show the types
 		val bodyTextT: Transformer[XmlEvent, String] = Splitter.xml("html" \ "body").text

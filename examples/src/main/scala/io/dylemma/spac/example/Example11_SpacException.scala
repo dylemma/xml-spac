@@ -1,10 +1,9 @@
 package io.dylemma.spac
 package example
 
-import cats.effect.SyncIO
 import cats.syntax.apply._
-import io.dylemma.spac.xml._
 import io.dylemma.spac.xml.JavaxSupport._
+import io.dylemma.spac.xml._
 
 import scala.util.control.NonFatal
 

@@ -29,7 +29,7 @@ object Fs2DataSupport {
 		Parsable.forFs2Stream[F, XmlEvent].contramapSource(Fs2DataSource[F](_))
 	}
 
-	implicit def fs2DataXmlUnsafeSyncSourceAsParsable[S](
+	implicit def fs2DataXmlSyncIOSourceAsIdParsable[S](
 		implicit S: Fs2DataSource.ToFs2XmlEventStream[SyncIO, S]
 	): Parsable[cats.Id, S, XmlEvent] = {
 		fs2DataXmlSourceAsParsableF[SyncIO, S].mapK(new FunctionK[SyncIO, cats.Id] {
