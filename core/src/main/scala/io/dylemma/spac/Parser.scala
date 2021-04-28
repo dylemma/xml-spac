@@ -1,9 +1,8 @@
 package io.dylemma.spac
 
+import cats.Applicative
 import cats.data.Chain
-import cats.effect.{Sync, SyncIO}
-import cats.{Applicative, Monad}
-import fs2.{Pipe, Stream}
+import fs2.Pipe
 import io.dylemma.spac.impl._
 import org.tpolecat.typename.TypeName
 
@@ -309,7 +308,6 @@ object Parser {
 		  * @param source The source of a data stream
 		  * @param S      Typeclass instance that provides the logic for feeding values from `source` into this parser
 		  * @param pos    Captures the caller filename and line number, used to fill in the 'spac trace' if the parser throws an exception
-		  * @param F      Monad for the `F` context
 		  * @tparam F An effect type in which the data-pull and handler logic will be run
 		  * @tparam S The source type. Will typically be a `File` or a `List[In]`.
 		  * @return An effect which, when evaluated, will consume data events from the `source` using this parser to produce a result.
@@ -317,7 +315,7 @@ object Parser {
 		  *         of the `F[Out]`, rather than during the *evaluation*.
 		  * @group consumers
 		  */
-		def parseF[F[_], S](source: S)(implicit S: Parsable[F, S, In], F: Monad[F], pos: CallerPos): F[Out] = {
+		def parseF[F[_], S](source: S)(implicit S: Parsable[F, S, In], pos: CallerPos): F[Out] = {
 			S.parse[Out](source, SpacTraceElement.InParse("parser", "parseF", pos), self)
 		}
 	}
