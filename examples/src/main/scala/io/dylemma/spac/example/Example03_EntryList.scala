@@ -7,7 +7,7 @@ import io.dylemma.spac.xml.JavaxSupport._
 /**
  * Created by dylan on 11/24/2015.
  */
-object Example3_EntryList extends App {
+object Example03_EntryList extends App {
 
 	/*
 	In this example, we have XML containing a bunch of <key> and <value> elements

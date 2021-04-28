@@ -5,7 +5,7 @@ import cats.syntax.apply._
 import io.dylemma.spac.xml._
 import io.dylemma.spac.xml.JavaxSupport._
 
-object Example9_TransformerFlatten {
+object Example09_TransformerFlatten {
 
 	/* In this example, we want to parse all of the names, including aliases,
 	 * as a stream of Strings. To do this, we want to create a `Transformer[XMLEvent, String]`.

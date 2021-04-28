@@ -6,7 +6,7 @@ import io.dylemma.spac.xml.XmlEvent.ElemStart
 import io.dylemma.spac.xml._
 import io.dylemma.spac.xml.JavaxSupport._
 
-object Example2_Contexts extends App {
+object Example02_Contexts extends App {
 
 	val rawXml = s"""<blog title="Cool Beans">
 		| <post id="1" author="Dylan">

@@ -5,7 +5,7 @@ import cats.syntax.apply._
 import io.dylemma.spac.xml._
 import io.dylemma.spac.xml.JavaxSupport._
 
-object Example2a_BrokenContext extends App {
+object Example02a_BrokenContext extends App {
 
 	// note the <post id="D"> - we are calling `_.toInt` on this context value,
 	// which will throw an exception, which will end up wrapped in Error results

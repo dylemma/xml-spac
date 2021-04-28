@@ -11,7 +11,7 @@ import io.dylemma.spac.xml.JavaxSupport._
 /**
  * Created by dylan on 10/11/2015.
  */
-object Example4_ParserCombine {
+object Example04_ParserCombine {
 
 	case class Comment(date: Date, user: User, stats: Stats, body: String)
 	case class User(id: String, name: String)

@@ -5,7 +5,7 @@ import cats.syntax.apply._
 import io.dylemma.spac.xml._
 import io.dylemma.spac.xml.JavaxSupport._
 
-object Example5_FollowedBy extends App {
+object Example05_FollowedBy extends App {
 	val xml ="""<doc>
 		| <users>
 		|  <user id="1">dylemma</user>

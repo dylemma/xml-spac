@@ -6,7 +6,7 @@ import io.dylemma.spac.xml.JavaxSupport._
 
 import scala.util.Try
 
-object Example1_Basics extends App {
+object Example01_Basics extends App {
 
 	val libraryXml = """<library>
 		| <book>Don Quixote</book>

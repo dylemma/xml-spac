@@ -7,7 +7,7 @@ import io.dylemma.spac.xml._
 import io.dylemma.spac.xml.JavaxSupport._
 
 // based on https://github.com/dylemma/xml-spac/issues/19
-object Example8_RecursiveTypes {
+object Example08_RecursiveTypes {
 
 	/* Some example type exists, e.g.
 	 *     case class Group(id: Int, name: String, subGroups: Stream[Group])

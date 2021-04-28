@@ -4,7 +4,7 @@ package example
 import io.dylemma.spac.xml._
 import io.dylemma.spac.xml.JavaxSupport._
 
-object Example6_NestedContexts extends App {
+object Example06_NestedContexts extends App {
 
 	/** This Data class requires an `info` and `context` value to be passed in from
 	  * further up the stack. BUT, for argument's sake let's assume we have MANY

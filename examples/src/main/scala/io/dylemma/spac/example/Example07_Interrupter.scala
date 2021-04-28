@@ -4,7 +4,7 @@ package example
 import io.dylemma.spac.xml._
 import io.dylemma.spac.xml.JavaxSupport._
 
-object Example7_Interrupter extends App {
+object Example07_Interrupter extends App {
 
 	val rawXml1 =
 		"""<stuff>
