@@ -17,8 +17,8 @@ lazy val catsEffect = "org.typelevel" %% "cats-effect" % "3.1.0"
 lazy val fs2Core = "co.fs2" %% "fs2-core" % "3.0.2"
 lazy val fs2DataJson = "org.gnieh" %% "fs2-data-json" % "1.0.0-RC2"
 lazy val fs2DataXml = "org.gnieh" %% "fs2-data-xml" % "1.0.0-RC2"
-lazy val jacksonCore = "com.fasterxml.jackson.core" % "jackson-core" % "2.10.0"
-lazy val typeName = "org.tpolecat" %% "typename" % "0.1.5"
+lazy val jacksonCore = "com.fasterxml.jackson.core" % "jackson-core" % "2.12.3"
+lazy val typeName = "org.tpolecat" %% "typename" % "0.1.7"
 
 lazy val testSettings = Seq(
 	libraryDependencies ++= Seq(
