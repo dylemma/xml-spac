@@ -27,6 +27,7 @@ import scala.util.Try
   * @groupprio absract 0
   * @groupprio consumers 1
   * @groupprio combinators 2
+  * @group primary
   */
 trait Parser[-In, +Out] { self =>
 
@@ -206,6 +207,7 @@ trait Parser[-In, +Out] { self =>
   * Integrations for XML and JSON will generally create implicit classes to add methods to this class for `In = XmlEvent` and `In = JsonEvent` respectively.
   *
   * @tparam In
+  * @group util
   */
 class ParserApplyWithBoundInput[In] {
 	def apply[Out](implicit parser: Parser[In, Out]): Parser[In, Out] = parser
@@ -226,6 +228,9 @@ class ParserApplyWithBoundInput[In] {
 	def oneOf[Out](parsers: Parser[In, Out]*): Parser[In, Out] = Parser.oneOf(parsers: _*)
 }
 
+/**
+  * @group primary
+  */
 object Parser {
 	/** Specialization for Parsers which require no mutable state.
 	  * A "stateless" parser acts as its own handler.

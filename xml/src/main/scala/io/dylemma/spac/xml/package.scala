@@ -77,7 +77,7 @@ package object xml {
 	@deprecated("Use `XmlParser` (with lowercase 'ml') instead", "v0.9")
 	type XMLParser[+Out] = XmlParser[Out]
 
-	/** XML-specific Parser constructor methods, e.g. `XmlParser.attr` and `XmlParser.text`
+	/** XML-specific Parser constructor methods, for example `XmlParser.attr` and `XmlParser.text`
 	  *
 	  * @group extensions
 	  */

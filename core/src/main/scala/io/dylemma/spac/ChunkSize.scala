@@ -9,8 +9,13 @@ package io.dylemma.spac
   * You can define a local `implicit val chunkSize = ChunkSize(n)` to override this default.
   *
   * @param i The chunk size as an integer
+  * @group util
   */
 case class ChunkSize(i: Int) extends AnyVal
+
+/**
+  * @group util
+  */
 object ChunkSize {
 	def default = ChunkSize(32)
 }

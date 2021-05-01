@@ -56,8 +56,6 @@ object JavaxSource {
 	  *    JavaxSource.syncIO(file)
 	  *    JavaxSource.syncIO.unmanaged(new ByteArrayInputStream(???))
 	  * }}}
-	  *
-	  * @return
 	  */
 	def syncIO = new JavaxSourcePartiallyApplied[SyncIO]
 

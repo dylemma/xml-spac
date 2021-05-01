@@ -35,7 +35,7 @@ import fs2.{Pipe, Stream}
   *
   * Essentially this helper just provides a convenient `apply` method that accepts
   * `String`, `Stream[F, Char]`, `Stream[F, String]`, or `Stream[F, fs2.data.xml.XmlEvent]`
-  * to return a `Stream[F, XmlEvent]` which a `Parser` could then interact with.
+  * to return a `Stream[F, XmlEvent]` which an `XmlParser` could then interact with.
   *
   * @group support
   */

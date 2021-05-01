@@ -3,6 +3,8 @@ package io.dylemma.spac
 /** A play on words vs StackTraceElement, a *Spac* trace element represents some contextual location inside the logic of a spac Parser,
   * or the location of an input to that parser.
   * `SpacTraceElement`s are used by `SpacException` to provide useful debugging information for when a Parser fails.
+  *
+  * @group errors
   */
 trait SpacTraceElement {
 	/** Create a String that somewhat resembles a StackTraceElement, without actually conforming to StackTraceElement's `toString`.
@@ -27,6 +29,9 @@ trait SpacTraceElement {
 	}
 }
 
+/**
+  * @group errors
+  */
 object SpacTraceElement {
 	/** The bottom of a typical SpacException's `spacTrace`, representing the specific `parse` method
 	  * that was called in order to run the parser, and the location of the caller.

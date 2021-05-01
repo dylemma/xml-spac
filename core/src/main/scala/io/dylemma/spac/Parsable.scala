@@ -21,6 +21,7 @@ import io.dylemma.spac.impl.{ParsableByIterator, ParserToPipe}
   *           wrapped in `F`.
   * @tparam S The "source" type. Typically an `Iterable[In]`, or a `java.io.File`
   * @tparam In The "event" type, i.e. the parser's input type
+  * @group util
   */
 trait Parsable[F[_], -S, +In] { self =>
 	def parse[Out](source: S, callerFrame: SpacTraceElement, parser: Parser[In, Out]): F[Out]
@@ -37,6 +38,9 @@ trait Parsable[F[_], -S, +In] { self =>
 		}
 	}
 }
+/**
+  * @group util
+  */
 object Parsable {
 
 	implicit def forIterable[In]: Parsable[cats.Id, Iterable[In], In] = new ParsableByIterator[Iterable[In], In] {

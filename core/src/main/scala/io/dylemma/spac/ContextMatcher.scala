@@ -13,6 +13,7 @@ import scala.collection.IndexedSeq
   * combination methods and some specialized transformation methods.
   *
   * @tparam A The type of the matched context.
+  * @group context
   */
 trait ContextMatcher[Elem, +A] {
 
@@ -67,8 +68,8 @@ trait ContextMatcher[Elem, +A] {
 	  * @param next   A matcher which will be used to match the "inner" context
 	  * @param reduce The `TypeReduce` rule to help omit `Unit` from the resulting context type
 	  * @tparam A1 To satisfy covariance on A
-	  * @tparam B The `next` matcher's context type
-	  * @tparam R The "reduced" content type, derived from the tuple type `(A, B)` based on the `reduce` rule.
+	  * @tparam B  The `next` matcher's context type
+	  * @tparam R  The "reduced" content type, derived from the tuple type `(A, B)` based on the `reduce` rule.
 	  * @return A matcher which delegates to `this` matcher first, then the `next` matcher for the remaining stack.
 	  */
 	def \[A1 >: A, B, R](next: ContextMatcher[Elem, B])(implicit reduce: TypeReduce.Aux[A1, B, R]): ContextMatcher[Elem, R] = ContextMatcher.Chained(this, next)
@@ -113,6 +114,9 @@ trait ContextMatcher[Elem, +A] {
 	def |[A2 >: A](that: ContextMatcher[Elem, A2]): ContextMatcher[Elem, A2] = or(that)
 }
 
+/**
+  * @group context
+  */
 object ContextMatcher {
 	/** A matcher that quickly matches any input as `()` without consuming any stack. */
 	def noopSuccess[Elem]: ContextMatcher[Elem, Unit] = new ContextMatcher[Elem, Unit] {

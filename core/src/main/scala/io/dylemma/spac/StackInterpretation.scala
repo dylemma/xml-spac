@@ -5,8 +5,13 @@ package io.dylemma.spac
   *
   * @tparam In
   * @tparam Elem
+  * @group util
   */
 sealed trait StackInterpretation[+In, +Elem]
+
+/**
+  * @group util
+  */
 object StackInterpretation {
 	case object NoChange extends StackInterpretation[Nothing, Nothing]
 	case class ChangedAfterInput[In, Elem](change: ContextChange[In, Elem]) extends StackInterpretation[In, Elem]

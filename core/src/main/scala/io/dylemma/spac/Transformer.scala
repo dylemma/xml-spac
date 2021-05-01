@@ -27,6 +27,7 @@ import scala.annotation.tailrec
   * @groupprio utility 1
   * @groupprio combinator 2
   * @groupprio parse 3
+  * @group primary
   */
 trait Transformer[-In, +Out] {
 	/** Transformer's main abstract method; constructs a new Handler representing this transformer's logic.
@@ -168,6 +169,7 @@ trait Transformer[-In, +Out] {
 			case TransformerStack(nec) => nec.toChain
 			case _ => Chain.one(t.asInstanceOf[Transformer[Any, Any]])
 		}
+
 		TransformerStack(NonEmptyChain.fromChainUnsafe(asChain(this) ++ asChain(next)))
 	}
 
@@ -260,6 +262,9 @@ trait Transformer[-In, +Out] {
 	def toPipe[F[_]](implicit pos: CallerPos): Pipe[F, In, Out] = TransformerToPipe(this, SpacTraceElement.InParse("transformer", "toPipe", pos))
 }
 
+/**
+  * @group primary
+  */
 object Transformer {
 	/** Extra transformer methods that had to be defined separately from the trait due to either `In` or `Out` needing to be invariant. */
 	implicit class TransformerParsingOps[In, A](private val self: Transformer[In, A]) extends AnyVal {
@@ -352,6 +357,8 @@ object Transformer {
 
 /** Convenience version of the `Transformer` companion object,
   * which provides transformer constructors with the `In` type already specified.
+  *
+  * @group util
   */
 class TransformerApplyWithBoundInput[In] {
 	def identity: Transformer[In, In] = Transformer.identity

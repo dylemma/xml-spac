@@ -5,6 +5,8 @@ import fs2.Chunk
 
 /** Typeclass for collections that can be efficiently split into a
   * `head` element and a `tail` collection as long as they are not empty.
+  *
+  * @group util
   */
 trait Unconsable[C[_]] {
 	/** Returns either `Some(head -> tail)` or `None` depending on whether the given `coll` is empty.
@@ -16,6 +18,9 @@ trait Unconsable[C[_]] {
 	def uncons[A](coll: C[A]): Option[(A, C[A])]
 }
 
+/**
+  * @group util
+  */
 object Unconsable {
 	def apply[C[_]](implicit C: Unconsable[C]): Unconsable[C] = C
 

@@ -11,7 +11,7 @@ import fs2.data.xml.{QName => Fs2DataQName}
   *
   * Provides an implicit `Parsable` instance for types belonging to the `Fs2DataSource.ToFs2XmlEventStream` typeclass:
   *
-  *  - String
+  *  - `String`
   *  - `fs2.Stream[F, Char]`
   *  - `fs2.Stream[F, String]`
   *  - `fs2.Stream[F, Byte]` (note: requires additional imports from `fs2.data.text`

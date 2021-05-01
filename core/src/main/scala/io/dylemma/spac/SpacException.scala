@@ -13,8 +13,9 @@ import scala.util.control.NoStackTrace
   * will not have useful stack trace information for end users of the Spac framework.
   *
   * @param spacTrace chain of SpacTraceElements, with the "top" of the stack at the beginning, and the "bottom" of the stack at the end
-  * @param detail a `Left` containing a spac-specific error message, or a `Right` containing some non-Spac exception that was caught inside a Parser
+  * @param detail    a `Left` containing a spac-specific error message, or a `Right` containing some non-Spac exception that was caught inside a Parser
   * @tparam Self self-type used in the type signature of `withSpacTrace`
+  * @group errors
   */
 abstract class SpacException[Self <: SpacException[Self]](
 	val spacTrace: Chain[SpacTraceElement],
@@ -55,6 +56,9 @@ abstract class SpacException[Self <: SpacException[Self]](
 	def addEarlyTrace(firstTraceElems: SpacTraceElement*): Self = addEarlyTrace(Chain(firstTraceElems: _*))
 }
 
+/**
+  * @group errors
+  */
 object SpacException {
 	def addTrace(cause: Throwable, nextTraceElems: Chain[SpacTraceElement]): Throwable = cause match {
 		case _ if nextTraceElems.isEmpty => cause
@@ -84,10 +88,9 @@ object SpacException {
 				b.sizeHint(implStackIndex + 1)
 				for (e <- causeOriginalStackTrace.iterator.take(implStackIndex)) b += e
 				b += truncationNotice
-				for(t <- Option(nonSpacCause)) t.setStackTrace(b.result())
+				for (t <- Option(nonSpacCause)) t.setStackTrace(b.result())
 			}
 		}
-
 
 		def withSpacTrace(spacTrace2: Emit[SpacTraceElement]) = new CaughtError(nonSpacCause, spacTrace2)
 	}

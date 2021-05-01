@@ -7,7 +7,38 @@ import fs2.data.json.{Token, tokens}
 import fs2.data.text.CharLikeChunks
 import io.dylemma.spac.json.impl.JsonStackFixer
 
-/** @group support */
+/** Provides helpers for creating FS2 streams of `io.dylemma.spac.json.JsonEvent`,
+  * using fs2-data-json as the underlying event provider.
+  *
+  * This helper is set up to mirror the layout of the corresponding Fs2DataSource helper in the fs2-data-xml support module,
+  * but since there's less customization involved in setting up a stream of fs2-data-json Token objects,
+  * there's a lot less going on in this object. The main functionality provided here is the `convert` pipe,
+  * and some small helpers to automatically call it.
+  *
+  * For example:
+  * {{{
+  *    val charStream: Stream[IO, Char] = ???
+  *
+  *    // this...
+  *    val jsonStream1: Stream[IO, JsonEvent] = {
+  *      import fs2.data.json._
+  *      charStream
+  *        .through(tokens)
+  *        .through(Fs2DataSource.convertEvents)
+  *    }
+  *
+  *    // could be replaced with
+  *    val jsonStream2: Stream[IO, JsonEvent] = {
+  *      Fs2DataSource[IO](charStream)
+  *    }
+  * }}}
+  *
+  * Essentially this helper just provides a convenient `apply` method that accepts
+  * `String`, `Stream[F, Char]`, `Stream[F, String]`, or `Stream[F, fs2.data.json.Token]`
+  * to return a `Stream[F, JsonEvent]` which a `JsonParser` could then interact with.
+  *
+  * @group support
+  */
 object Fs2DataSource {
 
 	/** Partial apply method for creating a `Stream[F, JsonEvent]` from some `source` */
@@ -63,12 +94,13 @@ object Fs2DataSource {
 	private def jsonNumber(raw: String) = {
 		val asLong =
 			try Some(raw.toLong)
-			catch { case _: NumberFormatException => None }
+			catch {case _: NumberFormatException => None}
 		asLong.map(JsonEvent.JLong(_, ContextLocation.empty)).getOrElse {
 			JsonEvent.JDouble(raw.toDouble, ContextLocation.empty)
 		}
 	}
 
+	/** Typeclass for source types that can be converted to a stream of fs2-data-json Token events */
 	trait ToFs2JsonTokenStream[F[_], -S] {
 		def apply(source: S): Stream[F, Token]
 	}

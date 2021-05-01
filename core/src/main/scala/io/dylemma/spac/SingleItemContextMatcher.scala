@@ -9,6 +9,7 @@ import scala.collection.IndexedSeq
   * SingleElementContextMatchers form the building blocks of more complex matchers.
   *
   * @tparam A The type of the matched context.
+  * @group context
   */
 trait SingleItemContextMatcher[Item, +A] extends ContextMatcher[Item, A] {
 	/** The matching operation for single-element matchers.
@@ -43,8 +44,8 @@ trait SingleItemContextMatcher[Item, +A] extends ContextMatcher[Item, A] {
 	  * @param that   The matcher to combine
 	  * @param reduce The `TypeReduce` rule for combining the two match results
 	  * @tparam A1 To satisfy covariance on A
-	  * @tparam B The other matcher's result type
-	  * @tparam R The combined result type
+	  * @tparam B  The other matcher's result type
+	  * @tparam R  The combined result type
 	  * @return A new matcher which combines the results of `this` and `that`
 	  */
 	def and[A1 >: A, B, R](that: SingleItemContextMatcher[Item, B])(implicit reduce: TypeReduce.Aux[A1, B, R]): SingleItemContextMatcher[Item, R] = {
@@ -56,6 +57,9 @@ trait SingleItemContextMatcher[Item, +A] extends ContextMatcher[Item, A] {
 	}
 }
 
+/**
+  * @group context
+  */
 object SingleItemContextMatcher {
 
 	/** Create a new single-element matcher which calls the given matcher function `f` on the first

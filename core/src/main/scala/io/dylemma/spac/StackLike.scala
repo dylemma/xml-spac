@@ -3,6 +3,8 @@ package io.dylemma.spac
 /** Typeclass that perceives a subset of `In` values as either "stack push" or "stack pop" events.
   * For example, with XML, an `ElemStart` event can be perceived as a "stack push", and a corresponding
   * `ElemEnd` event can be preceived as a "stack pop".
+  *
+  * @group util
   */
 trait StackLike[In, +Elem] {
 	def interpretOne(input: In): StackInterpretation[In, Elem]

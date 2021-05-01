@@ -6,11 +6,19 @@ package io.dylemma.spac
   * but may be used more generally to attach a stack-like state to stream transformers.
   *
   * @tparam In The value type of the elements in the stream being inspected
-  * @tparam C The type of the matched context
+  * @tparam C  The type of the matched context
+  * @group context
   */
 sealed trait ContextChange[+In, +C] {
 	def beforeInput: StackInterpretation[In, C] = StackInterpretation.ChangedBeforeInput(this)
 	def afterInput: StackInterpretation[In, C] = StackInterpretation.ChangedAfterInput(this)
 }
+
+/**
+  * @group context
+  */
 case class ContextPush[+In, +C](location: ContextTrace[In], context: C) extends ContextChange[In, C]
+/**
+  * @group context
+  */
 case object ContextPop extends ContextChange[Nothing, Nothing]

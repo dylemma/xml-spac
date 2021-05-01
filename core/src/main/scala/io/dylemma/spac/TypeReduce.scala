@@ -1,21 +1,26 @@
 package io.dylemma.spac
 
 /** Type-level tuple reduction function that treats `Unit` as an Identity.
-	* For example:
-	* {{{
-	*   TypeReduce[(Unit, Unit)]{ type Out = Unit }
-	*   TypeReduce[(T, Unit)]{ type Out = T }
-	*   TypeReduce[(Unit, T)]{ type Out = T }
-	*   TypeReduce[(L, R)]{ type Out = (L, R) }
-	* }}}
-	*/
+  * For example:
+  * {{{
+  *   TypeReduce[(Unit, Unit)]{ type Out = Unit }
+  *   TypeReduce[(T, Unit)]{ type Out = T }
+  *   TypeReduce[(Unit, T)]{ type Out = T }
+  *   TypeReduce[(L, R)]{ type Out = (L, R) }
+  * }}}
+  *
+  * @group util
+  */
 trait TypeReduce[-In1, -In2] {
 	type Out
 	def apply(in1: In1, in2: In2): Out
 }
 
+/**
+  * @group util
+  */
 object TypeReduce extends LowPriorityTypeReduceImplicits {
-	type Aux[In1, In2, O2] = TypeReduce[In1, In2] { type Out = O2 }
+	type Aux[In1, In2, O2] = TypeReduce[In1, In2] {type Out = O2}
 
 	implicit val flattenTwoUnits: Aux[Unit, Unit, Unit] = new TypeReduce[Unit, Unit] {
 		type Out = Unit
@@ -30,6 +35,10 @@ object TypeReduce extends LowPriorityTypeReduceImplicits {
 		def apply(in1: T, in2: Unit): T = in1
 	}
 }
+
+/**
+  * @group util
+  */
 trait LowPriorityTypeReduceImplicits {
 	implicit def noopFlatten[L, R]: TypeReduce.Aux[L, R, (L, R)] = new TypeReduce[L, R] {
 		type Out = (L, R)

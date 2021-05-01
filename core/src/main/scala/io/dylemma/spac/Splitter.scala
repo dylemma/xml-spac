@@ -21,7 +21,8 @@ import io.dylemma.spac.impl.{SplitterByConsecutiveMatches, SplitterByContextMatc
   * "A stream of Strings which each represent the concatenated text from an individual `<thing>` element".
   *
   * @tparam In Data event type for the input stream
-  * @tparam C Context type used to identify each sub-stream
+  * @tparam C  Context type used to identify each sub-stream
+  * @group primary
   */
 trait Splitter[In, +C] {
 
@@ -71,6 +72,10 @@ trait Splitter[In, +C] {
 	  */
 	def flatMap[Out](transformMatches: ContextPush[In, C] => Transformer[In, Out]): Transformer[In, Out] = addBoundaries through SplitterJoiner(transformMatches)
 }
+
+/**
+  * @group primary
+  */
 object Splitter {
 	/** Convenience for creating Splitters with a specific `In` type; useful when type inference can figure out the other type parameters. */
 	def apply[In] = new SplitterApplyWithBoundInput[In]
@@ -101,7 +106,7 @@ object Splitter {
 	  *
 	  * @param matcher A PartialFunction that can extract a context value from inputs
 	  * @tparam In The input type
-	  * @tparam C The extracted context type
+	  * @tparam C  The extracted context type
 	  * @return A splitter that starts a new substream for every input where `matcher.isDefinedAt(input)`,
 	  *         with a context equal to `matcher(input)`.
 	  */
@@ -135,7 +140,6 @@ object Splitter {
 	  *  - `D` with context `'D'` (between the 6 and 7)
 	  *  - `E F G H` with context `'E'` (between the 8 and 9)
 	  *
-	  *
 	  * @param matcher A function defining which inputs count as a "match"
 	  * @tparam In
 	  * @tparam Context
@@ -160,6 +164,10 @@ object Splitter {
 	def consecutiveMatches[In](p: In => Boolean): Splitter[In, Any] = consecutiveMatches[In, Any] { case in if p(in) => () }
 }
 
+/**
+  * @tparam In
+  * @group util
+  */
 class SplitterApplyWithBoundInput[In] {
 	/** See `Splitter.fromMatcher` */
 	def fromMatcher[Elem, C](matcher: ContextMatcher[Elem, C])(implicit S: StackLike[In, Elem], pos: CallerPos): Splitter[In, C] = Splitter.fromMatcher(matcher)
