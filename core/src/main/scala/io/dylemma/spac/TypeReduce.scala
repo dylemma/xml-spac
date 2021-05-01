@@ -3,10 +3,10 @@ package io.dylemma.spac
 /** Type-level tuple reduction function that treats `Unit` as an Identity.
 	* For example:
 	* {{{
-	*   TypeReduce.Aux[(Unit, Unit)]{ type Out = Unit }
-	*   TypeReduce.Aux[(T, Unit)]{ type Out = T }
-	*   TypeReduce.Aux[(Unit, T)]{ type Out = T }
-	*   TypeReduce.Aux[(L, R)]{ type Out = (L, R) }
+	*   TypeReduce[(Unit, Unit)]{ type Out = Unit }
+	*   TypeReduce[(T, Unit)]{ type Out = T }
+	*   TypeReduce[(Unit, T)]{ type Out = T }
+	*   TypeReduce[(L, R)]{ type Out = (L, R) }
 	* }}}
 	*/
 trait TypeReduce[-In1, -In2] {

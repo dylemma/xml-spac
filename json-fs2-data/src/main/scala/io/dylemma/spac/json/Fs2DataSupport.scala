@@ -5,6 +5,7 @@ import cats.Id
 import cats.arrow.FunctionK
 import cats.effect.{Sync, SyncIO}
 
+/** @group support */
 object Fs2DataSupport {
 	implicit def fs2DataJsonSourceAsParsableF[F[_], S](
 		implicit F: Sync[F],

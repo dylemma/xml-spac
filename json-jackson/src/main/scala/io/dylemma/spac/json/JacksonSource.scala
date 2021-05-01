@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.JsonFactory
 import fs2.Stream
 import io.dylemma.spac.json.impl.JsonStackFixer
 
+/** @group support */
 object JacksonSource {
 
 	lazy val defaultFactory: JsonFactory = new JsonFactory

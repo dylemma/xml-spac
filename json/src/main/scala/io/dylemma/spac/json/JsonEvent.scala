@@ -5,6 +5,8 @@ import cats.Show
 import cats.data.Chain
 
 /** ADT for tokens in a JSON stream.
+  *
+  * @group event
   */
 sealed trait JsonEvent extends HasLocation {
 	import JsonEvent._
@@ -31,22 +33,32 @@ sealed trait JsonEvent extends HasLocation {
 	def showRawJson: String
 }
 
-/** Subset of JsonEvents that constitute a "context stack push". */
+/** Subset of JsonEvents that constitute a "context stack push".
+  *
+  * @group event
+  */
 sealed trait JsonStackElem extends JsonEvent {
 	override def asStackPush = Some(this)
 }
 
-/** Subset of JsonEvents that constitute a "context stack pop". */
+/** Subset of JsonEvents that constitute a "context stack pop".
+  *
+  * @group event
+  */
 sealed trait JsonStackPop extends JsonEvent {
 	override def asStackPop = Some(this)
 }
 
-/** Subset of JsonEvents that represent a primitive values */
+/** Subset of JsonEvents that represent a primitive values
+  *
+  * @group event
+  */
 sealed trait JsonValueEvent extends JsonEvent {
 	def valueAsString: String
 	override def asValueEvent = Some(this)
 }
 
+/** @group event */
 object JsonEvent {
 
 	implicit val jsonStackLike: StackLike[JsonEvent, JsonStackElem] = (e: JsonEvent) => {

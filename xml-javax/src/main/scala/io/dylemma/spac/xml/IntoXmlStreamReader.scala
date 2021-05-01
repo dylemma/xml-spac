@@ -9,7 +9,8 @@ import javax.xml.stream.{XMLInputFactory, XMLStreamReader}
 
 import scala.io.Codec
 
-/** Typeclass representing the conversion of some `source` into a javax `XMLStreamReader`.
+/** Typeclass representing the conversion of some `source` into a javax `XMLStreamReader`,
+  * used by `JavaxSource` and `JavaxSupport`.
   *
   * The opening and closing of underlying resources like file/stream handles is represented with `cats.effect.Resource`,
   * where the result of "converting" a source is a `Resource[F, XMLStreamReader]` for some effect type F.
@@ -22,10 +23,16 @@ import scala.io.Codec
   *
   * Since the `R` type is contravariant, you may also use subtypes of `InputStream` and `Reader`, e.g. `FilterInputStream` or `BufferedReader`,
   * as long as they are wrapped in a `Resource` to manage their close logic.
+  *
+  * @group support
   */
 trait IntoXmlStreamReader[F[_], -R] {
 	def apply(factory: XMLInputFactory, source: R)(implicit F: Sync[F]): Resource[F, XMLStreamReader]
 }
+
+/**
+  * @group support
+  */
 object IntoXmlStreamReader {
 
 	/** Conversion for `Resource[F, java.io.InputStream]`, for any Applicative type-constructor `F`.
@@ -66,6 +73,8 @@ object IntoXmlStreamReader {
 		}
 	}
 
+	/** Non-conversion for an existing `Resource[F, XMLStreamReader]`
+	  */
 	implicit def identity[F[_]]: IntoXmlStreamReader[F, Resource[F, XMLStreamReader]] = new IntoXmlStreamReader[F, Resource[F, XMLStreamReader]] {
 		def apply(factory: XMLInputFactory, source: Resource[F, XMLStreamReader])(implicit F: Sync[F]) = source
 	}

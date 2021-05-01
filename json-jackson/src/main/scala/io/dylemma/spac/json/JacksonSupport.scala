@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonFactory
 import io.dylemma.spac.{ChunkSize, Parsable}
 import io.dylemma.spac.impl.ParsableByIterator
 
+/** @group support */
 object JacksonSupport {
 	implicit def jacksonParsableAsParsableF[F[_], S](
 		implicit F: Sync[F],

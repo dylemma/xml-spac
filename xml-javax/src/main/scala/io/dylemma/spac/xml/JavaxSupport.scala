@@ -7,7 +7,8 @@ import javax.xml.XMLConstants
 import javax.xml.namespace.QName
 import javax.xml.stream.XMLInputFactory
 
-/** Provides support for `javax.xml.stream` to be used with `io.dylemma.spac.xml`.
+/** Provides implicits that allow various data sources to be passed to an XmlParser's `parse` method,
+  * using `javax.xml.stream` as the underlying XML event generator.
   *
   * Provides an implicit `Parsable` instance for the following types that can be plugged into a `javax.xml.stream.XMLInputFactory` to create an XMLStreamReader:
   *
@@ -20,6 +21,8 @@ import javax.xml.stream.XMLInputFactory
   * {{{
   *    Source -> Resource[F, XMLInputFactory] -> Stream[F, XmlEvent] -> Parsable[Source]
   * }}}
+  *
+  * @group support
   */
 object JavaxSupport {
 

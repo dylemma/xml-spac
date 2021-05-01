@@ -6,7 +6,7 @@ import fs2.data.xml.{Attr, QName, referenceResolver, XmlEvent => Fs2XmlEvent}
 import io.dylemma.spac.ContextLocation
 import io.dylemma.spac.xml.Fs2DataSupport.fs2DataQNameAsQName
 
-class Fs2StartTagAsElemStart(private val wrapped: Fs2XmlEvent.StartTag) extends XmlEvent.ElemStart {
+private class Fs2StartTagAsElemStart(private val wrapped: Fs2XmlEvent.StartTag) extends XmlEvent.ElemStart {
 	def qName[N](implicit N: AsQName[N]): N = N.convert(wrapped.name)
 
 	def attr[N](attributeQName: N)(implicit N: AsQName[N]): Option[String] = {
@@ -50,12 +50,12 @@ class Fs2StartTagAsElemStart(private val wrapped: Fs2XmlEvent.StartTag) extends 
 	}
 }
 
-class Fs2EndTagAsElemEnd(private val wrapped: Fs2XmlEvent.EndTag) extends XmlEvent.ElemEnd {
+private class Fs2EndTagAsElemEnd(private val wrapped: Fs2XmlEvent.EndTag) extends XmlEvent.ElemEnd {
 	def qName[N](implicit N: AsQName[N]): N = N.convert(wrapped.name)
 	def location: ContextLocation = ContextLocation.empty
 }
 
-class Fs2XmlTextyAsText(private val wrapped: Fs2XmlEvent.XmlTexty) extends XmlEvent.Text {
+private class Fs2XmlTextyAsText(private val wrapped: Fs2XmlEvent.XmlTexty) extends XmlEvent.Text {
 	lazy val value: String = wrapped match {
 		case Fs2XmlEvent.XmlString(s, _) => s
 		case other =>

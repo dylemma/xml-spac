@@ -336,7 +336,7 @@ object Transformer {
 	  * Transformer.op[Int, Int](i => Emit.one(i * 2))
 	  * }}}
 	  */
-	def apply[In] = new TransformerApplyBound[In]
+	def apply[In] = new TransformerApplyWithBoundInput[In]
 
 	def identity[In]: Transformer[In, In] = new TransformerIdentity
 	def op[In, Out](f: In => Emit[Out]): Transformer[In, Out] = new TransformerOp(f)
@@ -353,7 +353,7 @@ object Transformer {
 /** Convenience version of the `Transformer` companion object,
   * which provides transformer constructors with the `In` type already specified.
   */
-class TransformerApplyBound[In] {
+class TransformerApplyWithBoundInput[In] {
 	def identity: Transformer[In, In] = Transformer.identity
 	def op[Out](f: In => Emit[Out]): Transformer[In, Out] = Transformer.op(f)
 	def map[Out](f: In => Out): Transformer[In, Out] = Transformer.map(f)

@@ -1,5 +1,11 @@
 package io.dylemma.spac
 
+/** Outcome of a `StackLike[In, Elem]`, indicating whether a given input was a stack push/pop,
+  * and whether that push/pop should be treated as happening before or after the input that caused it.
+  *
+  * @tparam In
+  * @tparam Elem
+  */
 sealed trait StackInterpretation[+In, +Elem]
 object StackInterpretation {
 	case object NoChange extends StackInterpretation[Nothing, Nothing]

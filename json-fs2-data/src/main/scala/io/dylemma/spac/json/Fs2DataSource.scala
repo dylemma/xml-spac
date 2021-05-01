@@ -7,6 +7,7 @@ import fs2.data.json.{Token, tokens}
 import fs2.data.text.CharLikeChunks
 import io.dylemma.spac.json.impl.JsonStackFixer
 
+/** @group support */
 object Fs2DataSource {
 
 	/** Partial apply method for creating a `Stream[F, JsonEvent]` from some `source` */

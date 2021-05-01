@@ -102,10 +102,16 @@ lazy val root = (project in file("."))
 		xml, xmlFs2Data, xmlJavax,
 		json, jsonJackson
 	)
+	.settings(commonSettings: _*)
+	.settings(apiDocSettings: _*)
 	.settings(
 		publish := {},
-		publishArtifact := false
+		publishArtifact := false,
+		scalacOptions in (ScalaUnidoc, unidoc) += "-Ymacro-expand:none",
+		unidocProjectFilter in (ScalaUnidoc, unidoc) := inAnyProject -- inProjects(examples)
 	)
+	.enablePlugins(ScalaUnidocPlugin)
+
 
 lazy val snapshotBranch = {
 	import scala.util.control.NonFatal
@@ -142,6 +148,7 @@ lazy val classesForHiddenConversions = Seq(
 	// these end up being added to literally every class,
 	// despite the fact that they should never actually be applied to a spac class
 	"io.dylemma.spac.SourceToPullable",
+	"io.dylemma.spac.xml.elem",
 
 	// for some reason, specifying any `-implicits-hide` flag to the scaladoc task
 	// causes it to *add* all the conversions from scala.Predef,

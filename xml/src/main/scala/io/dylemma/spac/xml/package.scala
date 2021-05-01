@@ -47,10 +47,12 @@ import scala.language.implicitConversions
   * @groupname extensions XML-specific extensions for Parser and Splitter
   * @groupname contextMatcherSyntax XML Context Matcher Construction
   * @groupname event XML Event Representation
+  * @groupname support Backend Parser Support
   * @groupprio extensions 0
   * @groupprio aliases 1
   * @groupprio contextMatcherSyntax 2
   * @groupprio event 3
+  * @groupprio support 4
   */
 package object xml {
 
@@ -88,7 +90,7 @@ package object xml {
 	}
 
 	/** @group aliases */
-	val XmlTransformer: TransformerApplyBound[XmlEvent] = Transformer[XmlEvent]
+	val XmlTransformer: TransformerApplyWithBoundInput[XmlEvent] = Transformer[XmlEvent]
 	/** @group aliases */
 	type XmlTransformer[+Out] = Transformer[XmlEvent, Out]
 

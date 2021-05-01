@@ -6,9 +6,11 @@ import java.io.{File, InputStream, Reader}
 import cats.effect.{Resource, Sync}
 import com.fasterxml.jackson.core.{JsonFactory, JsonParser => JacksonParser}
 
+/** @group support */
 trait IntoJacksonJsonParser[F[_], -R] {
 	def apply(factory: JsonFactory, source: R)(implicit F: Sync[F]): Resource[F, JacksonParser]
 }
+/** @group support */
 object IntoJacksonJsonParser {
 	implicit def forFile[F[_]]: IntoJacksonJsonParser[F, File] = new IntoJacksonJsonParser[F, File] {
 		def apply(factory: JsonFactory, source: File)(implicit F: Sync[F]) = {
