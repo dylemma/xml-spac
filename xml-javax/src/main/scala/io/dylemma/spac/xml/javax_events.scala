@@ -1,38 +1,66 @@
-package io.dylemma.spac.xml
+package io.dylemma.spac
+package xml
 
-import io.dylemma.spac.ContextLocation
 import io.dylemma.spac.xml.JavaxSupport.javaxQNameAsQName
 import io.dylemma.spac.xml.XmlEvent._
-import javax.xml.namespace.QName
 
-private class ElemStartImpl(
-	_qName: QName,
-	attrsMap: collection.Map[String, List[(QName, String)]],
-	val location: ContextLocation
-) extends ElemStart {
+import javax.xml.stream.events._
+import javax.xml.stream.{Location, XMLStreamConstants}
+import scala.annotation.switch
 
-	def qName[N](implicit N: AsQName[N]) = N.convert(_qName)
-	def attr[N](attributeQName: N)(implicit N: AsQName[N]) = {
-		attrsMap.get(N.name(attributeQName)).flatMap(_.collectFirst {
-			case (qname, v) if N.equals(attributeQName, qname) => v
-		})
-	}
-	def attrs[N](implicit N: AsQName[N]): Iterator[(N, String)] = {
-		for {
-			(baseName, entries) <- attrsMap.iterator
-			(qName, value) <- entries.iterator
-		} yield {
-			N.convert(qName) -> value
+private object JavaxLocation {
+	def convert(loc: Location) = {
+		var result = ContextLocation.empty
+		if(loc == null) result
+		else {
+			val line = loc.getLineNumber
+			if(line != -1) result = result.and(ContextLineNumber, line.toLong)
+
+			val col = loc.getColumnNumber
+			if(col != -1) result = result.and(ContextColumnOffset, col.toLong)
+
+			val charOffset = loc.getCharacterOffset
+			if(charOffset != -1) result = result.and(ContextCharOffset, charOffset.toLong)
+
+			result
 		}
 	}
 }
-
-private class ElemEndImpl(_qName: QName, val location: ContextLocation) extends ElemEnd {
-	def qName[N](implicit N: AsQName[N]) = N.convert(_qName)
+private class JavaxAttributesIterator[N](e: StartElement)(implicit N: AsQName[N]) extends Iterator[(N, String)] {
+	private val inner = e.getAttributes
+	def hasNext = inner.hasNext
+	def next() = {
+		val attr = inner.next().asInstanceOf[Attribute]
+		N.convert(attr.getName) -> attr.getValue
+	}
 }
 
-private class XmlTextImpl(
-	val value: String,
-	val isWhitespace: Boolean,
-	val location: ContextLocation
-) extends Text
+private object WrappedJavaxXmlEvent {
+	def apply(e: XMLEvent) = (e.getEventType: @switch) match {
+		case XMLStreamConstants.START_ELEMENT => Some(new WrappedJavaxStartElement(e.asStartElement))
+		case XMLStreamConstants.END_ELEMENT => Some(new WrappedJavaxEndElement(e.asEndElement))
+		case XMLStreamConstants.CHARACTERS => Some(new WrappedJavaxTextEvent(e.asCharacters))
+		case _ => None
+	}
+}
+
+private class WrappedJavaxStartElement(e: StartElement) extends ElemStart {
+	def qName[N](implicit N: AsQName[N]) = N.convert(e.getName)
+	def attr[N: AsQName](attributeQName: N) = {
+		val attrOrNull = e.getAttributeByName(javaxQNameAsQName.convert(attributeQName))
+		if (attrOrNull == null) None else Some(attrOrNull.getValue)
+	}
+	def attrs[N](implicit N: AsQName[N]): Iterator[(N, String)] = new JavaxAttributesIterator[N](e)
+	def location = JavaxLocation.convert(e.getLocation)
+}
+
+private class WrappedJavaxEndElement(e: EndElement) extends ElemEnd {
+	def qName[N](implicit N: AsQName[N]) = N.convert(e.getName)
+	def location = JavaxLocation.convert(e.getLocation)
+}
+
+private class WrappedJavaxTextEvent(e: Characters) extends Text {
+	def value = e.getData
+	def isWhitespace = e.isWhiteSpace
+	def location = JavaxLocation.convert(e.getLocation)
+}

@@ -11,28 +11,28 @@ import org.scalatest.matchers.should.Matchers
 import scala.io.Source
 
 class XMLResourceTests extends AnyFunSpec with Matchers {
-	describe("IntoXmlStreamReader") {
+	describe("IntoXmlEventReader") {
 		it("should be available for File") {
-			"implicitly[IntoXmlStreamReader[cats.effect.SyncIO, java.io.File]]" should compile
+			"implicitly[IntoXmlEventReader[cats.effect.SyncIO, java.io.File]]" should compile
 		}
 		it("should be available for String") {
-			"implicitly[IntoXmlStreamReader[cats.effect.SyncIO, String]]" should compile
+			"implicitly[IntoXmlEventReader[cats.effect.SyncIO, String]]" should compile
 		}
 		it("should be available for Resource[F, InputStream]") {
-			"implicitly[IntoXmlStreamReader[cats.effect.SyncIO, cats.effect.Resource[cats.effect.SyncIO, java.io.InputStream]]]" should compile
+			"implicitly[IntoXmlEventReader[cats.effect.SyncIO, cats.effect.Resource[cats.effect.SyncIO, java.io.InputStream]]]" should compile
 		}
 		it("should be available for Resource[F, Reader]") {
-			"implicitly[IntoXmlStreamReader[cats.effect.SyncIO,  cats.effect.Resource[cats.effect.SyncIO, java.io.Reader]]]" should compile
+			"implicitly[IntoXmlEventReader[cats.effect.SyncIO,  cats.effect.Resource[cats.effect.SyncIO, java.io.Reader]]]" should compile
 		}
 
 		// contravariance checks
-		it("should be available for InputStreamReader") {
-			implicitly[IntoXmlStreamReader[SyncIO, Resource[SyncIO, java.io.InputStreamReader]]]
-			implicitly[IntoXmlStreamReader[SyncIO, Resource[SyncIO, java.io.Reader]]]
+		it("should be available for InputEventReader") {
+			implicitly[IntoXmlEventReader[SyncIO, Resource[SyncIO, java.io.InputStreamReader]]]
+			implicitly[IntoXmlEventReader[SyncIO, Resource[SyncIO, java.io.Reader]]]
 		}
 		it("should be available for BufferedInputStream") {
-			implicitly[IntoXmlStreamReader[SyncIO, Resource[SyncIO, java.io.BufferedInputStream]]]
-			implicitly[IntoXmlStreamReader[SyncIO, Resource[SyncIO, java.io.InputStream]]]
+			implicitly[IntoXmlEventReader[SyncIO, Resource[SyncIO, java.io.BufferedInputStream]]]
+			implicitly[IntoXmlEventReader[SyncIO, Resource[SyncIO, java.io.InputStream]]]
 		}
 
 		// for unsupported types, indirect support via functions that constructs a supported type

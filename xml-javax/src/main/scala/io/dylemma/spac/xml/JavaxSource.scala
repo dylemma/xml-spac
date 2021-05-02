@@ -5,13 +5,13 @@ import fs2.Stream
 import io.dylemma.spac.ChunkSize
 import javax.xml.stream.XMLInputFactory
 
-/** Provides convenience constructors for Iterators and Streams of `XmlEvent` for source types belonging to the `IntoXmlStreamReader` typeclass.
+/** Provides convenience constructors for Iterators and Streams of `XmlEvent` for source types belonging to the `IntoXmlEventReader` typeclass.
   *
   * @group support
   */
 object JavaxSource {
 
-	/** Default `XMLInputFactory` used when creating an underlying `XMLStreamReader`
+	/** Default `XMLInputFactory` used when creating an underlying `XMLEventReader`
 	  * with the methods in this object.
 	  *
 	  * This factory disables the `IS_REPLACING_ENTITY_REFERENCES` and `IS_SUPPORTING_EXTERNAL_ENTITIES`
@@ -76,14 +76,14 @@ object JavaxSource {
 		  *
 		  * @param source Some source of XML data, e.g. a File or String, or a Resource that allocates an InputStream or Reader
 		  * @param F Evidence that the `F[_]` type is "Sync"
-		  * @param S Evidence that the `source` can be "opened" as an XMLStreamReader
+		  * @param S Evidence that the `source` can be "opened" as an XMLEventReader
 		  * @param factory The XMLInputFactory used to construct the underlying XML event reader. Defaults to `defaultFactory` if no other factory is available in implicit scope
 		  * @tparam S The source type
 		  * @return A resource which can allocate an iterator of XMLEvents originating from the `source`
 		  */
-		def iteratorResource[S](source: S)(implicit F: Sync[F], S: IntoXmlStreamReader[F, S], factory: XMLInputFactory = defaultFactory): Resource[F, Iterator[XmlEvent]] = {
-			S(factory, source).flatMap { streamReader =>
-				Resource.fromAutoCloseable(F.pure(new WrappedStreamReader(streamReader)))
+		def iteratorResource[S](source: S)(implicit F: Sync[F], S: IntoXmlEventReader[F, S], factory: XMLInputFactory = defaultFactory): Resource[F, Iterator[XmlEvent]] = {
+			S(factory, source).flatMap { EventReader =>
+				Resource.fromAutoCloseable(F.pure(new WrappedEventReader(EventReader)))
 			}
 		}
 
@@ -101,15 +101,15 @@ object JavaxSource {
 		  *
 		  * @param source Some source of XML data, e.g. a File or String, or a Resource that allocates an InputStream or Reader
 		  * @param F Evidence that the `F[_]` type is "Sync"
-		  * @param S Evidence that the `source` can be "opened" as an XMLStreamReader
+		  * @param S Evidence that the `source` can be "opened" as an XMLEventReader
 		  * @param factory The XMLInputFactory used to construct the underlying XML event reader. Defaults to `defaultFactory` if no other factory is available in implicit scope
-		  * @param chunkSize The number of elements to pull from the underlying XMLStreamReader at once.
+		  * @param chunkSize The number of elements to pull from the underlying XMLEventReader at once.
 		  *                  Under the hood, the returned stream uses `Stream.fromBlockingIterator`; this parameter is passed as the `chunkSize` to that call.
 		  *                  Defaults to 25. To override this, define an implicit `ChunkSize` in implicit scope before calling this method.
 		  * @tparam S The source type
 		  * @return An `fs2.Stream[F, XmlEvent]` which when run will open the underlying source and parse XmlEvents from it
 		  */
-		def apply[S](source: S)(implicit F: Sync[F], S: IntoXmlStreamReader[F, S], factory: XMLInputFactory = defaultFactory, chunkSize: ChunkSize = ChunkSize.default): Stream[F, XmlEvent] = {
+		def apply[S](source: S)(implicit F: Sync[F], S: IntoXmlEventReader[F, S], factory: XMLInputFactory = defaultFactory, chunkSize: ChunkSize = ChunkSize.default): Stream[F, XmlEvent] = {
 			Stream
 				.resource { iteratorResource(source) }
 				.flatMap { Stream.fromBlockingIterator[F](_, chunkSize.i) }
@@ -118,7 +118,7 @@ object JavaxSource {
 		/** Treats the given `source` as an `fs2.Stream` of XmlEvent, but does not attempt to open or close the source.
 		  *
 		  * This is essentially an alias for `apply` in cases where the source is an `InputStream` or `Reader` that should not be closed.
-		  * Normally, InputStream and Reader are not directly supported by the `IntoXmlStreamReader` typeclass.
+		  * Normally, InputStream and Reader are not directly supported by the `IntoXmlEventReader` typeclass.
 		  * Instead, they must be wrapped in a `Resource` to dictate the open/close semantics.
 		  * This method automatically wraps the `source` with `Resource.pure`, effectively disabling the `close()` method
 		  * on the source for streaming purposes.
@@ -139,15 +139,15 @@ object JavaxSource {
 		  * @param source An InputStream or Reader from which to pull raw XML data. Neither this method nor the stream
 		  *               it returns will attempt to `close` the source.
 		  * @param F Evidence that the `F[_]` type is "Sync"
-		  * @param S Evidence that the `source` could be "opened" as an XMLStreamReader if it had first been wrapped as a `Resource`
+		  * @param S Evidence that the `source` could be "opened" as an XMLEventReader if it had first been wrapped as a `Resource`
 		  * @param factory The XMLInputFactory used to construct the underlying XML event reader. Defaults to `defaultFactory` if no other factory is available in implicit scope
-		  * @param chunkSize The number of elements to pull from the underlying XMLStreamReader at once.
+		  * @param chunkSize The number of elements to pull from the underlying XMLEventReader at once.
 		  *                  Under the hood, the returned stream uses `Stream.fromBlockingIterator`; this parameter is passed as the `chunkSize` to that call.
 		  *                  Defaults to 25. To override this, define an implicit `ChunkSize` in implicit scope before calling this method.
 		  * @tparam S The source type; for this method it will either be `java.io.InputStream` or `java.io.Reader`.
 		  * @return An `fs2.Stream[F, XmlEvent]` which when run will consume the `source` to pull XmlEvents from it
 		  */
-		def unmanaged[S](source: S)(implicit F: Sync[F], S: IntoXmlStreamReader[F, Resource[F, S]], factory: XMLInputFactory = defaultFactory, chunkSize: ChunkSize = ChunkSize.default): Stream[F, XmlEvent] = {
+		def unmanaged[S](source: S)(implicit F: Sync[F], S: IntoXmlEventReader[F, Resource[F, S]], factory: XMLInputFactory = defaultFactory, chunkSize: ChunkSize = ChunkSize.default): Stream[F, XmlEvent] = {
 			apply(Resource.pure[F, S](source))
 		}
 
