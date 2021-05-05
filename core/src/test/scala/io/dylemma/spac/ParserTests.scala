@@ -183,7 +183,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 
 	describe("Parser # interruptedBy") {
 		val p1 = Parser.toList[Int]
-		val interrupter = Transformer.op[Int, Any] { Emit.one(_).filter(_ == 0) } into Parser.firstOpt
+		val interrupter = Transformer.mapFlatten[Int, Any] { Emit.one(_).filter(_ == 0) } into Parser.firstOpt
 		val parser = p1 interruptedBy interrupter
 
 		it("should proceed normally if the interrupter never yields a result") {

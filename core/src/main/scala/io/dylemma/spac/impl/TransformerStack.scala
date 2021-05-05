@@ -1,79 +1,55 @@
 package io.dylemma.spac
 package impl
 
-import cats.data.NonEmptyChain
+import io.dylemma.spac.Transformer.{BoundHandler, Handler, HandlerLinkage}
 
-import scala.annotation.tailrec
-import scala.util.{Failure, Success, Try}
-
-case class TransformerStack[In, Out](stack: NonEmptyChain[Transformer[Any, Any]]) extends Transformer[In, Out] {
-	def newHandler = {
-		val members = stack.toChain.iterator.map(_.newHandler).toArray
-		new TransformerStack.Handler(members)
+sealed trait TransformerStack[In, Out] extends Transformer[In, Out] {
+	def newHandler: Handler[In, Out] = TransformerStack.buildHandler(this)
+	override def through[X](next: Transformer[Out, X]): Transformer[In, X] = next match {
+		case TransformerStack.Head(next) => TransformerStack.RCons(this, next)
+		case TransformerStack.RCons(inits, last) => this.through(inits).through(last)
+		case next => TransformerStack.RCons(this, next)
 	}
 }
-
 object TransformerStack {
-	class Handler[In, Out](members: Array[Transformer.Handler[Any, Any]]) extends Transformer.Handler[In, Out] {
+	case class Head[A, B](t: Transformer[A, B]) extends TransformerStack[A, B]
+	case class RCons[A, X, B](init: TransformerStack[A, X], last: Transformer[X, B]) extends TransformerStack[A, B]
 
-		def step(in: In) = {
-			@tailrec def stepFrom(i: Int, incoming: Emit[Any], isFinished: Boolean): (Emit[Out], Option[Transformer.Handler[In, Out]]) = {
-				if (i < members.length) {
-					val h = members(i)
-					Try {
-						h.stepMany(incoming) match {
-							case (outs, Left(leftovers)) =>
-								(outs, true)
-							case (outs, Right(cont)) =>
-								members(i) = cont
-								if (isFinished) (outs ++ cont.finish(), true)
-								else (outs, false)
-						}
-					} match {
-						case Success((out, hasFinished)) =>
-							stepFrom(i + 1, out, hasFinished)
-						case Failure(e) =>
-							throw unwindFrom(i, e)
-					}
-				} else {
-					val cont = if (isFinished) None else Some(this)
-					incoming.asInstanceOf[Emit[Out]] -> cont
-				}
-			}
-			stepFrom(0, Emit.one(in), isFinished = false)
+	def buildHandler[A, B](ts: TransformerStack[A, B]): Handler[A, B] = {
+		def normalize[X](remaining: TransformerStack[A, X], tail: Normalized[X, B]): Normalized[A, B] = remaining match {
+			case Head(t) => Cons(t.newHandler, tail)
+			case RCons(init, last) => normalize(init, Cons(last.newHandler, tail))
 		}
+		val normalized = ts match {
+			case Head(t) => End(t.newHandler)
+			case RCons(init, last) => normalize(init, End(last.newHandler))
+		}
+		val (front, back) = normalized.build
+		new Handler[A, B] {
+			def push(in: A, out: Transformer.HandlerWrite[B]) = {
+				back.setDownstream(out)
+				front.push(in)
+			}
+			def finish(out: Transformer.HandlerWrite[B]): Unit = {
+				back.setDownstream(out)
+				front.finish()
+			}
+		}
+	}
 
-		def finish() = {
-			@tailrec def finishFrom(i: Int, toEmit: Emit[Any]): Emit[Out] = {
-				if (i < members.length) {
-					val h = members(i)
-					Try {
-						h.stepMany(toEmit) match {
-							case (outs, Left(leftovers)) => outs
-							case (outs, Right(cont)) => outs ++ cont.finish()
-						}
-					} match {
-						case Success(nextEmit) => finishFrom(i+1, nextEmit)
-						case Failure(err) => throw unwindFrom(i,  err)
-					}
-				} else {
-					// no more handlers, whatever we have to emit is the final handler's output of type Out
-					toEmit.asInstanceOf[Emit[Out]]
-				}
-			}
-			finishFrom(0, Emit.nil)
+	private sealed trait Normalized[In, Out] {
+		def build: (BoundHandler[In], HandlerLinkage[Out])
+	}
+	private case class End[A, B](head: Handler[A, B]) extends Normalized[A, B] {
+		def build = {
+			val proxy = Handler.bindVariableDownstream(head)
+			proxy -> proxy
 		}
-		@tailrec private def unwindFrom(i: Int, err: Throwable): Throwable = {
-			if (i < 0) {
-				err
-			} else {
-				val h = members(i)
-				val err2 = h.unwind(err)
-				unwindFrom(i - 1, err2)
-			}
-		}
-		override def unwind(err: Throwable) = {
-			unwindFrom(members.length - 1, err)
+	}
+	private case class Cons[A, X, B](head: Handler[A, X], tail: Normalized[X, B]) extends Normalized[A, B] {
+		def build = {
+			val (tailProxy, end) = tail.build
+			Handler.bindDownstream(head, tailProxy) -> end
 		}
 	}
 }

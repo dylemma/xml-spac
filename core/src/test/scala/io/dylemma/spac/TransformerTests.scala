@@ -85,7 +85,7 @@ class TransformerTests extends AnyFunSpec with Matchers with ScalaCheckPropertyC
 				t.step(i)._1 shouldEqual Emit(Left(i), Right(i))
 			}
 
-			val t2 = (Transformer[Int].op { i => Emit(i * 2, i * 3) } merge Transformer.identity[Int]).newHandler
+			val t2 = (Transformer[Int].mapFlatten { i => Emit(i * 2, i * 3) } merge Transformer.identity[Int]).newHandler
 			forAll { (i: Int) =>
 				t2.step(i)._1 shouldEqual Emit(i * 2, i * 3, i)
 			}

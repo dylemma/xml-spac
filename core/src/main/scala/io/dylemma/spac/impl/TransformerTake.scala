@@ -1,23 +1,21 @@
 package io.dylemma.spac
 package impl
 
-class TransformerTake[In](n: Int) extends Transformer[In, In] {
-	def newHandler = new TransformerTake.Handler(n)
-	override def toString = s"Transformer.take($n)"
-}
-
-object TransformerTake {
-	class Handler[In](private var remaining: Int) extends Transformer.Handler[In, In] {
-		def step(in: In) = {
+case class TransformerTake[In](n: Int) extends Transformer[In, In] {
+	def newHandler = new Transformer.Handler[In, In] {
+		private var remaining = n
+		def push(in: In, out: Transformer.HandlerWrite[In]) = {
 			if (remaining > 1) {
 				remaining -= 1
-				Emit.one(in) -> Some(this)
+				out.push(in)
 			} else if (remaining == 1) {
-				Emit.one(in) -> None
+				remaining = 0
+				out.push(in)
+				Signal.Stop
 			} else {
-				Emit.nil -> None
+				Signal.Stop
 			}
 		}
-		def finish() = Emit.nil
+		def finish(out: Transformer.HandlerWrite[In]): Unit = ()
 	}
 }

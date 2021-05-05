@@ -1,13 +1,17 @@
 package io.dylemma.spac
 package impl
 
+import io.dylemma.spac.Transformer.HandlerWrite
+
 import scala.annotation.tailrec
 import scala.collection.AbstractIterator
 import scala.util.control.NonFatal
 
 class IteratorTransform[In, Out](itr: Iterator[In], transformer: Transformer[In, Out], callerFrame: SpacTraceElement) extends AbstractIterator[Out] {
 	private var emitItr: Iterator[Out] = Iterator.empty
-	private var nextHandler: Option[Transformer.Handler[In, Out]] = Some(transformer.newHandler.asTopLevelHandler(callerFrame))
+	private val downstream = new HandlerWrite.ToBuilder(Vector.newBuilder[Out])
+	private val handler = Transformer.Handler.bindDownstream(transformer.newHandler.asTopLevelHandler(callerFrame), downstream)
+	private var handlerFinished = false
 
 	def next() = {
 		if (emitItr.hasNext) emitItr.next()
@@ -25,29 +29,20 @@ class IteratorTransform[In, Out](itr: Iterator[In], transformer: Transformer[In,
 	// precondition: `emitItr.hasNext` is false
 	// post-condition: either `emitItr.hasNext` is true or `nextHandler` is None
 	// returns `emitItr.hasNext` when the post-condition is met
-	@tailrec private def stepUntilEmit(): Boolean = nextHandler match {
-		case Some(handler) =>
-			// There is still a handler, which means we can try to feed inputs to it to get outputs
-			if (itr.hasNext) {
-				// feed the next input to the handler
-				val in = itr.next()
-				val (nextEmit, contHandler) = handler.step(in)
-				emitItr = nextEmit.iterator
-				nextHandler = contHandler
-				if (emitItr.hasNext) {
-					true
-				} else {
-					stepUntilEmit() // this "emit" was empty, so continue the loop
-				}
-			} else {
-				// no more inputs, so feed an EOF to the handler
-				emitItr = handler.finish().iterator
-				nextHandler = None
-				emitItr.hasNext
-			}
-
-		case None =>
-			// the transformer ended, so we don't care about the input `itr` anymore
-			false
+	@tailrec private def stepUntilEmit(): Boolean = {
+		if (handlerFinished) false
+		else if (itr.hasNext) {
+			// feed the next input to the handler and see if it outputs anything
+			handlerFinished = handler.push(itr.next()).isStop
+			emitItr = downstream.take().iterator
+			if (emitItr.hasNext) true
+			else stepUntilEmit()
+		}
+		else {
+			// no more inputs, so feed an EOF to the handler
+			handler.finish()
+			emitItr = downstream.take().iterator
+			emitItr.hasNext
+		}
 	}
 }

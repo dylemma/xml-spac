@@ -45,7 +45,7 @@ object Example09_TransformerFlatten {
 	 * in that context.
 	 */
 	val namesTransformer: Transformer[XmlEvent, String] =
-		namesListTransformer.mapBatch { _.flatMap(Emit.fromSeq) }
+		namesListTransformer.mapFlatten { identity }
 
 	def main(args: Array[String]): Unit = {
 		namesTransformer.parseTap(n => println(s"Got a name: $n")).parse(xml)

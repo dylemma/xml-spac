@@ -20,61 +20,62 @@ object JsonStackFixer extends Transformer[JsonEvent, JsonEvent] {
 		private var contextStack: List[JsonStackElem] = Nil
 		private var lastEventLocation = ContextLocation.empty
 
-		def step(in: JsonEvent) = {
-			val toEmit = contextStack.headOption match {
+		def push(in: JsonEvent, out: Transformer.HandlerWrite[JsonEvent]) = {
+			@inline def innerPush(e: JsonEvent) = {
+				e match {
+					case se: JsonStackElem => contextStack ::= se
+					case sp: JsonStackPop => contextStack = contextStack.tail
+					case _ => ()
+				}
+				out.push(e)
+			}
+
+			val signal = contextStack.headOption match {
 				case Some(ArrayStart()) if !in.isArrayEnd =>
 					// If an array just started, any event but ArrayEnd should push an Index(0) context.
 					val s = IndexStart(0, in.location)
-					Emit(s, in)
+					innerPush(s) || innerPush(in)
 
 				case Some(IndexStart(index)) if !in.isArrayEnd =>
 					// If we're in the middle of an array, any event but ArrayEnd should advance the index.
 					val e = IndexEnd(index, lastEventLocation)
 					val c = IndexStart(index + 1, in.location)
-					Emit(e, c, in)
+					innerPush(e) || innerPush(c) || innerPush(in)
 
 				case Some(IndexStart(index)) if in.isArrayEnd =>
 					// If we're inside an array index when the array ends, inject an IndexEnd first.
-					Emit(IndexEnd(index, lastEventLocation), in)
+					val e = IndexEnd(index, lastEventLocation)
+					innerPush(e) || innerPush(in)
 
 				case Some(FieldStart(name)) if in.asFieldStart.isDefined =>
 					// If we encounter a new field while already in a field, inject a FieldEnd first
-					Emit(FieldEnd(name, lastEventLocation), in)
+					val e = FieldEnd(name, lastEventLocation)
+					innerPush(e) || innerPush(in)
 
 				case Some(FieldStart(name)) if in.isObjectEnd =>
 					// If the object ends while we're in a field, inject a FieldEnd first
-					Emit(FieldEnd(name, lastEventLocation), in)
+					val e = FieldEnd(name, lastEventLocation)
+					innerPush(e) || innerPush(in)
 
 				case _ =>
 					// All other events can be passed through normally
-					Emit.one(in)
-			}
-
-			val stackAfter = toEmit.foldLeft(contextStack){ (stack, e) =>
-				e match {
-					case se: JsonStackElem => se :: stack
-					case p: JsonStackPop => stack.tail
-					case _ => stack
-				}
+					innerPush(in)
 			}
 
 			lastEventLocation = in.location
-			contextStack = stackAfter
 
-			toEmit -> Some(this)
+			signal
 		}
 
-		def finish() = {
+		def finish(out: Transformer.HandlerWrite[JsonEvent]) = {
 			// in theory the stack should be empty if the JSON terminates naturally,
 			// but if for some reason it doesn't, we'll inject "opposite" events to close out whatever stack state remains
-			def unwind(remainingStack: List[JsonStackElem]): Emit[JsonEvent] = remainingStack match {
-				case (_: ArrayStart) :: tail => ArrayEnd(ContextLocation.empty) +: unwind(tail)
-				case (_: ObjectStart) :: tail => ObjectEnd(ContextLocation.empty) +: unwind(tail)
-				case FieldStart(name) :: tail => FieldEnd(name, ContextLocation.empty) +: unwind(tail)
-				case IndexStart(index) :: tail => IndexEnd(index, ContextLocation.empty) +: unwind(tail)
-				case _ => Emit.nil
+			contextStack.foreach {
+				case (_: ArrayStart) => out push ArrayEnd(ContextLocation.empty)
+				case (_: ObjectStart) => out push ObjectEnd(ContextLocation.empty)
+				case FieldStart(name) => out push FieldEnd(name, ContextLocation.empty)
+				case IndexStart(index) => out push IndexEnd(index, ContextLocation.empty)
 			}
-			unwind(contextStack)
 		}
 	}
 }

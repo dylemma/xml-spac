@@ -63,10 +63,10 @@ class TransformerCompanionTests extends AnyFunSpec with Matchers with ScalaCheck
 		}
 
 		describe("Transformer.op[In, Out]") {
-			it should behave like opTransformer(Transformer.op)
+			it should behave like opTransformer(Transformer.mapFlatten)
 		}
 		describe("Transformer[In].op[Out]") {
-			it should behave like opTransformer(Transformer[Int].op)
+			it should behave like opTransformer(Transformer[Int].mapFlatten)
 		}
 	}
 

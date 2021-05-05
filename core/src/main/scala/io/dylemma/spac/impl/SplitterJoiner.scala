@@ -4,49 +4,47 @@ package impl
 import scala.util.control.NonFatal
 
 case class SplitterJoiner[In, C, Out](getTransformer: ContextPush[In, C] => Transformer[In, Out]) extends Transformer[Either[ContextChange[In, C], In], Out] {
-	def newHandler = new SplitterJoiner.Handler(getTransformer, None)
+	def newHandler = new SplitterJoiner.Handler(getTransformer)
 }
 
 object SplitterJoiner {
 
-	case class MatchedState[In, Out](startTrace: ContextTrace[In], inner: Option[Transformer.Handler[In, Out]], extraDepth: Int) {
-		def addDepth(delta: Int) = this.copy(extraDepth = extraDepth + delta)
-	}
-
-	class Handler[In, C, Out](
-		getTransformer: ContextPush[In, C] => Transformer[In, Out],
-		state: Option[SplitterJoiner.MatchedState[In, Out]]
+	case class MatchedState[In, Out](
+		startTrace: ContextTrace[In],
+		var inner: Option[Transformer.Handler[In, Out]],
+		var extraDepth: Int
 	)
-		extends Transformer.Handler[Either[ContextChange[In, C], In], Out]
-	{
-		private def continueUnmatched = Some(new Handler[In, C, Out](getTransformer, None))
-		private def continueMatched(s: MatchedState[In, Out]) = Some(new Handler[In, C, Out](getTransformer, Some(s)))
+
+	class Handler[In, C, Out](getTransformer: ContextPush[In, C] => Transformer[In, Out]) extends Transformer.Handler[Either[ContextChange[In, C], In], Out] {
+
+		private var state: Option[MatchedState[In, Out]] = None
 
 		override def toString = state match {
 			case Some(MatchedState(_, Some(inner), _)) => s"Joiner($inner)"
 			case _ => "Joiner(<pending>)"
 		}
 
-		def step(in: Either[ContextChange[In, C], In]) = in match {
+		def push(in: Either[ContextChange[In, C], In], out: Transformer.HandlerWrite[Out]) = in match {
 			case Right(in) =>
 				state match {
 					case Some(ms@MatchedState(startTrace, Some(inner), extraDepth)) =>
 						// feed the input to the inner transformer
-						val stepResult =
-							try inner.step(in)
-							catch { case NonFatal(e) => throw SpacException.addTrace(e, startTrace.asSpacTraceElems) }
-						stepResult match {
-							case (emit, Some(`inner`)) => emit -> Some(this)
-							case (emit, nextInner) => emit -> continueMatched(ms.copy(inner = nextInner))
+						val innerSignal =
+							try inner.push(in, out)
+							catch {case NonFatal(e) => throw SpacException.addTrace(e, startTrace.asSpacTraceElems)}
+						// if the inner transformer stopped, clear the reference to it in our state
+						if (innerSignal.isStop) {
+							ms.inner = None
 						}
+						Signal.Continue
 
 					case Some(matchedStateNoInner) =>
 						// inner transformer must have ended, so ignore inputs until we exit the match
-						Emit.nil -> Some(this)
+						Signal.Continue
 
 					case None =>
 						// ignore all inputs while not in a matched state
-						Emit.nil -> Some(this)
+						Signal.Continue
 
 				}
 
@@ -55,15 +53,16 @@ object SplitterJoiner {
 					case Some(ms) =>
 						// if we were already in a match, this push can be ignored,
 						// but we need to update the `extraDepth` so we don't leave the matched state as soon as we see the next Pop
-						Emit.nil -> continueMatched(ms.addDepth(1))
+						ms.extraDepth += 1
+						Signal.Continue
 
 					case None =>
 						// entering a new context, time to start a new transformer
 						val nextTransformer =
 							try getTransformer(push)
 							catch { case NonFatal(e) => throw SpacException.addTrace(e, trace.asSpacTraceElems) }
-
-						Emit.nil -> continueMatched(MatchedState(trace, Some(nextTransformer.newHandler), 0))
+						state = Some(MatchedState(trace, Some(nextTransformer.newHandler), 0))
+						Signal.Continue
 				}
 
 			case Left(ContextPop) =>
@@ -73,33 +72,35 @@ object SplitterJoiner {
 						val finalOuts = innerOpt match {
 							case None => Emit.nil
 							case Some(inner) =>
-								try inner.finish()
-								catch { case NonFatal(e) => throw SpacException.addTrace(e, trace.asSpacTraceElems) }
+								try inner.finish(out)
+								catch {case NonFatal(e) => throw SpacException.addTrace(e, trace.asSpacTraceElems)}
 						}
-						finalOuts -> continueUnmatched
+						state = None
+						Signal.Continue
 
 					case Some(ms) =>
 						// a pop corresponding to an extra push. In practice this shouldn't happen
-						Emit.nil -> continueMatched(ms.addDepth(-1))
+						ms.extraDepth -= 1
+						Signal.Continue
 
 					case None =>
 						// a pop while we're not in any matched state can be ignored... in practice it won't happen
-						Emit.nil -> Some(this)
+						Signal.Continue
 				}
 		}
-		def finish() = state match {
+		def finish(out: Transformer.HandlerWrite[Out]) = state match {
 			case None =>
 				// clean exit, no extra actions taken
-				Emit.nil
+				()
 
 			case Some(MatchedState(_, None, _)) =>
 				// in a match, but the inner transformer had finished, so no extra actions taken
-				Emit.nil
+				()
 
 			case Some(MatchedState(trace, Some(inner), _)) =>
 				// in a matched context with an inner transformer left unfinished
-				try inner.finish()
-				catch { case NonFatal(e) => throw SpacException.addTrace(e, trace.asSpacTraceElems) }
+				try inner.finish(out)
+				catch {case NonFatal(e) => throw SpacException.addTrace(e, trace.asSpacTraceElems)}
 		}
 	}
 }

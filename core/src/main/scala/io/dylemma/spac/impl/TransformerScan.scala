@@ -1,17 +1,14 @@
 package io.dylemma.spac.impl
 
-import io.dylemma.spac.{Emit, Transformer}
+import io.dylemma.spac.Transformer
 
-class TransformerScan[In, Out](init: Out, op: (Out, In) => Out) extends Transformer[In, Out] {
-	def newHandler = new TransformerScan.Handler(init, op)
-}
-
-object TransformerScan {
-	class Handler[In, Out](private var state: Out, op: (Out, In) => Out) extends Transformer.Handler[In, Out] {
-		def step(in: In) = {
+case class TransformerScan[In, Out](init: Out, op: (Out, In) => Out) extends Transformer[In, Out] {
+	def newHandler = new Transformer.Handler[In, Out] {
+		private var state = init
+		def push(in: In, out: Transformer.HandlerWrite[Out]) = {
 			state = op(state, in)
-			Emit.one(state) -> Some(this)
+			out.push(state)
 		}
-		def finish() = Emit.nil
+		def finish(out: Transformer.HandlerWrite[Out]): Unit = ()
 	}
 }

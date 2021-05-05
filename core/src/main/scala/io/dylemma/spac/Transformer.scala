@@ -6,6 +6,8 @@ import io.dylemma.spac.impl._
 import org.tpolecat.typename.TypeName
 
 import scala.annotation.tailrec
+import scala.collection.mutable
+import scala.util.control.NonFatal
 
 /** Primary "spac" abstraction which represents a transformation stage for a stream of data events
   *
@@ -45,18 +47,6 @@ trait Transformer[-In, +Out] {
 	  */
 	def withName(name: String): Transformer[In, Out] = new TransformerWithName(this, name)
 
-	/** Creates a new transformer which emits values according to the Emit transformation function `f`,
-	  * where the inputs to `f` are the outputs emitted by this transformer.
-	  *
-	  * This is the low-level operation used by `map`, `filter`, and `collect`.
-	  *
-	  * @param f The Emit transformation function
-	  * @tparam Out2 Output type of the resulting transformer
-	  * @return A new transformer which alters the values emitted by this transformer according to `f`
-	  * @group combinator
-	  */
-	def mapBatch[Out2](f: Emit[Out] => Emit[Out2]): Transformer[In, Out2] = new TransformerMapBatch(this, f)
-
 	/** Creates a new transformer which applies the transformation function `f` to each of this transformer's outputs.
 	  *
 	  * @param f A transformation function
@@ -64,7 +54,17 @@ trait Transformer[-In, +Out] {
 	  * @return The mapped transformer
 	  * @group combinator
 	  */
-	def map[Out2](f: Out => Out2): Transformer[In, Out2] = mapBatch(_.map(f))
+	def map[Out2](f: Out => Out2): Transformer[In, Out2] = through(Transformer.map(f))
+
+	/** Creates a new transformer which transforms the outputs of this transformer via the given function `f`,
+	  * emitting each individual value from the output of that function in order before continuing.
+	  *
+	  * @param f A function that transforms outputs from this transformer into a collection of other outputs
+	  * @tparam Out2 The transformed output type
+	  * @return A new transformer which emits any number of transformed outputs based on outputs from this transformer
+	  * @group combinator
+	  */
+	def mapFlatten[Out2](f: Out => Iterable[Out2]): Transformer[In, Out2] = through(Transformer.mapFlatten(f))
 
 	/** Creates a new transformer which filters the outputs from this transformer.
 	  *
@@ -73,7 +73,7 @@ trait Transformer[-In, +Out] {
 	  * @return The filtered transformer
 	  * @group combinator
 	  */
-	def filter(predicate: Out => Boolean): Transformer[In, Out] = mapBatch(_.filter(predicate))
+	def filter(predicate: Out => Boolean): Transformer[In, Out] = through(Transformer.filter(predicate))
 
 	/** Alias for `filter`, used under the hood by for-comprehensions
 	  *
@@ -90,7 +90,7 @@ trait Transformer[-In, +Out] {
 	  * @return The filteried and mapped transformer
 	  * @group combinator
 	  */
-	def collect[Out2](pf: PartialFunction[Out, Out2]): Transformer[In, Out2] = mapBatch(_.collect(pf))
+	def collect[Out2](pf: PartialFunction[Out, Out2]): Transformer[In, Out2] = through(Transformer.collect(pf))
 
 	/** Creates a new transformer which folds outputs from this transformer into a "state" which is emitted each time.
 	  *
@@ -101,7 +101,7 @@ trait Transformer[-In, +Out] {
 	  * @return The new transformer
 	  * @group combinator
 	  */
-	def scan[Out2](init: Out2)(op: (Out2, Out) => Out2): Transformer[In, Out2] = through(new TransformerScan(init, op))
+	def scan[Out2](init: Out2)(op: (Out2, Out) => Out2): Transformer[In, Out2] = through(TransformerScan(init, op))
 
 	/** Creates a new transformer which sends inputs to both this transformer and the `right` transformer.
 	  * Whenever either `this` or `right` emit a value, that value will be emitted from the returned transformer,
@@ -165,12 +165,7 @@ trait Transformer[-In, +Out] {
 	  * @group combinator
 	  */
 	def through[Out2](next: Transformer[Out, Out2]): Transformer[In, Out2] = {
-		@inline def asChain(t: Transformer[_, _]) = t match {
-			case TransformerStack(nec) => nec.toChain
-			case _ => Chain.one(t.asInstanceOf[Transformer[Any, Any]])
-		}
-
-		TransformerStack(NonEmptyChain.fromChainUnsafe(asChain(this) ++ asChain(next)))
+		TransformerStack.Head(this).through(next)
 	}
 
 	@deprecated("This method is being renamed to `through`", "v0.9")
@@ -292,7 +287,75 @@ object Transformer {
 	trait Stateless[-In, +Out] extends Transformer[In, Out] with Handler[In, Out] {
 		def newHandler: this.type = this
 	}
+
 	trait Handler[-In, +Out] {
+		def push(in: In, out: HandlerWrite[Out]): Signal
+		def finish(out: HandlerWrite[Out]): Unit
+		def bubbleUp(err: Throwable): Nothing = throw err
+
+		def pushMany(ins: Iterator[In], out: HandlerWrite[Out]): Signal = {
+			var signal: Signal = Signal.Continue
+			while(!signal.isStop && ins.hasNext) {
+				signal = push(ins.next(), out)
+			}
+			signal
+		}
+
+		/** Wraps this handler as a "top level" handler, which will inject a SpacTraceElement
+		  * (representing the current input or the "EOF" signal)
+		  * to any exception is thrown by this handler when calling its `step` or `finish` methods.
+		  *
+		  * Used internally by Transformers `transform` and `toPipe` methods.
+		  */
+		def asTopLevelHandler(caller: SpacTraceElement): Handler[In, Out] = new TopLevelTransformerHandler(this, caller)
+	}
+
+	object Handler {
+		def protect[In, Out](inner: Handler[In, Out]): Handler[In, Out] = new HandlerProtect(inner)
+
+		def bindDownstream[In, Out](inner: Handler[In, Out], downstream: HandlerWrite[Out]): BoundHandler[In] = new HandlerStaticBind(inner, downstream)
+
+		def bindVariableDownstream[In, Out](inner: Handler[In, Out]): BoundHandler[In] with HandlerLinkage[Out] = new HandlerVariableBind(inner)
+	}
+
+	trait HandlerWrite[-Out] {
+		def push(out: Out): Signal
+
+		def pushMany(outs: Iterator[Out]) = {
+			var signal: Signal = Signal.Continue
+			while(!signal.isStop && outs.hasNext) {
+				signal = push(outs.next())
+			}
+			signal
+		}
+	}
+	object HandlerWrite {
+		val noopAndContinue: HandlerWrite[Any] = (out: Any) => Signal.Continue
+
+		class ToBuilder[A, Out](builder: mutable.ReusableBuilder[A, Out]) extends HandlerWrite[A] {
+			def push(out: A): Signal = {
+				builder += out
+				Signal.Continue
+			}
+			def take(): Out = {
+				val out = builder.result()
+				builder.clear()
+				out
+			}
+		}
+
+		class ToChunk[A]
+	}
+
+	trait BoundHandler[-In] extends HandlerWrite[In] {
+		def finish(): Unit
+	}
+
+	trait HandlerLinkage[+Out] {
+		def setDownstream(newDownstream: HandlerWrite[Out]): Unit
+	}
+
+	/*trait Handler[-In, +Out] {
 		def step(in: In): (Emit[Out], Option[Handler[In, Out]])
 		def finish(): Emit[Out]
 		def unwind(err: Throwable): Throwable = err
@@ -330,7 +393,7 @@ object Transformer {
 		  * Used internally by Transformers `transform` and `toPipe` methods.
 		  */
 		def asTopLevelHandler(caller: SpacTraceElement): Handler[In, Out] = new TopLevelTransformerHandler(this, caller)
-	}
+	}*/
 
 	/** Convenience for creating transformers whose input type is bound to `In`.
 	  *
@@ -344,15 +407,16 @@ object Transformer {
 	def apply[In] = new TransformerApplyWithBoundInput[In]
 
 	def identity[In]: Transformer[In, In] = new TransformerIdentity
-	def op[In, Out](f: In => Emit[Out]): Transformer[In, Out] = new TransformerOp(f)
-	def map[In, Out](f: In => Out): Transformer[In, Out] = op { in => Emit.one(f(in)) }
-	def filter[In](f: In => Boolean): Transformer[In, In] = op { in => if (f(in)) Emit.one(in) else Emit.empty }
-	def drop[In](n: Int): Transformer[In, In] = new TransformerDrop(n)
-	def dropWhile[In](f: In => Boolean): Transformer[In, In] = new TransformerDropWhile(f)
-	def take[In](n: Int): Transformer[In, In] = new TransformerTake(n)
-	def takeWhile[In](f: In => Boolean): Transformer[In, In] = new TransformerTakeWhile(f)
-	def tap[In](f: In => Unit): Transformer[In, In] = new TransformerTap(f)
-	def spacFrame[In](elems: SpacTraceElement*): Transformer[In, In] = new TransformerSpacFrame[In](Chain(elems: _*))
+	def map[In, Out](f: In => Out): Transformer[In, Out] = TransformerMap(f)
+	def mapFlatten[In, Out](f: In => Iterable[Out]): Transformer[In, Out] = TransformerMapFlatten(f)
+	def filter[In](f: In => Boolean): Transformer[In, In] = TransformerFilter(f)
+	def collect[In, Out](pf: PartialFunction[In, Out]): Transformer[In, Out] = TransformerCollect(pf)
+	def drop[In](n: Int): Transformer[In, In] = TransformerDrop(n)
+	def dropWhile[In](f: In => Boolean): Transformer[In, In] = TransformerDropWhile(f)
+	def take[In](n: Int): Transformer[In, In] = TransformerTake(n)
+	def takeWhile[In](f: In => Boolean): Transformer[In, In] = TransformerTakeWhile(f)
+	def tap[In](f: In => Unit): Transformer[In, In] = TransformerTap(f)
+	def spacFrame[In](elems: SpacTraceElement*): Transformer[In, In] = TransformerSpacFrame[In](Chain(elems: _*))
 }
 
 /** Convenience version of the `Transformer` companion object,
@@ -362,11 +426,12 @@ object Transformer {
   */
 class TransformerApplyWithBoundInput[In] {
 	def identity: Transformer[In, In] = Transformer.identity
-	def op[Out](f: In => Emit[Out]): Transformer[In, Out] = Transformer.op(f)
 	def map[Out](f: In => Out): Transformer[In, Out] = Transformer.map(f)
+	def mapFlatten[Out](f: In => Iterable[Out]): Transformer[In, Out] = Transformer.mapFlatten(f)
 	def filter(f: In => Boolean): Transformer[In, In] = Transformer.filter(f)
-	def drop(n: Int): Transformer[In, In] = new TransformerDrop(n)
-	def dropWhile(f: In => Boolean): Transformer[In, In] = new TransformerDropWhile(f)
+	def collect[Out](pf: PartialFunction[In, Out]): Transformer[In, Out] = Transformer.collect(pf)
+	def drop(n: Int): Transformer[In, In] = Transformer.drop(n)
+	def dropWhile(f: In => Boolean): Transformer[In, In] = Transformer.dropWhile(f)
 	def take(n: Int): Transformer[In, In] = Transformer.take(n)
 	def takeWhile(f: In => Boolean): Transformer[In, In] = Transformer.takeWhile(f)
 	def tap(f: In => Unit): Transformer[In, In] = Transformer.tap(f)
