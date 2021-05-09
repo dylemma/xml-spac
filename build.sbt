@@ -91,6 +91,7 @@ lazy val examples = (project in file("examples"))
 	.settings(commonSettings: _*)
 	.settings(
 		publish := {},
+		publish / skip := true,
 		libraryDependencies ++= Seq(catsEffect, fs2Core),
 	)
 	.dependsOn(core, xml, xmlJavax, xmlFs2Data)
@@ -107,6 +108,7 @@ lazy val root = (project in file("."))
 	.settings(
 		publish := {},
 		publishArtifact := false,
+		publish / skip := true,
 		scalacOptions in (ScalaUnidoc, unidoc) += "-Ymacro-expand:none",
 		unidocProjectFilter in (ScalaUnidoc, unidoc) := inAnyProject -- inProjects(examples)
 	)
