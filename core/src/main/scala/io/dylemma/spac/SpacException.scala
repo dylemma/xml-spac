@@ -92,7 +92,7 @@ object SpacException {
 			}
 		}
 
-		def withSpacTrace(spacTrace2: Emit[SpacTraceElement]) = new CaughtError(nonSpacCause, spacTrace2)
+		def withSpacTrace(spacTrace2: Chain[SpacTraceElement]) = new CaughtError(nonSpacCause, spacTrace2)
 	}
 	object CaughtError {
 		def unapply(e: Throwable) = e match {
@@ -106,7 +106,7 @@ object SpacException {
 	class MissingFirstException[Out: TypeName](spacTrace: Chain[SpacTraceElement])
 		extends SpacException[MissingFirstException[Out]](spacTrace, s"Parser context ended before the first ${ typeName[Out] } could be found.")
 	{
-		def withSpacTrace(spacTrace2: Emit[SpacTraceElement]) = new MissingFirstException[Out](spacTrace2)
+		def withSpacTrace(spacTrace2: Chain[SpacTraceElement]) = new MissingFirstException[Out](spacTrace2)
 	}
 
 	// ------------------------------------------------------------------------------
@@ -115,7 +115,7 @@ object SpacException {
 	class UnexpectedInputException[A](val input: A, val expectations: List[String], spacTrace: Chain[SpacTraceElement])
 		extends SpacException[UnexpectedInputException[A]](spacTrace, s"Unexpected input: expected ${ formatExpectations(expectations) }, but got $input.")
 	{
-		def withSpacTrace(spacTrace2: Emit[SpacTraceElement]) = new UnexpectedInputException[A](input, expectations, spacTrace2)
+		def withSpacTrace(spacTrace2: Chain[SpacTraceElement]) = new UnexpectedInputException[A](input, expectations, spacTrace2)
 	}
 	object UnexpectedInputException {
 		def unapply(e: Throwable) = e match {
@@ -130,7 +130,7 @@ object SpacException {
 	class UnfulfilledInputsException(val expectations: List[String], spacTrace: Chain[SpacTraceElement])
 		extends SpacException[UnfulfilledInputsException](spacTrace, s"Unexpected end of input: still expected ${ formatExpectations(expectations) }.")
 	{
-		def withSpacTrace(spacTrace2: Emit[SpacTraceElement]) = new UnfulfilledInputsException(expectations, spacTrace2)
+		def withSpacTrace(spacTrace2: Chain[SpacTraceElement]) = new UnfulfilledInputsException(expectations, spacTrace2)
 	}
 	object UnfulfilledInputsException {
 		def unapply(e: Throwable) = e match {
@@ -152,7 +152,7 @@ object SpacException {
 	{
 		for (err <- underlyingErrors) this.addSuppressed(err)
 
-		def withSpacTrace(spacTrace2: Emit[SpacTraceElement]) = new FallbackChainFailure(underlyingErrors, spacTrace2)
+		def withSpacTrace(spacTrace2: Chain[SpacTraceElement]) = new FallbackChainFailure(underlyingErrors, spacTrace2)
 	}
 	object FallbackChainFailure {
 		def unapply(e: Throwable) = e match {

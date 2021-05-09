@@ -21,7 +21,7 @@ object XmlSpacException {
 	class MissingMandatoryAttributeException(val attributeName: ShowableQName, val elem: Option[ElemStart], spacTrace: Chain[SpacTraceElement])
 		extends SpacException[MissingMandatoryAttributeException](spacTrace, showMissingAttr(attributeName, elem))
 	{
-		def withSpacTrace(spacTrace2: Emit[SpacTraceElement]) = new MissingMandatoryAttributeException(attributeName, elem, spacTrace2)
+		def withSpacTrace(spacTrace2: Chain[SpacTraceElement]) = new MissingMandatoryAttributeException(attributeName, elem, spacTrace2)
 	}
 	object MissingMandatoryAttributeException {
 		def unapply(e: Throwable) = e match {

@@ -42,17 +42,4 @@ import cats.data.Chain
   * @groupdesc util Most of these classes and traits are typeclasses that the primary types operate in terms of.
   *            Generally you don't directly interact with these.
   */
-package object spac {
-
-	/** Type alias used by the Transformer.Handler methods, to represent a series of outputs to "emit". It's just `cats.data.Chain`.
-	  *
-	  * @group util
-	  */
-	type Emit[+A] = Chain[A]
-	/** Value alias that acts as the `Emit[A]` companion, used by Transformer.Handler implementations. It's just `cats.data.Chain`.
-	  *
-	  * @group util
-	  */
-	val Emit: Chain.type = Chain
-
-}
+package object spac
