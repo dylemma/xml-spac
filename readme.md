@@ -47,7 +47,7 @@ libraryDependencies ++= Seq(
   "io.dylemma" %% "spac-core" % "0.9",         // core classes like Parser and Transformer
    
   "io.dylemma" %% "xml-spac" % "0.9",          // classes for XML-specific parsers
-  "io.dylemma" %% "xml-spac-javax" % "0.9"     // XML parser backend using javax.xml.stream
+  "io.dylemma" %% "xml-spac-javax" % "0.9",     // XML parser backend using javax.xml.stream
   "io.dylemma" %% "xml-spac-fs2-data" % "0.9", // XML parser backend using fs2-data-xml
 
   "io.dylemma" %% "json-spac" % "0.9",         // classes for JSON-specific parsers
