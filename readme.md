@@ -2,9 +2,9 @@ XML SPaC
 ========
 
 **API Docs:** 
-[spac-core](https://javadoc.io/doc/io.dylemma/spac-core_2.13/0.9/io/dylemma/spac/index.html) | 
-[xml-spac](https://javadoc.io/doc/io.dylemma/xml-spac_2.13/0.9/io/dylemma/spac/xml/index.html) | 
-[json-spac](https://javadoc.io/doc/io.dylemma/json-spac_2.13/0.9/io/dylemma/spac/json/index.html) |
+[spac-core](https://javadoc.io/doc/io.dylemma/spac-core_2.13/latest/io/dylemma/spac/index.html) | 
+[xml-spac](https://javadoc.io/doc/io.dylemma/xml-spac_2.13/latest/io/dylemma/spac/xml/index.html) | 
+[json-spac](https://javadoc.io/doc/io.dylemma/json-spac_2.13/latest/io/dylemma/spac/json/index.html) |
 [xml-spac-javax](https://javadoc.io/doc/io.dylemma/xml-spac-javax_2.13/latest/io/dylemma/spac/xml/index.html) |
 [xml-spac-fs2-data](https://javadoc.io/doc/io.dylemma/xml-spac-fs2-data_2.13/latest/io/dylemma/spac/xml/index.html) |
 [json-spac-jackson](https://javadoc.io/doc/io.dylemma/json-spac-jackson_2.13/latest/io/dylemma/spac/json/index.html) |
@@ -49,15 +49,15 @@ Add (your choice of) the following to your `build.sbt` file:
 
 ```sbt
 libraryDependencies ++= Seq(
-  "io.dylemma" %% "spac-core" % "0.9",         // core classes like Parser and Transformer
+  "io.dylemma" %% "spac-core" % "0.9.1",         // core classes like Parser and Transformer
    
-  "io.dylemma" %% "xml-spac" % "0.9",          // classes for XML-specific parsers
-  "io.dylemma" %% "xml-spac-javax" % "0.9",    // XML parser backend using javax.xml.stream
-  "io.dylemma" %% "xml-spac-fs2-data" % "0.9", // XML parser backend using fs2-data-xml
+  "io.dylemma" %% "xml-spac" % "0.9.1",          // classes for XML-specific parsers
+  "io.dylemma" %% "xml-spac-javax" % "0.9.1",    // XML parser backend using javax.xml.stream
+  "io.dylemma" %% "xml-spac-fs2-data" % "0.9.1", // XML parser backend using fs2-data-xml
 
-  "io.dylemma" %% "json-spac" % "0.9",         // classes for JSON-specific parsers
-  "io.dylemma" %% "json-spac-jackson" % "0.9", // JSON parser backend using the Jackson library
-  "io.dylemma" %% "json-spac-fs2-data" % "0.9" // JSON parser backend using fs2-data-json
+  "io.dylemma" %% "json-spac" % "0.9.1",         // classes for JSON-specific parsers
+  "io.dylemma" %% "json-spac-jackson" % "0.9.1", // JSON parser backend using the Jackson library
+  "io.dylemma" %% "json-spac-fs2-data" % "0.9.1" // JSON parser backend using fs2-data-json
 )
 ```
 
