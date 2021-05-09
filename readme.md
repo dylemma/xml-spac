@@ -1,9 +1,14 @@
 XML SPaC
 ========
 
-> *Note: the main branch currently has yet-to-be-released code for the upcoming 0.9 release. See [here](https://github.com/dylemma/xml-spac/tree/0.8) to view the code and readme from the latest release*
-
-**API Docs:** [spac-core](https://javadoc.io/doc/io.dylemma/spac-core_2.13/0.8/io/dylemma/spac/index.html) | [xml-spac](https://javadoc.io/doc/io.dylemma/xml-spac_2.13/0.8/io/dylemma/spac/xml/index.html) | [json-spac](https://javadoc.io/doc/io.dylemma/json-spac_2.13/0.8/io/dylemma/spac/json/index.html)
+**API Docs:** 
+[spac-core](https://javadoc.io/doc/io.dylemma/spac-core_2.13/0.9/io/dylemma/spac/index.html) | 
+[xml-spac](https://javadoc.io/doc/io.dylemma/xml-spac_2.13/0.9/io/dylemma/spac/xml/index.html) | 
+[json-spac](https://javadoc.io/doc/io.dylemma/json-spac_2.13/0.9/io/dylemma/spac/json/index.html) |
+[xml-spac-javax](https://javadoc.io/doc/io.dylemma/xml-spac-javax_2.13/latest/io/dylemma/spac/xml/index.html) |
+[xml-spac-fs2-data](https://javadoc.io/doc/io.dylemma/xml-spac-fs2-data_2.13/latest/io/dylemma/spac/xml/index.html) |
+[json-spac-jackson](https://javadoc.io/doc/io.dylemma/json-spac-jackson_2.13/latest/io/dylemma/spac/json/index.html) |
+[json-spac-fs2-data](https://javadoc.io/doc/io.dylemma/json-spac-fs2-data_2.13/latest/io/dylemma/spac/json/index.html)
 
 ***S***treaming ***Pa***rser ***C***ombinators is a Scala library for building stream consumers in a declarative style, specialized for tree-like data types like XML and JSON.
 
@@ -47,7 +52,7 @@ libraryDependencies ++= Seq(
   "io.dylemma" %% "spac-core" % "0.9",         // core classes like Parser and Transformer
    
   "io.dylemma" %% "xml-spac" % "0.9",          // classes for XML-specific parsers
-  "io.dylemma" %% "xml-spac-javax" % "0.9",     // XML parser backend using javax.xml.stream
+  "io.dylemma" %% "xml-spac-javax" % "0.9",    // XML parser backend using javax.xml.stream
   "io.dylemma" %% "xml-spac-fs2-data" % "0.9", // XML parser backend using fs2-data-xml
 
   "io.dylemma" %% "json-spac" % "0.9",         // classes for JSON-specific parsers
