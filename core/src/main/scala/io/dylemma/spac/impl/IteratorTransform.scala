@@ -1,15 +1,13 @@
 package io.dylemma.spac
 package impl
 
-import io.dylemma.spac.Transformer.HandlerWrite
-
 import scala.annotation.tailrec
 import scala.collection.AbstractIterator
-import scala.util.control.NonFatal
+import scala.collection.immutable.VectorBuilder
 
 class IteratorTransform[In, Out](itr: Iterator[In], transformer: Transformer[In, Out], callerFrame: SpacTraceElement) extends AbstractIterator[Out] {
 	private var emitItr: Iterator[Out] = Iterator.empty
-	private val downstream = new HandlerWrite.ToBuilder(Vector.newBuilder[Out])
+	private val downstream = new Transformer.BoundHandler.ToBuilder(new VectorBuilder[Out])
 	private val handler = Transformer.Handler.bindDownstream(transformer.newHandler.asTopLevelHandler(callerFrame), downstream)
 	private var handlerFinished = false
 

@@ -313,9 +313,9 @@ object Transformer {
 	object Handler {
 		def protect[In, Out](inner: Handler[In, Out]): Handler[In, Out] = new HandlerProtect(inner)
 
-		def bindDownstream[In, Out](inner: Handler[In, Out], downstream: HandlerWrite[Out]): BoundHandler[In] = new HandlerStaticBind(inner, downstream)
+		def bindDownstream[In, Out](inner: Handler[In, Out], downstream: BoundHandler[Out]): BoundHandler[In] = new HandlerBind.Static(inner, downstream)
 
-		def bindVariableDownstream[In, Out](inner: Handler[In, Out]): BoundHandler[In] with HandlerLinkage[Out] = new HandlerVariableBind(inner)
+		def bindVariableDownstream[In, Out](inner: Handler[In, Out]): BoundHandler[In] with HandlerLinkage[Out] = new HandlerBind.Dynamic(inner)
 	}
 
 	trait HandlerWrite[-Out] {
@@ -329,71 +329,33 @@ object Transformer {
 			signal
 		}
 	}
-	object HandlerWrite {
-		val noopAndContinue: HandlerWrite[Any] = (out: Any) => Signal.Continue
 
-		class ToBuilder[A, Out](builder: mutable.ReusableBuilder[A, Out]) extends HandlerWrite[A] {
+	trait BoundHandler[-In] extends HandlerWrite[In] {
+		def finish(): Unit
+	}
+	object BoundHandler {
+		val noopAndContinue: BoundHandler[Any] = new BoundHandler[Any] {
+			def push(out: Any) = Signal.Continue
+			def finish(): Unit = ()
+		}
+
+		class ToBuilder[A, Out](builder: mutable.ReusableBuilder[A, Out]) extends BoundHandler[A] {
 			def push(out: A): Signal = {
 				builder += out
 				Signal.Continue
 			}
+			def finish(): Unit = ()
 			def take(): Out = {
 				val out = builder.result()
 				builder.clear()
 				out
 			}
 		}
-
-		class ToChunk[A]
-	}
-
-	trait BoundHandler[-In] extends HandlerWrite[In] {
-		def finish(): Unit
 	}
 
 	trait HandlerLinkage[+Out] {
 		def setDownstream(newDownstream: HandlerWrite[Out]): Unit
 	}
-
-	/*trait Handler[-In, +Out] {
-		def step(in: In): (Emit[Out], Option[Handler[In, Out]])
-		def finish(): Emit[Out]
-		def unwind(err: Throwable): Throwable = err
-
-		def stepMany[C[_], In2 <: In](_ins: C[In2])(implicit C: Unconsable[C]): (Emit[Out], Either[C[In2], Handler[In, Out]]) = {
-			// fold inputs from `_ins` into this transformer, accumulating a buffer of `outs` and updating the transformer state along the way,
-			// eventually returning the concatenation of all `outs`, and the final `transformer` state if the transformer is ready to continue,
-			// or else the leftover unconsumed inputs if the transformer decided to end partway through
-			var out: Emit[Out] = Emit.nil
-
-			@tailrec def loop(current: Handler[In, Out], remaining: C[In2]): Either[C[In2], Handler[In, Out]] = {
-				C.uncons(remaining) match {
-					case Some((in, tail)) =>
-						// next input, step the transformer
-						val (emit, nextState) = current.step(in)
-						out ++= emit
-						nextState match {
-							case None => Left(tail)
-							case Some(cont) => loop(cont, tail)
-						}
-					case None =>
-						// end of input, exit recursion by returning a Right with the current transformer
-						Right(current)
-				}
-			}
-
-			val endState = loop(this, _ins)
-			out -> endState
-		}
-
-		/** Wraps this handler as a "top level" handler, which will inject a SpacTraceElement
-		  * (representing the current input or the "EOF" signal)
-		  * to any exception is thrown by this handler when calling its `step` or `finish` methods.
-		  *
-		  * Used internally by Transformers `transform` and `toPipe` methods.
-		  */
-		def asTopLevelHandler(caller: SpacTraceElement): Handler[In, Out] = new TopLevelTransformerHandler(this, caller)
-	}*/
 
 	/** Convenience for creating transformers whose input type is bound to `In`.
 	  *

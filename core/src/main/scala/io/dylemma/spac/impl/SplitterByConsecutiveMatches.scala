@@ -13,8 +13,10 @@ object SplitterByConsecutiveMatches {
 		// note: as long as the matcher keeps returning `Some`, it doesn't matter if the `C` value changes; this handler keeps the current context
 		def push(in: In, out: Transformer.HandlerWrite[Either[ContextChange[In, C], In]]): Signal = matcher(in) match {
 			case Some(newContext) if !isMatching =>
+				isMatching = true
 				out.push(Left(ContextPush(ContextTrace.empty, newContext))) || out.push(Right(in))
 			case None if isMatching =>
+				isMatching = false
 				out.push(Left(ContextPop)) || out.push(Right(in))
 			case _ =>
 				out.push(Right(in))

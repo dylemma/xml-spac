@@ -3,12 +3,14 @@ package impl
 
 import fs2.{Chunk, Pipe, Pull, Stream}
 
+import scala.collection.immutable.VectorBuilder
+
 object TransformerToPipe {
-	private type Handlers[A, B] = (Transformer.BoundHandler[A], Transformer.HandlerWrite.ToBuilder[B, Vector[B]])
+	private type Handlers[A, B] = (Transformer.BoundHandler[A], Transformer.BoundHandler.ToBuilder[B, Vector[B]])
 
 	def apply[F[_], A, B](t: Transformer[A, B], caller: SpacTraceElement): Pipe[F, A, B] = init => Pull
 		.suspend {
-			val downstream = new Transformer.HandlerWrite.ToBuilder[B, Vector[B]](Vector.newBuilder)
+			val downstream = new Transformer.BoundHandler.ToBuilder(new VectorBuilder[B])
 			val handler = Transformer.Handler.bindDownstream(t.newHandler.asTopLevelHandler(caller), downstream)
 			Pull.pure[F, Handlers[A, B]](handler -> downstream)
 		}

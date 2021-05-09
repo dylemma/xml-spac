@@ -3,7 +3,7 @@ package io.dylemma.spac
 import cats.data.Chain
 import Chain._
 import cats.effect.SyncIO
-import io.dylemma.spac.impl.{ParserInterruptedBy, ParserOrElseChain}
+import io.dylemma.spac.impl.{ParserInterruptedBy, ParserOrElseChain, SplitterJoiner}
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -183,7 +183,7 @@ class ParserTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks
 
 	describe("Parser # interruptedBy") {
 		val p1 = Parser.toList[Int]
-		val interrupter = Transformer.mapFlatten[Int, Any] { Emit.one(_).filter(_ == 0) } into Parser.firstOpt
+		val interrupter = Transformer[Int].filter(_ == 0).parseFirstOpt
 		val parser = p1 interruptedBy interrupter
 
 		it("should proceed normally if the interrupter never yields a result") {

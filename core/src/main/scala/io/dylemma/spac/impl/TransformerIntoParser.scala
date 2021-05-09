@@ -2,7 +2,7 @@ package io.dylemma.spac
 package impl
 
 class TransformerIntoParser[In, X, Out](t: Transformer[In, X], p: Parser[X, Out]) extends Parser[In, Out] {
-	def newHandler = new Parser.Handler[In, Out] { //new TransformerIntoParser.Handler(t.newHandler, p.newHandler)
+	def newHandler = new Parser.Handler[In, Out] {
 		val downstream = new TransformerIntoParser.ParserProxy(p)
 		val h = Transformer.Handler.bindDownstream(t.newHandler, downstream)
 		def step(in: In): Either[Out, Parser.Handler[In, Out]] = {
