@@ -82,10 +82,42 @@ package object xml {
 	  * @group extensions
 	  */
 	implicit class XmlParserApplyOps(val parserApply: ParserApplyWithBoundInput[XmlEvent]) extends AnyVal {
+		/** An XmlParser that concatenates all of the raw character data found in the XmlEvent stream it consumes.
+		  */
 		def forText: Parser[XmlEvent, String] = XmlParserText
+
+		/** An XmlParser that extracts the requested mandatory attribute from the first `ElemStart` in the stream it consumes,
+		  * throwing an exception if the attribute is missing or an `ElemStart` never appears.
+		  *
+		  * @param attributeName The name of the requested attribute
+		  * @tparam N Usually a `String` but can be a `QName` from whichever parser backend you're using
+		  * @return A parser that extracts the given mandatory attribute from an XML element
+		  */
 		def forMandatoryAttribute[N: AsQName](attributeName: N): Parser[XmlEvent, String] = new XmlParserMandatoryAttribute(attributeName)
+
+		/** An XmlParser that extracts the requested optional attribute from the first `ElemStart` in the stream it consumes, wrapped in a `Some`,
+		  * instead yielding a `None` if the attribute is missing or an `ElemStart` never appears.
+		  *
+		  * @param attributeName The name of the requested attribute
+		  * @tparam N Usually a `String` but can be a `QName` from whichever parser backend you're using
+		  * @return A parser that extracts the given optional attribute from an XML element
+		  */
 		def forOptionalAttribute[N: AsQName](attributeName: N): Parser[XmlEvent, Option[String]] = new XmlParserOptionalAttribute(attributeName)
+
+		/** Alias for `forMandatoryAttribute`.
+		  *
+		  * @param attributeName The name of the requested attribute
+		  * @tparam N Usually a `String` but can be a `QName` from whichever parser backend you're using
+		  * @return A parser that extracts the given mandatory attribute from an XML element
+		  */
 		def attr[N: AsQName](attributeName: N): XmlParser[String] = forMandatoryAttribute(attributeName)
+
+		/** Alias for `forOptionalAttribute`.
+		  *
+		  * @param attributeName The name of the requested attribute
+		  * @tparam N Usually a `String` but can be a `QName` from whichever parser backend you're using
+		  * @return A parser that extracts the given optional attribute from an XML element
+		  */
 		def attrOpt[N: AsQName](attributeName: N): XmlParser[Option[String]] = forOptionalAttribute(attributeName)
 	}
 
