@@ -118,10 +118,6 @@ The one you use will depend on whether the parser is available implicitly, and w
  - `splitter.joinBy(parser)`
  - `splitter.as[Out]`
 
-> TODO: change this link to a live javadoc.io link for the ContextMatcherSyntax once 0.9 is released
-
-Check out [the docs](#link-todo) for more ways to construct XmlSplitters.
-
 # Running Parsers
 
 To run a `Parser[In, Out]`, use either its `parse` or `parseF` method.
