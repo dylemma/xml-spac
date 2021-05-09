@@ -1,13 +1,11 @@
 package io.dylemma.spac
 
-import cats.data.{Chain, NonEmptyChain}
+import cats.data.Chain
 import fs2.Pipe
 import io.dylemma.spac.impl._
 import org.tpolecat.typename.TypeName
 
-import scala.annotation.tailrec
 import scala.collection.mutable
-import scala.util.control.NonFatal
 
 /** Primary "spac" abstraction which represents a transformation stage for a stream of data events
   *
@@ -22,11 +20,11 @@ import scala.util.control.NonFatal
   * @tparam In  The incoming event type
   * @tparam Out The outgoing event type
   * @groupname abstract Abstract Members
-  * @groupname util Utility
+  * @groupname transform Applying a Transformer to a Stream
   * @groupname combinator Transformation / Combinator Methods
   * @groupname parse Conversions to Parser
   * @groupprio abstract 0
-  * @groupprio utility 1
+  * @groupprio transform 1
   * @groupprio combinator 2
   * @groupprio parse 3
   * @group primary
@@ -197,14 +195,14 @@ trait Transformer[-In, +Out] {
 		case Some(name) => into(parser).withName(name)
 	}
 
-	/** Convenience for `this :> Parser.toList`
+	/** Convenience for `this into Parser.toList`
 	  *
 	  * @return
 	  * @group parse
 	  */
 	def parseToList: Parser[In, List[Out]] = into(Parser.toList)
 
-	/** Convenience for `this :> Parser.firstOpt`
+	/** Convenience for `this into Parser.firstOpt`
 	  *
 	  * @return
 	  * @group parse
@@ -214,7 +212,7 @@ trait Transformer[-In, +Out] {
 	@deprecated("This method is being renamed to `parseFirstOpt`", "v0.9")
 	def parseFirstOption = parseFirstOpt
 
-	/** Convenience for `this :> Parser.fold(init)(f)`
+	/** Convenience for `this into Parser.fold(init)(f)`
 	  *
 	  * @param init
 	  * @param f
@@ -224,7 +222,7 @@ trait Transformer[-In, +Out] {
 	  */
 	def parseAsFold[Out2](init: Out2)(f: (Out2, Out) => Out2): Parser[In, Out2] = into(Parser.fold(init)(f))
 
-	/** Convenience for `this :> Parser.tap(f)`
+	/** Convenience for `this into Parser.tap(f)`
 	  *
 	  * @param f
 	  * @return
@@ -235,7 +233,7 @@ trait Transformer[-In, +Out] {
 	@deprecated("This method is being renamed to `parseTap`", "v0.9")
 	def parseForeach(f: Out => Any): Parser[In, Unit] = parseTap(in => f(in))
 
-	/** Convenience for `this :> Parser.drain`
+	/** Convenience for `this into Parser.drain`
 	  *
 	  * @return
 	  * @group parse
@@ -250,10 +248,17 @@ trait Transformer[-In, +Out] {
 	  *
 	  * @param itr An iterator
 	  * @return A wrapped version of `itr`, transformed via this transformer
-	  * @group util
+	  * @group transform
 	  */
 	def transform(itr: Iterator[In])(implicit pos: CallerPos): Iterator[Out] = new IteratorTransform(itr, this, SpacTraceElement.InParse("transformer", "transform", pos))
 
+	/** Convert this transformer to a `Pipe` which will apply this transformer's logic to an fs2 `Stream`.
+	  *
+	  * @param pos Captures the caller filename and line number, used to fill in the 'spac trace' if the parser throws an exception
+	  * @tparam F Effect type for the Pipe/Stream
+	  * @return An `fs2.Pipe[F, In, Out]` that will apply this transformer's logic
+	  * @group transform
+	  */
 	def toPipe[F[_]](implicit pos: CallerPos): Pipe[F, In, Out] = TransformerToPipe(this, SpacTraceElement.InParse("transformer", "toPipe", pos))
 }
 
@@ -264,7 +269,7 @@ object Transformer {
 	/** Extra transformer methods that had to be defined separately from the trait due to either `In` or `Out` needing to be invariant. */
 	implicit class TransformerParsingOps[In, A](private val self: Transformer[In, A]) extends AnyVal {
 
-		/** Convenience for `this :> Parser.first`
+		/** Convenience for `this into Parser.first`
 		  *
 		  * @param A
 		  * @return
@@ -276,7 +281,7 @@ object Transformer {
 	/** Extra methods for transformers whose `Out` type is a Tuple2 */
 	implicit class TransformerKVParsingOps[In, K, V](private val self: Transformer[In, (K, V)]) extends AnyVal {
 
-		/** Convenience for `this :> Parser.toMap[K, V]`
+		/** Convenience for `this into Parser.toMap[K, V]`
 		  *
 		  * @return
 		  * @group parse
@@ -363,7 +368,7 @@ object Transformer {
 		  * handler had try/catch wrappers around all of its own logic.
 		  *
 		  * @param inner The handler to wrap
-		  * @tparam In The input event type
+		  * @tparam In  The input event type
 		  * @tparam Out The output event type
 		  * @return A new handler which wraps the `inner` one, protecting it against interface misuse.
 		  */
@@ -375,9 +380,9 @@ object Transformer {
 		  * This is useful for implementing more complex handlers, or when interfacing with a Transformer without a Parser,
 		  * e.g. in order to collect outputs from a transformer into a buffer.
 		  *
-		  * @param inner The "upstream" handler
+		  * @param inner      The "upstream" handler
 		  * @param downstream The "downstream" handler which will receive outputs from `inner`
-		  * @tparam In The input event type
+		  * @tparam In  The input event type
 		  * @tparam Out The output event type
 		  * @return A sink for `In` events which uses the `inner` handler to receive events, and the `downstream` handler to receive outputs from `inner`
 		  */
@@ -454,7 +459,7 @@ object Transformer {
 		  * Use the `take()` method to obtain the builder's result and clear the builder.
 		  *
 		  * @param builder A ReusableBuilder used as a buffer for inputs received by this handler
-		  * @tparam A The input event type
+		  * @tparam A   The input event type
 		  * @tparam Out The builder's result type
 		  */
 		class ToBuilder[A, Out](builder: mutable.ReusableBuilder[A, Out]) extends BoundHandler[A] {

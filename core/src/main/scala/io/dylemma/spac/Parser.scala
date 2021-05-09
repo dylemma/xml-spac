@@ -198,6 +198,7 @@ trait Parser[-In, +Out] { self =>
 	  * @param pos
 	  * @tparam F
 	  * @return
+	  * @group consumers
 	  */
 	def toPipe[F[_]](implicit pos: CallerPos): Pipe[F, In, Out] = ParserToPipe(this, SpacTraceElement.InParse("parser", "toPipe", pos))
 
