@@ -76,7 +76,7 @@ It's common to define an `implicit val fooParser: XmlParser[Foo] = /* ... */`
 
 ## Example
 
-`XMLParser.attr("foo")` is a parser which will find the "foo" attribute of the first element it sees.
+`XmlParser.attr("foo")` is a parser which will find the "foo" attribute of the first element it sees.
 
 ```xml
 <!-- file: elem.xml -->
@@ -85,13 +85,13 @@ It's common to define an `implicit val fooParser: XmlParser[Foo] = /* ... */`
 
 ```scala
 val xml = new File("elem.xml")
-val elemFooParser: XmlParser[String] = XMLParser.attr("foo")
+val elemFooParser: XmlParser[String] = XmlParser.attr("foo")
 val result: String = elemFooParser.parse(xml)
 assert(result == "bar")
 ```
 
 Suppose you have some XML with a bunch of `<elem foo="..."/>` and you want the "foo" attribute from each of them.
-This is a job for a Splitter. You write an `XMLSplitter` sort of like an XPATH, to describe how to get to each element that you want to parse.
+This is a job for a Splitter. You write an `XmlSplitter` sort of like an XPATH, to describe how to get to each element that you want to parse.
 
 With the XML below, we want to parse the `<root>` element, since it represents the entire file.
 We'll write our splitter by using the `*` matcher (representing the current element),
