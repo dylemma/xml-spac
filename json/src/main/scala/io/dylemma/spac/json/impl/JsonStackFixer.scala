@@ -71,10 +71,10 @@ object JsonStackFixer extends Transformer[JsonEvent, JsonEvent] {
 			// in theory the stack should be empty if the JSON terminates naturally,
 			// but if for some reason it doesn't, we'll inject "opposite" events to close out whatever stack state remains
 			contextStack.foreach {
-				case (_: ArrayStart) => out push ArrayEnd(ContextLocation.empty)
-				case (_: ObjectStart) => out push ObjectEnd(ContextLocation.empty)
-				case FieldStart(name) => out push FieldEnd(name, ContextLocation.empty)
-				case IndexStart(index) => out push IndexEnd(index, ContextLocation.empty)
+				case _: ArrayStart => out push ArrayEnd(ContextLocation.empty)
+				case _: ObjectStart => out push ObjectEnd(ContextLocation.empty)
+				case s: FieldStart => out push FieldEnd(s.fieldName, ContextLocation.empty)
+				case s: IndexStart => out push IndexEnd(s.index, ContextLocation.empty)
 			}
 		}
 	}
