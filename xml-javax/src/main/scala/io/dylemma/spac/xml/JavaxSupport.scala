@@ -10,7 +10,7 @@ import javax.xml.stream.XMLInputFactory
 /** Provides implicits that allow various data sources to be passed to an XmlParser's `parse` method,
   * using `javax.xml.stream` as the underlying XML event generator.
   *
-  * Provides an implicit `Parsable` instance for the following types that can be plugged into a `javax.xml.stream.XMLInputFactory` to create an XMLStreamReader:
+  * Provides an implicit `Parsable` instance for the following types that can be plugged into a `javax.xml.stream.XMLInputFactory` to create an XMLEventReader:
   *
   *  - `String`
   *  - `File`
@@ -26,12 +26,12 @@ import javax.xml.stream.XMLInputFactory
   */
 object JavaxSupport {
 
-	/** Allows types which can be opened as a javax XMLStreamReader to be passed to an XmlParser's `parse` method.
-	  * The "open as javax XMLStreamReader" logic is defined by the `IntoXmlStreamReader` typeclass.
+	/** Allows types which can be opened as a javax XMLEventReader to be passed to an XmlParser's `parse` method.
+	  * The "open as javax XMLEventReader" logic is defined by the `IntoXmlEventReader` typeclass.
 	  */
 	implicit def xmlStreamReadableAsParsableF[F[_], S](
 		implicit F: Sync[F],
-		S: IntoXmlStreamReader[F, S],
+		S: IntoXmlEventReader[F, S],
 		factory: XMLInputFactory = JavaxSource.defaultFactory,
 		chunkSize: ChunkSize = ChunkSize.default
 	): Parsable[F, S, XmlEvent] = {
@@ -39,7 +39,7 @@ object JavaxSupport {
 	}
 
 	implicit def xmlStreamReadableAsParsable[S](
-		implicit S: IntoXmlStreamReader[SyncIO, S],
+		implicit S: IntoXmlEventReader[SyncIO, S],
 		factory: XMLInputFactory = JavaxSource.defaultFactory,
 	): Parsable[cats.Id, S, XmlEvent] = new ParsableByIterator[S, XmlEvent] {
 		protected def lendIterator[Out](source: S, f: Iterator[XmlEvent] => Out) = {

@@ -2,11 +2,10 @@ package io.dylemma.spac
 package impl
 
 import cats.data.Chain
-import io.dylemma.spac.SpacTraceElement
 
-class TransformerSpacFrame[A](elems: Chain[SpacTraceElement]) extends Transformer.Stateless[A, A] {
-	def step(in: A) = Emit.one(in) -> Some(this)
-	def finish() = Emit.nil
-	override def unwind(err: Throwable) = SpacException.addTrace(err, elems)
+case class TransformerSpacFrame[A](elems: Chain[SpacTraceElement]) extends Transformer.Stateless[A, A] {
+	def push(in: A, out: Transformer.HandlerWrite[A]): Signal = out.push(in)
+	def finish(out: Transformer.HandlerWrite[A]): Unit = ()
+	override def bubbleUp(err: Throwable): Nothing = throw SpacException.addTrace(err, elems)
 }
 

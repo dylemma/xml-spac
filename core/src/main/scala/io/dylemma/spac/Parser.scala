@@ -400,7 +400,7 @@ object Parser {
 
 	/** Creates a parser that builds a List from the inputs it receives.
 	  */
-	def toList[In]: Parser[In, List[In]] = fromBuilder { List.newBuilder }
+	def toList[In]: Parser[In, List[In]] = fromBuilder { List.newBuilder[In] }.withName("Parser.toList")
 
 	/** Creates a parser that builds a `cats.data.Chain` from the inputs it receives.
 	  */

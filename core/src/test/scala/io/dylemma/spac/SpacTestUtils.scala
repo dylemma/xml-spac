@@ -56,4 +56,25 @@ trait SpacTestUtils {
 		case (a, b) => List(a, b).flatMap(tryFlattenTuple)
 		case a => a :: Nil
 	}
+
+	case class HandlerStep[Out](outputs: List[Out], signal: Signal)
+
+	def stepMany[A, B](handler: Transformer.Handler[A, B], inputs: Iterable[A]): HandlerStep[B] = {
+		val lb = List.newBuilder[B]
+		val w: Transformer.HandlerWrite[B] = (out: B) => {
+			lb += out
+			Signal.Continue
+		}
+		val signal = handler.pushMany(inputs.iterator, w)
+		HandlerStep(lb.result(), signal)
+	}
+	def collectFinish[Out](handler: Transformer.Handler[Nothing, Out]): List[Out] = {
+		val lb = List.newBuilder[Out]
+		val w: Transformer.HandlerWrite[Out] = (out: Out) => {
+			lb += out
+			Signal.Continue
+		}
+		handler.finish(w)
+		lb.result()
+	}
 }

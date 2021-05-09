@@ -1,7 +1,7 @@
 package io.dylemma.spac
 package impl
 
-class ParserMapped[In, A, B](self: Parser[In, A], f: A => B) extends Parser[In, B] {
+case class ParserMapped[In, A, B](self: Parser[In, A], f: A => B) extends Parser[In, B] {
 	def newHandler = new ParserMapped.Handler(self.newHandler, f)
 
 	override def map[Out2](g: B => Out2) = new ParserMapped[In, A, Out2](self, a => g(f(a)))

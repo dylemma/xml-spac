@@ -4,7 +4,7 @@ import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class TransformerCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks {
+class TransformerCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks with SpacTestUtils {
 
 	describe("Transformer.identity") {
 		def identityTransformer(makeTransformer: => Transformer[Int, Int]) = {
@@ -12,18 +12,18 @@ class TransformerCompanionTests extends AnyFunSpec with Matchers with ScalaCheck
 
 			it ("should emit each input") {
 				forAll { (list: List[Int]) =>
-					t.newHandler.stepMany(list)._1 shouldEqual Emit.fromSeq(list)
+					stepMany(t.newHandler, list).outputs shouldEqual list
 				}
 			}
 			it ("should be stateless") {
 				forAll { (list: List[Int]) =>
 					forAll { (list: List[Int]) =>
-						t.newHandler.stepMany(list)._2 shouldEqual Right(t)
+						stepMany(t.newHandler, list).signal shouldEqual Signal.Continue
 					}
 				}
 			}
 			it ("should emit nothing in response to the end of the input") {
-				t.newHandler.finish() shouldEqual Emit.empty
+				collectFinish(t.newHandler) shouldEqual Nil
 			}
 		}
 
@@ -35,38 +35,38 @@ class TransformerCompanionTests extends AnyFunSpec with Matchers with ScalaCheck
 		}
 	}
 
-	describe("Transformer.op") {
-		def opTransformer(makeTransformer: (Int => Emit[Int]) => Transformer[Int, Int]) = {
-			val t0 = makeTransformer(_ => Emit.empty)
-			val t1 = makeTransformer(i => Emit.one(i))
-			val t2 = makeTransformer(i => Emit(i * 2, i * 2 + 1))
+	describe("Transformer.mapFlatten") {
+		def opTransformer(makeTransformer: (Int => Iterable[Int]) => Transformer[Int, Int]) = {
+			val t0 = makeTransformer(_ => Nil)
+			val t1 = makeTransformer(i => List(i))
+			val t2 = makeTransformer(i => List(i * 2, i * 2 + 1))
 
 			it("should transform the input via the provided function, and be stateless") {
 				forAll { (list: List[Int]) =>
-					t0.newHandler.stepMany(list)._1 shouldEqual Emit.empty
-					t1.newHandler.stepMany(list)._1 shouldEqual Emit.fromSeq(list)
-					t2.newHandler.stepMany(list)._1 shouldEqual Emit.fromSeq(list.flatMap(i => List(i * 2, i * 2 + 1)))
+					stepMany(t0.newHandler, list).outputs shouldEqual Nil
+					stepMany(t1.newHandler, list).outputs shouldEqual list
+					stepMany(t2.newHandler, list).outputs shouldEqual list.flatMap(i => List(i * 2, i * 2 + 1))
 				}
 			}
 			it("should be stateless") {
 				forAll { (list: List[Int]) =>
-					t0.newHandler.stepMany(list)._2 shouldEqual Right(t0)
-					t1.newHandler.stepMany(list)._2 shouldEqual Right(t1)
-					t2.newHandler.stepMany(list)._2 shouldEqual Right(t2)
+					stepMany(t0.newHandler, list).signal shouldEqual Signal.Continue
+					stepMany(t1.newHandler, list).signal shouldEqual Signal.Continue
+					stepMany(t2.newHandler, list).signal shouldEqual Signal.Continue
 				}
 			}
 			it("should emit nothing in reaction to the end of the input") {
-				t0.newHandler.finish() shouldBe empty
-				t1.newHandler.finish() shouldBe empty
-				t2.newHandler.finish() shouldBe empty
+				collectFinish(t0.newHandler) shouldBe empty
+				collectFinish(t1.newHandler) shouldBe empty
+				collectFinish(t2.newHandler) shouldBe empty
 			}
 		}
 
-		describe("Transformer.op[In, Out]") {
-			it should behave like opTransformer(Transformer.op)
+		describe("Transformer.mapFlatten[In, Out]") {
+			it should behave like opTransformer(Transformer.mapFlatten)
 		}
-		describe("Transformer[In].op[Out]") {
-			it should behave like opTransformer(Transformer[Int].op)
+		describe("Transformer[In].mapFlatten[Out]") {
+			it should behave like opTransformer(Transformer[Int].mapFlatten)
 		}
 	}
 
@@ -76,17 +76,17 @@ class TransformerCompanionTests extends AnyFunSpec with Matchers with ScalaCheck
 
 			it("should transform the inputs via the provided function") {
 				forAll { (list: List[Int]) =>
-					val mappedList = Emit.fromSeq(list.map(_ * 2))
-					t.newHandler.stepMany(list)._1 shouldEqual mappedList
+					val mappedList = list.map(_ * 2)
+					stepMany(t.newHandler, list).outputs shouldEqual mappedList
 				}
 			}
 			it("should be stateless") {
 				forAll { (list: List[Int]) =>
-					t.newHandler.stepMany(list)._2 shouldEqual Right(t)
+					stepMany(t.newHandler, list).signal shouldEqual Signal.Continue
 				}
 			}
 			it("should emit nothing in reaction to the end of the input") {
-				t.newHandler.finish() shouldBe empty
+				collectFinish(t.newHandler) shouldBe empty
 			}
 		}
 
@@ -104,17 +104,17 @@ class TransformerCompanionTests extends AnyFunSpec with Matchers with ScalaCheck
 
 			it("should pass through only the inputs for which the filter function returns true") {
 				forAll { (list: List[Int]) =>
-					val evens = Emit.fromSeq(list.filter(_ % 2 == 0))
-					t.newHandler.stepMany(list)._1 shouldEqual evens
+					val evens = list.filter(_ % 2 == 0)
+					stepMany(t.newHandler, list).outputs shouldEqual evens
 				}
 			}
 			it("should be stateless") {
 				forAll { (list: List[Int]) =>
-					t.newHandler.stepMany(list)._2 shouldEqual Right(t)
+					stepMany(t.newHandler, list).signal shouldEqual Signal.Continue
 				}
 			}
 			it("should emit nothing in reaction to the end of the input") {
-				t.newHandler.finish() shouldBe empty
+				collectFinish(t.newHandler) shouldBe empty
 			}
 		}
 
@@ -131,22 +131,21 @@ class TransformerCompanionTests extends AnyFunSpec with Matchers with ScalaCheck
 			it ("should emit outputs corresponding to List.drop(n)") {
 				forAll { (list: List[Int], n: Int) =>
 					val t = makeTransformer(n)
-					t.newHandler.stepMany(list)._1 shouldEqual Emit.fromSeq(list drop n)
+					stepMany(t.newHandler, list).outputs shouldEqual list.drop(n)
 				}
 			}
 			it ("should not end on its own") {
 				var h = makeTransformer(9999).newHandler
 				forAll { (i: Int) =>
-					val (_, cont) = h.step(i)
-					cont.isDefined shouldEqual true
-					h = cont.get
+					val step = stepMany(h, i :: Nil)
+					step.signal shouldEqual Signal.Continue
 				}
 			}
 			it ("should emit nothing in response to the EOF") {
 				forAll { (list: List[Int], n: Int) =>
 					val h = makeTransformer(n).newHandler
-					val (_, Right(cont)) = h.stepMany(list)
-					cont.finish() shouldBe empty
+					h.pushMany(list.iterator, Transformer.BoundHandler.noopAndContinue) shouldEqual Signal.Continue
+					collectFinish(h) shouldBe empty
 				}
 			}
 		}
@@ -164,22 +163,20 @@ class TransformerCompanionTests extends AnyFunSpec with Matchers with ScalaCheck
 			it ("should emit outputs corresponding to List.dropWhile(n)") {
 				forAll { (list: List[Int], f: Int => Boolean) =>
 					val t = makeTransformer(f)
-					t.newHandler.stepMany(list)._1 shouldEqual Emit.fromSeq(list dropWhile f)
+					stepMany(t.newHandler, list).outputs shouldEqual (list dropWhile f)
 				}
 			}
 			it ("should not end on its own") {
 				var h = makeTransformer(_ => true).newHandler
 				forAll { (i: Int) =>
-					val (_, cont) = h.step(i)
-					cont.isDefined shouldEqual true
-					h = cont.get
+					stepMany(h, i :: Nil).signal shouldEqual Signal.Continue
 				}
 			}
 			it ("should emit nothing in response to the EOF") {
 				forAll { (list: List[Int], f: Int => Boolean) =>
 					val h = makeTransformer(f).newHandler
-					val (_, Right(cont)) = h.stepMany(list)
-					cont.finish() shouldBe empty
+					stepMany(h, list).signal shouldEqual Signal.Continue
+					collectFinish(h) shouldBe empty
 				}
 			}
 		}
@@ -200,27 +197,27 @@ class TransformerCompanionTests extends AnyFunSpec with Matchers with ScalaCheck
 				val t5 = makeTransformer(5)
 
 				forAll { (list: List[Int]) =>
-					t0.newHandler.stepMany(list)._1 shouldEqual Emit.empty
-					t1.newHandler.stepMany(list)._1 shouldEqual Emit.fromSeq(list take 1)
-					t5.newHandler.stepMany(list)._1 shouldEqual Emit.fromSeq(list take 5)
+					stepMany(t0.newHandler, list).outputs shouldEqual Nil
+					stepMany(t1.newHandler, list).outputs shouldEqual (list take 1)
+					stepMany(t5.newHandler, list).outputs shouldEqual (list take 5)
 				}
 			}
 			it ("should end upon encountering the 1st input, if N=0") {
-				makeTransformer(0).newHandler.step(42) shouldEqual { Emit.empty -> None }
+				stepMany(makeTransformer(0).newHandler, 42 :: Nil) shouldEqual HandlerStep(Nil, Signal.Stop)
 			}
 			it ("should end after emitting Nth input, if N>0") {
-				makeTransformer(1).newHandler.stepMany(List(1, 2, 3)) shouldEqual { Emit.one(1) -> Left(List(2, 3)) }
-				makeTransformer(2).newHandler.stepMany(List(1, 2, 3)) shouldEqual { Emit(1, 2) -> Left(List(3)) }
-				makeTransformer(3).newHandler.stepMany(List(1, 2, 3)) shouldEqual { Emit(1, 2, 3) -> Left(Nil) }
+				stepMany(makeTransformer(1).newHandler, List(1, 2, 3)) shouldEqual HandlerStep(List(1), Signal.Stop)
+				stepMany(makeTransformer(2).newHandler, List(1, 2, 3)) shouldEqual HandlerStep(List(1, 2), Signal.Stop)
+				stepMany(makeTransformer(3).newHandler, List(1, 2, 3)) shouldEqual HandlerStep(List(1, 2, 3), Signal.Stop)
 			}
 			it ("should not end before encountering N inputs") {
 				val t = makeTransformer(4)
-				t.newHandler.stepMany(List(1, 2, 3)) should matchPattern { case (Emit(1, 2, 3), Right(_)) => }
+				stepMany(t.newHandler, List(1, 2, 3)) shouldEqual HandlerStep(List(1, 2, 3), Signal.Continue)
 			}
 			it ("should emit nothing in reaction to the end of the input") {
 				forAll { (n: Int) =>
 					whenever(n >= 0) {
-						makeTransformer(n).newHandler.finish() shouldEqual Emit.empty
+						collectFinish(makeTransformer(n).newHandler) shouldEqual Nil
 					}
 				}
 			}
@@ -245,35 +242,33 @@ class TransformerCompanionTests extends AnyFunSpec with Matchers with ScalaCheck
 				val t10 = makeTransformer(f10)
 
 				forAll { (list: List[Int]) =>
-					t2.newHandler.stepMany(list)._1 shouldEqual Emit.fromSeq(list takeWhile f2)
-					t5.newHandler.stepMany(list)._1 shouldEqual Emit.fromSeq(list takeWhile f5)
-					t10.newHandler.stepMany(list)._1 shouldEqual Emit.fromSeq(list takeWhile f10)
+					stepMany(t2.newHandler, list).outputs shouldEqual (list takeWhile f2)
+					stepMany(t5.newHandler, list).outputs shouldEqual (list takeWhile f5)
+					stepMany(t10.newHandler, list).outputs shouldEqual (list takeWhile f10)
 				}
 			}
 			it ("should discard the first predicate-failing input and terminate as a result") {
 				val t = makeTransformer(_ != 0)
-				t.newHandler.stepMany(List(5, 4, 3, 2, 1, 0, 10)) shouldEqual { Emit(5, 4, 3, 2, 1) -> Left(List(10)) }
-				t.newHandler.stepMany(List(0, 1, 2, 3)) shouldEqual { Emit.empty -> Left(List(1, 2, 3)) }
+				stepMany(t.newHandler, List(5, 4, 3, 2, 1, 0, 10)) shouldEqual HandlerStep(List(5, 4, 3, 2, 1), Signal.Stop)
+				stepMany(t.newHandler, List(0, 1, 2, 3)) shouldEqual HandlerStep(Nil, Signal.Stop)
 			}
 			it ("should not end if no inputs fail the predicate") {
 				val t = makeTransformer(_ != 0)
 				forAll { (_list: List[Int]) =>
-					val chain = Emit.fromSeq(_list.filter(_ != 0))
-					val (emitted, cont) = t.newHandler.stepMany(chain)
-					emitted shouldEqual chain
-					cont should matchPattern { case Right(_) => }
+					val list = _list.filter(_ != 0)
+					stepMany(t.newHandler, list) shouldEqual HandlerStep(list, Signal.Continue)
 				}
 			}
 			it ("should be stateless") {
 				val t = makeTransformer(_ != 0)
 				forAll { (_list: List[Int]) =>
-					val chain = Emit.fromSeq(_list.filter(_ != 0))
-					t.newHandler.stepMany(chain)._2 shouldEqual Right(t)
+					val list = _list.filter(_ != 0)
+					stepMany(t.newHandler, list).signal shouldEqual Signal.Continue
 				}
 			}
 			it ("should emit nothing in response to the end of the input") {
 				forAll { (f: Int => Boolean) =>
-					makeTransformer(f).newHandler.finish() shouldEqual Emit.empty
+					collectFinish(makeTransformer(f).newHandler) shouldEqual Nil
 				}
 			}
 		}
@@ -291,14 +286,14 @@ class TransformerCompanionTests extends AnyFunSpec with Matchers with ScalaCheck
 			it ("should emit every input as output") {
 				val h = makeTransformer(_ => ()).newHandler
 				forAll { (i: Int) =>
-					h.step(i)._1 shouldEqual Emit.one(i)
+					stepMany(h, i :: Nil).outputs shouldEqual List(i)
 				}
 			}
 			it ("should run the side-effect for each input") {
 				forAll { (list: List[Int]) =>
 					val tapped = collection.mutable.Set.empty[Int]
 					val h = makeTransformer(tapped.add).newHandler
-					h.stepMany(list)
+					h.pushMany(list.iterator, Transformer.BoundHandler.noopAndContinue)
 					tapped.toSet shouldEqual list.toSet
 				}
 			}
@@ -306,10 +301,10 @@ class TransformerCompanionTests extends AnyFunSpec with Matchers with ScalaCheck
 				forAll { (list: List[Int]) =>
 					var tapped = false
 					val h = makeTransformer(_ => tapped = true).newHandler
-					h.stepMany(list)
+					h.pushMany(list.iterator, Transformer.BoundHandler.noopAndContinue)
 					tapped shouldEqual list.nonEmpty
 					tapped = false
-					h.finish() shouldBe empty
+					collectFinish(h) shouldBe empty
 					tapped shouldBe false
 				}
 			}

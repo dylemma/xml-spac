@@ -41,7 +41,7 @@ class ContextLocation private[ContextLocation](val dimensions: Map[ContextLocati
   * @group context
   */
 object ContextLocation {
-	def empty: ContextLocation = new ContextLocation(Map.empty)
+	val empty: ContextLocation = new ContextLocation(Map.empty)
 	def of[A](tag: ContextLocationTag[A], dim: A): ContextLocation = new ContextLocation(Map(tag -> dim))
 
 	case class Entry[A](tag: ContextLocationTag[A], dim: A)

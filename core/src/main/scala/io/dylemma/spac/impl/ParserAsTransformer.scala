@@ -8,15 +8,18 @@ class ParserAsTransformer[In, Out](self: Parser[In, Out]) extends Transformer[In
 object ParserAsTransformer {
 	class Handler[In, Out](var self: Parser.Handler[In, Out]) extends Transformer.Handler[In, Out] {
 		override def toString = s"($self).asTransformer"
-		def step(in: In) = self.step(in) match {
+
+		def push(in: In, out: Transformer.HandlerWrite[Out]): Signal = self.step(in) match {
 			case Right(cont) =>
 				self = cont
-				Emit.nil -> Some(this)
-			case Left(out) =>
-				Emit.one(out) -> None
+				Signal.Continue
+			case Left(result) =>
+				out.push(result)
+				Signal.Stop
 		}
-		def finish() = {
-			Emit.one { self.finish() }
+
+		def finish(out: Transformer.HandlerWrite[Out]): Unit = {
+			out.push(self.finish())
 		}
 	}
 }

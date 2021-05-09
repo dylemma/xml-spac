@@ -9,11 +9,12 @@ package io.dylemma.spac
 trait StackLike[In, +Elem] {
 	def interpretOne(input: In): StackInterpretation[In, Elem]
 
-	def interpret: Transformer[In, Either[ContextChange[In, Elem], In]] = Transformer[In].op { in =>
-		interpretOne(in) match {
-			case StackInterpretation.NoChange => Emit.one(Right(in))
-			case StackInterpretation.ChangedAfterInput(change) => Emit(Right(in), Left(change))
-			case StackInterpretation.ChangedBeforeInput(change) => Emit(Left(change), Right(in))
+	def interpret: Transformer[In, Either[ContextChange[In, Elem], In]] = new Transformer.Stateless[In, Either[ContextChange[In, Elem], In]] {
+		def push(in: In, out: Transformer.HandlerWrite[Either[ContextChange[In, Elem], In]]) = interpretOne(in) match {
+			case StackInterpretation.NoChange => out.push(Right(in))
+			case StackInterpretation.ChangedAfterInput(change) => out.push(Right(in)) || out.push(Left(change))
+			case StackInterpretation.ChangedBeforeInput(change) => out.push(Left(change)) || out.push(Right(in))
 		}
+		def finish(out: Transformer.HandlerWrite[Either[ContextChange[In, Elem], In]]): Unit = ()
 	}
 }

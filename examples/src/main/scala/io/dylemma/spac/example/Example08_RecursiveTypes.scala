@@ -71,12 +71,21 @@ object Example08_RecursiveTypes {
 	// a Transformer that sends a `prefix` element downstream before acting as a pass-through
 	class SinglePrefixTransformer[In, T](prefix: T, transformer: Transformer[In, T]) extends Transformer[In, T] {
 		def newHandler = new Transformer.Handler[In, T] {
-			val inner = transformer.newHandler
-			def step(in: In) = {
-				val (toEmit, cont) = inner.step(in)
-				(prefix +: toEmit) -> cont
+			private val inner = transformer.newHandler
+			private var sentPrefix = false
+			def push(in: In, out: Transformer.HandlerWrite[T]) = {
+				val s1 =
+					if (!sentPrefix) {
+						sentPrefix = true
+						out.push(prefix)
+					}
+					else Signal.Continue
+				s1 || inner.push(in, out)
 			}
-			def finish() = prefix +: inner.finish()
+			def finish(out: Transformer.HandlerWrite[T]) = {
+				if (!sentPrefix) out.push(prefix)
+				inner.finish(out)
+			}
 		}
 	}
 

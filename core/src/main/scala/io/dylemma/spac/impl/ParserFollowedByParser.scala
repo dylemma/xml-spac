@@ -13,7 +13,6 @@ object ParserFollowedByParser {
 		stacking: StackLike[In, Any]
 	) extends Parser.Handler[In, Out]
 	{
-
 		def step(in: In) = {
 			// update the `stackEvents` list if the current input counts as a push or a pop
 			stackEvents = stacking.interpretOne(in) match {

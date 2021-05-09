@@ -3,6 +3,8 @@ package impl
 
 import cats.data.Chain
 
+import scala.collection.mutable
+
 case class SplitterByContextMatch[In, Elem, C](matcher: ContextMatcher[Elem, C], matcherPos: CallerPos)(implicit S: StackLike[In, Elem]) extends Splitter[In, C] {
 	val addBoundaries = Transformer
 		.spacFrame(SpacTraceElement.InSplitter(matcher.toString, matcherPos))
@@ -12,16 +14,10 @@ case class SplitterByContextMatch[In, Elem, C](matcher: ContextMatcher[Elem, C],
 
 object SplitterByContextMatch {
 
-	class Boundaries[In, Elem, C](matcher: ContextMatcher[Elem, C])
-		extends Transformer[Either[ContextChange[In, Elem], In], Either[ContextChange[In, C], In]]
-	{
+	class Boundaries[In, Elem, C](matcher: ContextMatcher[Elem, C]) extends Transformer[Either[ContextChange[In, Elem], In], Either[ContextChange[In, C], In]] {
 		override def toString = s"SplitterBoundaries($matcher)"
-		def newHandler = new SplitterByContextMatch.Handler(matcher, SplitterByContextMatch.Unmatched[In, Elem](Vector.empty, Vector.empty))
+		def newHandler = new SplitterByContextMatch.Handler(matcher)
 	}
-
-	sealed abstract class State[In, Elem](val isMatched: Boolean)
-	case class Unmatched[In, Elem](traces: Vector[ContextTrace[In]], stack: Vector[Elem]) extends State[In, Elem](false)
-	case class Matched[In, Elem](extraDepth: Int, prev: Unmatched[In, Elem]) extends State[In, Elem](true)
 
 	/** Splitter implementation detail that re-interprets stack states into contexts.
 	  * As stack elements are pushed and popped via the incoming stream,
@@ -29,68 +25,66 @@ object SplitterByContextMatch {
 	  * matched context has been entered (or exited). The matched context is
 	  * communicated as `ContextChange` events of the `C` type via the outgoing stream.
 	  */
-	class Handler[In, Elem, C](matcher: ContextMatcher[Elem, C], state: SplitterByContextMatch.State[In, Elem])
-		extends Transformer.Handler[Either[ContextChange[In, Elem], In], Either[ContextChange[In, C], In]]
-	{
+	class Handler[In, Elem, C](matcher: ContextMatcher[Elem, C]) extends Transformer.Handler[Either[ContextChange[In, Elem], In], Either[ContextChange[In, C], In]] {
 		override def toString = s"Splitter($matcher)"
 
-		def step(in: Either[ContextChange[In, Elem], In]) = in match {
+		private val traces = new mutable.ArrayBuffer[ContextTrace[In]]
+		private val stack = new mutable.ArrayBuffer[Elem]
+		private var isMatched = false
+		private var extraDepth = 0
+
+		def finish(out: Transformer.HandlerWrite[Either[ContextChange[In, C], In]]): Unit = {
+			// if we're in a matched context, it needs to be closed (via ContextPop) before we finish
+			if (isMatched) out.push(Left(ContextPop))
+		}
+		def push(in: Either[ContextChange[In, Elem], In], out: Transformer.HandlerWrite[Either[ContextChange[In, C], In]]): Signal = in match {
 			case Right(in) =>
-				/*
-				// if we're inside the matched context, emit the value, otherwise ignore it
-				val emit = if(state.isMatched) Emit.one(Right(in)) else Emit.empty
-				// no state change, so we return this transformer
-				F.pure(emit -> Some(this))
-				*/
-				// The above commented-out code could be used to filter out inputs while we're not in a matched context,
-				// but I think that functionality shouldn't be the responsibility of this transformer.
-				// It should be focused on transforming the ContextChange events and nothing else.
-				Emit.one(Right(in)) -> Some(this)
+				// just pass the event along, with no change in state
+				out.push(Right(in))
 
 			case Left(ContextPush(incomingTrace, elem)) =>
-				state match {
-					case Matched(extraDepth, prev) =>
-						// we're already in a matched context, so the push simply increments our extraDepth
-						Emit.nil -> Some(new Handler(matcher, Matched(extraDepth + 1, prev)))
-					case current@Unmatched(prevTraces, prevStack) =>
-						// the push may be enough to put us into a matching state; we need to check the `matcher`
-						val nextTraces = prevTraces :+ incomingTrace
-						val nextStack = prevStack :+ elem
-						matcher(nextStack, 0, nextStack.length) match {
-							case None =>
-								// no new context match; update the unmatched state
-								Emit.nil -> Some(new Handler(matcher, Unmatched(nextTraces, nextStack)))
+				if (isMatched) {
+					// already in a matched context, so the push simply increments our extraDepth
+					extraDepth += 1
+					Signal.Continue
+				} else {
+					// the push may be enough to put us into a matching state; we need to check the `matcher`
+					traces += incomingTrace
+					stack += elem
 
-							case Some(c) =>
-								// new matched context!
-								// rem is the piece of the stack that wasn't consumed by the match.
-								val combinedTrace = nextTraces.foldLeft(ContextTrace[In](Chain.empty))(_ / _)
-								val change = ContextPush(combinedTrace, c)
-								Emit.one(Left(change)) -> Some(new Handler(matcher, Matched(0, current)))
-						}
+					matcher(stack, 0, stack.length) match {
+						case None =>
+							// no new context match, just continue
+							Signal.Continue
+						case Some(c) =>
+							// new matched context!
+							isMatched = true
+							extraDepth = 0
+							val combinedTrace = traces.foldLeft(ContextTrace[In](Chain.empty))(_ / _)
+							val change = ContextPush(combinedTrace, c)
+							out.push(Left(change))
+					}
 				}
 
 			case Left(ContextPop) =>
-				state match {
-					case Matched(0, prev) =>
-						// popping out of the matched context
-						Emit.one(Left(ContextPop)) -> Some(new Handler(matcher, prev))
-
-					case Matched(extraDepth, prev) =>
-						// decrement the `extraDepth` state but otherwise no change
-						Emit.empty -> Some(new Handler(matcher, Matched(extraDepth - 1, prev)))
-
-					case Unmatched(traces, stack) =>
-						// not in a matched context; just pop the stack tracking states
-						val poppedTraces = traces.dropRight(1)
-						val poppedStack = stack.dropRight(1)
-						Emit.empty -> Some(new Handler(matcher, Unmatched(poppedTraces, poppedStack)))
+				if (isMatched) {
+					if (extraDepth == 0) {
+						// matched context has ended; pop from the stack and traces, and emit the pop event
+						traces.remove(traces.length - 1)
+						stack.remove(stack.length - 1)
+						isMatched = false
+						out.push(Left(ContextPop))
+					} else {
+						// still in the matched context, minus one extra depth
+						extraDepth -= 1
+						Signal.Continue
+					}
+				} else {
+					// just pop the last values off of the stack/traces
+					traces.remove(traces.length - 1)
+					stack.remove(stack.length - 1)
+					Signal.Continue
 				}
-		}
-
-		def finish() = {
-			// if we're in a matched context, it needs to be closed (via ContextPop) before we finish
-			if (state.isMatched) Emit.one(Left(ContextPop)) else Emit.nil
 		}
 	}
 }

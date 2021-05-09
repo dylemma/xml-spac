@@ -4,7 +4,7 @@ import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class TransformerTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks {
+class TransformerTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks with SpacTestUtils {
 
 	describe("Transformer # through") {
 		it("should emit nothing when composing opposing filters") {
@@ -12,7 +12,7 @@ class TransformerTests extends AnyFunSpec with Matchers with ScalaCheckPropertyC
 			val odds = Transformer[Int].filter(_ % 2 == 1)
 			val nothing = evens through odds
 			forAll { (list: List[Int]) =>
-				nothing.newHandler.stepMany(list)._1 shouldBe empty
+				stepMany(nothing.newHandler, list).outputs shouldBe empty
 			}
 		}
 
@@ -21,7 +21,7 @@ class TransformerTests extends AnyFunSpec with Matchers with ScalaCheckPropertyC
 			val double = Transformer[Int].map(_ * 2)
 			val combined = addOne through double
 			forAll { (list: List[Int]) =>
-				combined.newHandler.stepMany(list)._1 shouldEqual Emit.fromSeq(list.map(i => (i + 1) * 2))
+				stepMany(combined.newHandler, list).outputs shouldEqual list.map(i => (i + 1) * 2)
 			}
 		}
 
@@ -32,12 +32,10 @@ class TransformerTests extends AnyFunSpec with Matchers with ScalaCheckPropertyC
 			val takeThenDrop = take3 through drop3
 			val dropThenTake = drop3 through take3
 
-			takeThenDrop.newHandler.stepMany(List(1, 2, 3, 4)) shouldEqual {
-				Emit.nil -> Left(List(4))
-			}
+			stepMany(takeThenDrop.newHandler, List(1, 2, 3, 4)) shouldEqual HandlerStep(Nil, Signal.Stop)
 
 			forAll { (list: List[Int]) =>
-				dropThenTake.newHandler.stepMany(list)._1 shouldEqual Emit.fromSeq(list.drop(3).take(3))
+				stepMany(dropThenTake.newHandler, list).outputs shouldEqual list.drop(3).take(3)
 			}
 		}
 	}
@@ -82,12 +80,12 @@ class TransformerTests extends AnyFunSpec with Matchers with ScalaCheckPropertyC
 		it("should emit outputs according to the structural order of the merge") {
 			val t = (Transformer.identity[Int] mergeEither Transformer.identity[Int]).newHandler
 			forAll { (i: Int) =>
-				t.step(i)._1 shouldEqual Emit(Left(i), Right(i))
+				stepMany(t, i :: Nil).outputs shouldEqual List(Left(i), Right(i))
 			}
 
-			val t2 = (Transformer[Int].op { i => Emit(i * 2, i * 3) } merge Transformer.identity[Int]).newHandler
+			val t2 = (Transformer[Int].mapFlatten { i => List(i * 2, i * 3) } merge Transformer.identity[Int]).newHandler
 			forAll { (i: Int) =>
-				t2.step(i)._1 shouldEqual Emit(i * 2, i * 3, i)
+				stepMany(t2, i :: Nil).outputs shouldEqual List(i * 2, i * 3, i)
 			}
 		}
 
@@ -100,11 +98,11 @@ class TransformerTests extends AnyFunSpec with Matchers with ScalaCheckPropertyC
 					val t1 = earlyExit.merge(neverExit).newHandler
 					val t2 = neverExit.merge(earlyExit).newHandler
 
-					t1.stepMany(List(1,2,3))._2 should matchPattern { case Right(cont) => }
-					t2.stepMany(List(1,2,3))._2 should matchPattern { case Right(cont) => }
+					stepMany(t1, List(1,2,3)).signal shouldEqual Signal.Continue
+					stepMany(t2, List(1,2,3)).signal shouldEqual Signal.Continue
 
 					val t3 = earlyExit.merge(earlyExit).newHandler
-					t3.stepMany(List(1,2,3)) shouldEqual { Emit(1, 1) -> Left(List(2,3)) }
+					stepMany(t3, List(1,2,3)) shouldEqual HandlerStep(List(1, 1), Signal.Stop)
 				}
 			}
 		}
@@ -112,13 +110,11 @@ class TransformerTests extends AnyFunSpec with Matchers with ScalaCheckPropertyC
 
 	describe("Transformer # scan") {
 		it ("should emit the new scan state for every input") {
-			var t = Transformer.identity[Int].scan(0)(_ + _).newHandler
+			val t = Transformer.identity[Int].scan(0)(_ + _).newHandler
 			var sum = 0
 			forAll { (num: Int) =>
 				sum += num
-				val (emitted, Some(cont)) = t.step(num)
-				emitted shouldEqual Emit.one(sum)
-				t = cont
+				stepMany(t, num :: Nil) shouldEqual HandlerStep(sum :: Nil, Signal.Continue)
 			}
 		}
 	}

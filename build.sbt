@@ -1,5 +1,5 @@
 ThisBuild / organization := "io.dylemma"
-ThisBuild / version := "0.8"
+ThisBuild / version := "0.9-SNAPSHOT"
 ThisBuild / scalaVersion := "2.13.0"
 ThisBuild / crossScalaVersions := Seq("2.12.10", "2.13.5")
 

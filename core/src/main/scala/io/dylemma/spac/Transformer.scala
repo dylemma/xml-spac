@@ -6,6 +6,8 @@ import io.dylemma.spac.impl._
 import org.tpolecat.typename.TypeName
 
 import scala.annotation.tailrec
+import scala.collection.mutable
+import scala.util.control.NonFatal
 
 /** Primary "spac" abstraction which represents a transformation stage for a stream of data events
   *
@@ -45,18 +47,6 @@ trait Transformer[-In, +Out] {
 	  */
 	def withName(name: String): Transformer[In, Out] = new TransformerWithName(this, name)
 
-	/** Creates a new transformer which emits values according to the Emit transformation function `f`,
-	  * where the inputs to `f` are the outputs emitted by this transformer.
-	  *
-	  * This is the low-level operation used by `map`, `filter`, and `collect`.
-	  *
-	  * @param f The Emit transformation function
-	  * @tparam Out2 Output type of the resulting transformer
-	  * @return A new transformer which alters the values emitted by this transformer according to `f`
-	  * @group combinator
-	  */
-	def mapBatch[Out2](f: Emit[Out] => Emit[Out2]): Transformer[In, Out2] = new TransformerMapBatch(this, f)
-
 	/** Creates a new transformer which applies the transformation function `f` to each of this transformer's outputs.
 	  *
 	  * @param f A transformation function
@@ -64,7 +54,17 @@ trait Transformer[-In, +Out] {
 	  * @return The mapped transformer
 	  * @group combinator
 	  */
-	def map[Out2](f: Out => Out2): Transformer[In, Out2] = mapBatch(_.map(f))
+	def map[Out2](f: Out => Out2): Transformer[In, Out2] = through(Transformer.map(f))
+
+	/** Creates a new transformer which transforms the outputs of this transformer via the given function `f`,
+	  * emitting each individual value from the output of that function in order before continuing.
+	  *
+	  * @param f A function that transforms outputs from this transformer into a collection of other outputs
+	  * @tparam Out2 The transformed output type
+	  * @return A new transformer which emits any number of transformed outputs based on outputs from this transformer
+	  * @group combinator
+	  */
+	def mapFlatten[Out2](f: Out => Iterable[Out2]): Transformer[In, Out2] = through(Transformer.mapFlatten(f))
 
 	/** Creates a new transformer which filters the outputs from this transformer.
 	  *
@@ -73,7 +73,7 @@ trait Transformer[-In, +Out] {
 	  * @return The filtered transformer
 	  * @group combinator
 	  */
-	def filter(predicate: Out => Boolean): Transformer[In, Out] = mapBatch(_.filter(predicate))
+	def filter(predicate: Out => Boolean): Transformer[In, Out] = through(Transformer.filter(predicate))
 
 	/** Alias for `filter`, used under the hood by for-comprehensions
 	  *
@@ -90,7 +90,7 @@ trait Transformer[-In, +Out] {
 	  * @return The filteried and mapped transformer
 	  * @group combinator
 	  */
-	def collect[Out2](pf: PartialFunction[Out, Out2]): Transformer[In, Out2] = mapBatch(_.collect(pf))
+	def collect[Out2](pf: PartialFunction[Out, Out2]): Transformer[In, Out2] = through(Transformer.collect(pf))
 
 	/** Creates a new transformer which folds outputs from this transformer into a "state" which is emitted each time.
 	  *
@@ -101,7 +101,7 @@ trait Transformer[-In, +Out] {
 	  * @return The new transformer
 	  * @group combinator
 	  */
-	def scan[Out2](init: Out2)(op: (Out2, Out) => Out2): Transformer[In, Out2] = through(new TransformerScan(init, op))
+	def scan[Out2](init: Out2)(op: (Out2, Out) => Out2): Transformer[In, Out2] = through(TransformerScan(init, op))
 
 	/** Creates a new transformer which sends inputs to both this transformer and the `right` transformer.
 	  * Whenever either `this` or `right` emit a value, that value will be emitted from the returned transformer,
@@ -165,12 +165,7 @@ trait Transformer[-In, +Out] {
 	  * @group combinator
 	  */
 	def through[Out2](next: Transformer[Out, Out2]): Transformer[In, Out2] = {
-		@inline def asChain(t: Transformer[_, _]) = t match {
-			case TransformerStack(nec) => nec.toChain
-			case _ => Chain.one(t.asInstanceOf[Transformer[Any, Any]])
-		}
-
-		TransformerStack(NonEmptyChain.fromChainUnsafe(asChain(this) ++ asChain(next)))
+		TransformerStack.Head(this).through(next)
 	}
 
 	@deprecated("This method is being renamed to `through`", "v0.9")
@@ -289,38 +284,64 @@ object Transformer {
 		def parseToMap: Parser[In, Map[K, V]] = self.into(Parser.toMap)
 	}
 
+	/** A stateless transformer acts as its own handler
+	  *
+	  * @tparam In  The incoming event type
+	  * @tparam Out The outgoing event type
+	  */
 	trait Stateless[-In, +Out] extends Transformer[In, Out] with Handler[In, Out] {
 		def newHandler: this.type = this
 	}
+
+	/** An internally-mutable "handler" that performs a Transformer's input/output logic.
+	  *
+	  * @tparam In
+	  * @tparam Out
+	  */
 	trait Handler[-In, +Out] {
-		def step(in: In): (Emit[Out], Option[Handler[In, Out]])
-		def finish(): Emit[Out]
-		def unwind(err: Throwable): Throwable = err
+		/** In response to some input value `in`, this handler may output any number of output values
+		  * via the provided `HandlerWrite`, possibly change its internal state, and signal to the
+		  * upstream caller whether it wants to continue or stop receiving new inputs.
+		  * Upstream handlers SHOULD avoid making more calls to this handler's `push` after it returns `Signal.Stop`.
+		  *
+		  * @param in  An input value
+		  * @param out The downstream receiver of output values
+		  * @return A "signal" indicating whether this handler wants to continue receiving inputs afterward
+		  */
+		def push(in: In, out: HandlerWrite[Out]): Signal
 
-		def stepMany[C[_], In2 <: In](_ins: C[In2])(implicit C: Unconsable[C]): (Emit[Out], Either[C[In2], Handler[In, Out]]) = {
-			// fold inputs from `_ins` into this transformer, accumulating a buffer of `outs` and updating the transformer state along the way,
-			// eventually returning the concatenation of all `outs`, and the final `transformer` state if the transformer is ready to continue,
-			// or else the leftover unconsumed inputs if the transformer decided to end partway through
-			var out: Emit[Out] = Emit.nil
+		/** In response to the end of the stream of incoming values, this handler may output any number of
+		  * final output values via the provided `HandlerWrite`.
+		  * The expectation is that a Handler's `finish` method will only ever be called once before that
+		  * Handler is discarded, with the exception of `Stateless` Transformers, which act as their own
+		  * Handlers and will be reused.
+		  *
+		  * @param out The downstream receiver of output values
+		  */
+		def finish(out: HandlerWrite[Out]): Unit
 
-			@tailrec def loop(current: Handler[In, Out], remaining: C[In2]): Either[C[In2], Handler[In, Out]] = {
-				C.uncons(remaining) match {
-					case Some((in, tail)) =>
-						// next input, step the transformer
-						val (emit, nextState) = current.step(in)
-						out ++= emit
-						nextState match {
-							case None => Left(tail)
-							case Some(cont) => loop(cont, tail)
-						}
-					case None =>
-						// end of input, exit recursion by returning a Right with the current transformer
-						Right(current)
-				}
+		/** In response to an error thrown and caught from a downstream consumer,
+		  * this handler may modify the exception on its way back upstream.
+		  * Used by the "spac frame" transformer.
+		  *
+		  * @param err An error thrown by some downstream handler
+		  * @return Nothing, because this method must always throw *something*
+		  */
+		def bubbleUp(err: Throwable): Nothing = throw err
+
+		/** Convenience for calling `push` multiple times, aborting early
+		  * if the signal becomes `Stop` in response to any one push.
+		  *
+		  * @param ins An iterator which produces input values to push into this handler
+		  * @param out The downstream receiver of output values
+		  * @return A "signal" indicating whether this handler wants to continue receiving inputs afterward
+		  */
+		def pushMany(ins: Iterator[In], out: HandlerWrite[Out]): Signal = {
+			var signal: Signal = Signal.Continue
+			while (!signal.isStop && ins.hasNext) {
+				signal = push(ins.next(), out)
 			}
-
-			val endState = loop(this, _ins)
-			out -> endState
+			signal
 		}
 
 		/** Wraps this handler as a "top level" handler, which will inject a SpacTraceElement
@@ -330,6 +351,138 @@ object Transformer {
 		  * Used internally by Transformers `transform` and `toPipe` methods.
 		  */
 		def asTopLevelHandler(caller: SpacTraceElement): Handler[In, Out] = new TopLevelTransformerHandler(this, caller)
+	}
+
+	object Handler {
+		/** Wrap an existing transformer handler, protecting it from misuse of the Handler interface methods.
+		  * The returned handler guarantees that once the inner handler returns a `Stop` signal, throws an exception,
+		  * or is told to `finish()`, the returned handler will no-op for subsequent calls to `finish` or `push`.
+		  *
+		  * Furthermore, exceptions thrown by the inner handler will be passed to the inner handler's `bubbleUp`
+		  * method, allowing for possible transformation of errors thrown by the inner handler as if that inner
+		  * handler had try/catch wrappers around all of its own logic.
+		  *
+		  * @param inner The handler to wrap
+		  * @tparam In The input event type
+		  * @tparam Out The output event type
+		  * @return A new handler which wraps the `inner` one, protecting it against interface misuse.
+		  */
+		def protect[In, Out](inner: Handler[In, Out]): Handler[In, Out] = new HandlerProtect(inner)
+
+		/** Combine a handler with a predetermined "downstream", creating a `BoundHandler` whose `push` and `finish` methods
+		  * delegate to that `downstream` receiver instead of needing to accept one as a parameter.
+		  *
+		  * This is useful for implementing more complex handlers, or when interfacing with a Transformer without a Parser,
+		  * e.g. in order to collect outputs from a transformer into a buffer.
+		  *
+		  * @param inner The "upstream" handler
+		  * @param downstream The "downstream" handler which will receive outputs from `inner`
+		  * @tparam In The input event type
+		  * @tparam Out The output event type
+		  * @return A sink for `In` events which uses the `inner` handler to receive events, and the `downstream` handler to receive outputs from `inner`
+		  */
+		def bindDownstream[In, Out](inner: Handler[In, Out], downstream: BoundHandler[Out]): BoundHandler[In] = new HandlerBind.Static(inner, downstream)
+
+		/** Combine an existing handler with a variable "downstream" handler, creating a `BoundHandler` whose `push` and `finish` methods
+		  * delegate to whatever the current "downstream" is, instead of needing to accept the downstream as a parameter.
+		  *
+		  * This is similar to `bindDownstream` except that you can swap out the actual downstream handler at any time.
+		  * This primarily exists as a helper for wiring chains of transformers together; you probably don't want to use this directly.
+		  *
+		  * @param inner
+		  * @tparam In
+		  * @tparam Out
+		  * @return
+		  */
+		def bindVariableDownstream[In, Out](inner: Handler[In, Out]): BoundHandler[In] with HandlerLinkage[Out] = new HandlerBind.Dynamic(inner)
+	}
+
+	/** Represents the "downstream" of a handler.
+	  * Whenever a handler is told to `push` or `finish`, it uses a HandlerWrite to receive its output.
+	  * A HandlerWrite could be an object that collects the values to a buffer which you can manually inspect later (see [[BoundHandler.ToBuilder]]),
+	  * or a wrapper around some secondary Handler i.e. the next transformation step.
+	  *
+	  * @tparam Out The output event type from the upstream handler, which acts as the input to this receiver
+	  */
+	trait HandlerWrite[-Out] {
+		/** Handle a single output from the upstream handler,
+		  * signalling whether or not that upstream should continue emitting values.
+		  *
+		  * @param out The value from the upstream handler
+		  * @return A "signal" indicating whether this handler wants to continue receiving inputs afterward
+		  */
+		def push(out: Out): Signal
+
+		/** Convenience for calling `push` multiple times, aborting early
+		  * if the signal becomes `Stop` in response to any one push.
+		  *
+		  * @param outs An iterator of outputs from the upstream handler, to be pushed into this handler
+		  * @return A "signal" indicating whether this handler wants to continue receiving inputs afterward
+		  */
+		def pushMany(outs: Iterator[Out]) = {
+			var signal: Signal = Signal.Continue
+			while (!signal.isStop && outs.hasNext) {
+				signal = push(outs.next())
+			}
+			signal
+		}
+	}
+
+	/** A `Handler` which has been bound to some "downstream" receiver of outputs,
+	  * so that the `push` and `finish` methods will delegate to that downstream rather than
+	  * requiring a downstream receiver to be passed as a method parameter.
+	  *
+	  * @tparam In The handler's input type
+	  */
+	trait BoundHandler[-In] extends HandlerWrite[In] {
+		/** In response to the end of the stream of incoming values, this handler may output any number of
+		  * final output values to its bound "downstream" receiver.
+		  * The expectation is that a Handler's `finish` method will only ever be called once before that
+		  * Handler is discarded, with the exception of `Stateless` Transformers, which act as their own
+		  * Handlers and will be reused.
+		  */
+		def finish(): Unit
+	}
+	object BoundHandler {
+		/** A `BoundHandler` that ignores all inputs and always returns the `Continue` signal */
+		val noopAndContinue: BoundHandler[Any] = new BoundHandler[Any] {
+			def push(out: Any) = Signal.Continue
+			def finish(): Unit = ()
+		}
+
+		/** A `BoundHandler` that adds all inputs to the given `builder`, always returning the `Continue` signal.
+		  * Use the `take()` method to obtain the builder's result and clear the builder.
+		  *
+		  * @param builder A ReusableBuilder used as a buffer for inputs received by this handler
+		  * @tparam A The input event type
+		  * @tparam Out The builder's result type
+		  */
+		class ToBuilder[A, Out](builder: mutable.ReusableBuilder[A, Out]) extends BoundHandler[A] {
+			def push(out: A): Signal = {
+				builder += out
+				Signal.Continue
+			}
+			def finish(): Unit = ()
+
+			/** Finish the builder by calling its `result()` method, then clear the builder
+			  * so that subsequent calls to `push` will accumulate a new output.
+			  *
+			  * @return The builder's result before it gets cleared
+			  */
+			def take(): Out = {
+				val out = builder.result()
+				builder.clear()
+				out
+			}
+		}
+	}
+
+	/** Specialization for a `BoundHandler` whose "downstream" can be changed at will.
+	  *
+	  * @tparam Out The handler's output type
+	  */
+	trait HandlerLinkage[+Out] {
+		def setDownstream(newDownstream: HandlerWrite[Out]): Unit
 	}
 
 	/** Convenience for creating transformers whose input type is bound to `In`.
@@ -344,15 +497,16 @@ object Transformer {
 	def apply[In] = new TransformerApplyWithBoundInput[In]
 
 	def identity[In]: Transformer[In, In] = new TransformerIdentity
-	def op[In, Out](f: In => Emit[Out]): Transformer[In, Out] = new TransformerOp(f)
-	def map[In, Out](f: In => Out): Transformer[In, Out] = op { in => Emit.one(f(in)) }
-	def filter[In](f: In => Boolean): Transformer[In, In] = op { in => if (f(in)) Emit.one(in) else Emit.empty }
-	def drop[In](n: Int): Transformer[In, In] = new TransformerDrop(n)
-	def dropWhile[In](f: In => Boolean): Transformer[In, In] = new TransformerDropWhile(f)
-	def take[In](n: Int): Transformer[In, In] = new TransformerTake(n)
-	def takeWhile[In](f: In => Boolean): Transformer[In, In] = new TransformerTakeWhile(f)
-	def tap[In](f: In => Unit): Transformer[In, In] = new TransformerTap(f)
-	def spacFrame[In](elems: SpacTraceElement*): Transformer[In, In] = new TransformerSpacFrame[In](Chain(elems: _*))
+	def map[In, Out](f: In => Out): Transformer[In, Out] = TransformerMap(f)
+	def mapFlatten[In, Out](f: In => Iterable[Out]): Transformer[In, Out] = TransformerMapFlatten(f)
+	def filter[In](f: In => Boolean): Transformer[In, In] = TransformerFilter(f)
+	def collect[In, Out](pf: PartialFunction[In, Out]): Transformer[In, Out] = TransformerCollect(pf)
+	def drop[In](n: Int): Transformer[In, In] = TransformerDrop(n)
+	def dropWhile[In](f: In => Boolean): Transformer[In, In] = TransformerDropWhile(f)
+	def take[In](n: Int): Transformer[In, In] = TransformerTake(n)
+	def takeWhile[In](f: In => Boolean): Transformer[In, In] = TransformerTakeWhile(f)
+	def tap[In](f: In => Unit): Transformer[In, In] = TransformerTap(f)
+	def spacFrame[In](elems: SpacTraceElement*): Transformer[In, In] = TransformerSpacFrame[In](Chain(elems: _*))
 }
 
 /** Convenience version of the `Transformer` companion object,
@@ -362,11 +516,12 @@ object Transformer {
   */
 class TransformerApplyWithBoundInput[In] {
 	def identity: Transformer[In, In] = Transformer.identity
-	def op[Out](f: In => Emit[Out]): Transformer[In, Out] = Transformer.op(f)
 	def map[Out](f: In => Out): Transformer[In, Out] = Transformer.map(f)
+	def mapFlatten[Out](f: In => Iterable[Out]): Transformer[In, Out] = Transformer.mapFlatten(f)
 	def filter(f: In => Boolean): Transformer[In, In] = Transformer.filter(f)
-	def drop(n: Int): Transformer[In, In] = new TransformerDrop(n)
-	def dropWhile(f: In => Boolean): Transformer[In, In] = new TransformerDropWhile(f)
+	def collect[Out](pf: PartialFunction[In, Out]): Transformer[In, Out] = Transformer.collect(pf)
+	def drop(n: Int): Transformer[In, In] = Transformer.drop(n)
+	def dropWhile(f: In => Boolean): Transformer[In, In] = Transformer.dropWhile(f)
 	def take(n: Int): Transformer[In, In] = Transformer.take(n)
 	def takeWhile(f: In => Boolean): Transformer[In, In] = Transformer.takeWhile(f)
 	def tap(f: In => Unit): Transformer[In, In] = Transformer.tap(f)
