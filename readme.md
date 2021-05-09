@@ -63,7 +63,7 @@ libraryDependencies += "io.dylemma" %% "spac-core" % "0.8"
 
 SPaC is about handling streams of events, possibly transforming that stream, and eventually consuming it.
 
- - **`Parser[In, Out]`** consumes a stream of `In` values, eventually producing an `Out`. Parsers are [`Applicative`](https://typelevel.org/cats/typeclasses/applicative.html)
+ - **`Parser[In, Out]`** consumes a stream of `In` values, eventually producing an `Out`. Parsers are [`Applicative`](https://typelevel.org/cats/typeclasses/applicative.html) with respect to the `Out` type.
  - **`Transformer[In, Out]`** transfrorms a stream of `In` values to a stream of `Out` values. 
  - **`Splitter[In, Context]`** splits a stream of `In` events by selecting "substreams", 
    e.g. only the events associated with some child element in the XML, or for a specific JSON field.
