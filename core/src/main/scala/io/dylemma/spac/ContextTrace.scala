@@ -25,6 +25,22 @@ object ContextTrace {
   */
 trait ContextLocation {
 	def get[A](tag: ContextLocation.Tag[A]): Option[A]
+
+	protected def tagsForToString: Iterable[ContextLocation.Tag[_]] = List(
+		ContextLocation.Tag.LineNumber,
+		ContextLocation.Tag.ColumnOffset,
+		ContextLocation.Tag.CharOffset,
+	)
+
+	override def toString = {
+		val entries = for {
+			tag <- tagsForToString.iterator
+			value <- get(tag)
+		} yield s"${tag.name}: $value"
+
+		if (entries.isEmpty) "{ <unknown location> }"
+		else entries.mkString("{", ", ", "}")
+	}
 }
 
 /**
@@ -39,10 +55,7 @@ object ContextLocation {
 	private class ContextLocationImpl(val dimensions: Map[ContextLocation.Tag[_], Any]) extends ContextLocation {
 		def get[A](tag: ContextLocation.Tag[A]): Option[A] = dimensions.get(tag).map(_.asInstanceOf[A])
 
-		override def toString = {
-			if (dimensions.isEmpty) "{ <unknown location> }"
-			else dimensions.view.map { case (k, v) => s"${ k.name }: $v" }.mkString("{", ", ", "}")
-		}
+		override def tagsForToString: Iterable[Tag[_]] = dimensions.keys
 	}
 
 	abstract class Tag[A](val name: String) {
