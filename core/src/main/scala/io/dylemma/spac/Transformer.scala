@@ -186,7 +186,7 @@ trait Transformer[-In, +Out] {
 	@deprecated("Use `into` instead", "v0.9")
 	def parseWith[Out2](parser: Parser[Out, Out2]): Parser[In, Out2] = into(parser)
 
-	@deprecated("Due to troubles with operator precedence and type inference, this operator is being phased out in favor of `:>`", "v0.9")
+	@deprecated("Due to troubles with operator precedence and type inference, this operator is being phased out in favor of `into`", "v0.9")
 	def >>[Out2](parser: Parser[Out, Out2]): Parser[In, Out2] = into(parser)
 
 	@deprecated("Use the single-argument version of `into`, then call `withName` on the resulting parser", "v0.9")
