@@ -5,7 +5,7 @@ XML SPaC
 
 **API Docs:** [spac-core](https://javadoc.io/doc/io.dylemma/spac-core_2.13/0.8/io/dylemma/spac/index.html) | [xml-spac](https://javadoc.io/doc/io.dylemma/xml-spac_2.13/0.8/io/dylemma/spac/xml/index.html) | [json-spac](https://javadoc.io/doc/io.dylemma/json-spac_2.13/0.8/io/dylemma/spac/json/index.html)
 
-**S**treaming **Pa**rser **C**ombinators is a Scala library for building stream consumers in a declarative style, specialized for tree-like data types like XML and JSON.
+***S***treaming ***Pa***rser ***C***ombinators is a Scala library for building stream consumers in a declarative style, specialized for tree-like data types like XML and JSON.
 
 It delegates to a backend of your choice to obtain a stream of events:
 
