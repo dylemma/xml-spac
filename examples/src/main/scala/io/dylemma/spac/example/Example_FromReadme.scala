@@ -41,18 +41,18 @@ object Example_FromReadme extends App {
 		|</blog>"""
 
 	val commentDateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-	val dateAttributeParser = XmlParser.forMandatoryAttribute("date").map(LocalDate.parse(_, commentDateFormat))
+	val dateAttributeParser = XmlParser.attr("date").map(LocalDate.parse(_, commentDateFormat))
 
 	implicit val AuthorParser: XmlParser[Author] = (
-		XmlParser.forMandatoryAttribute("id"),
-		XmlParser.forMandatoryAttribute("name")
+		XmlParser.attr("id"),
+		XmlParser.attr("name")
 	).mapN(Author)
 
 	val authorElementParser = Splitter.xml(* \ "author").as[Author].parseFirst
 
 	implicit val StatsParser: XmlParser[Stats] = (
-		XmlParser.forMandatoryAttribute("likes").map(_.toInt),
-		XmlParser.forMandatoryAttribute("tweets").map(_.toInt)
+		XmlParser.attr("likes").map(_.toInt),
+		XmlParser.attr("tweets").map(_.toInt)
 	).mapN(Stats)
 
 	implicit val CommentParser: XmlParser[Comment] = (
