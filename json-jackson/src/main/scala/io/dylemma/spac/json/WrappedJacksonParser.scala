@@ -2,8 +2,7 @@ package io.dylemma.spac
 package json
 
 import java.io.IOException
-
-import com.fasterxml.jackson.core.{JsonToken, JsonParser => JacksonParser}
+import com.fasterxml.jackson.core.{JsonLocation, JsonToken, JsonParser => JacksonParser}
 
 import scala.annotation.tailrec
 
@@ -63,13 +62,19 @@ private[json] class WrappedJacksonParser(parser: JacksonParser) extends Iterator
 
 	private def currentLocation: ContextLocation = {
 		val loc = parser.getCurrentLocation
-		val result = ContextLocation(
-			ContextLineNumber ->> loc.getLineNr.longValue,
-			ContextColumnOffset ->> loc.getColumnNr.longValue,
-			ContextCharOffset ->> loc.getCharOffset
-		)
+		val result = new WrappedJsonLocation(loc)
 		latestLocation = Some(result)
 		result
+	}
+
+	private class WrappedJsonLocation(loc: JsonLocation) extends ContextLocation {
+		import ContextLocation.Tag._
+		def get[A](tag: ContextLocation.Tag[A]) = tag match {
+			case LineNumber => Some(loc.getLineNr.longValue)
+			case ColumnOffset => Some(loc.getColumnNr.longValue)
+			case CharOffset => Some(loc.getCharOffset)
+			case _ => None
+		}
 	}
 
 

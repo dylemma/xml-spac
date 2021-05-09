@@ -9,20 +9,24 @@ import javax.xml.stream.{Location, XMLStreamConstants}
 import scala.annotation.switch
 
 private object JavaxLocation {
-	def convert(loc: Location) = {
-		var result = ContextLocation.empty
-		if(loc == null) result
-		else {
-			val line = loc.getLineNumber
-			if(line != -1) result = result.and(ContextLineNumber, line.toLong)
+	def convert(loc: Location): ContextLocation = new Wrapper(loc)
 
-			val col = loc.getColumnNumber
-			if(col != -1) result = result.and(ContextColumnOffset, col.toLong)
+	private class Wrapper(loc: Location) extends ContextLocation {
+		import ContextLocation.Tag._
+		def get[A](tag: ContextLocation.Tag[A]) = tag match {
+			case LineNumber =>
+				val line = loc.getLineNumber
+				if (line == -1) None else Some(line.toLong)
 
-			val charOffset = loc.getCharacterOffset
-			if(charOffset != -1) result = result.and(ContextCharOffset, charOffset.toLong)
+			case ColumnOffset =>
+				val col = loc.getColumnNumber
+				if (col == -1) None else Some(col.toLong)
 
-			result
+			case CharOffset =>
+				val charOffset = loc.getCharacterOffset
+				if (charOffset == -1) None else Some(charOffset.toLong)
+
+			case _ => None
 		}
 	}
 }

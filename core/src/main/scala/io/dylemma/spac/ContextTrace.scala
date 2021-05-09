@@ -2,8 +2,6 @@ package io.dylemma.spac
 
 import cats.data.Chain
 
-// ------------------------------------------------------
-
 /**
   * @param elems
   * @tparam A
@@ -25,52 +23,39 @@ object ContextTrace {
   *
   * @group context
   */
-class ContextLocation private[ContextLocation](val dimensions: Map[ContextLocationTag[_], Any]) {
-	def and[A](tag: ContextLocationTag[A], dim: A): ContextLocation = {
-		new ContextLocation(dimensions.updated(tag, dim))
-	}
-	def get[A](tag: ContextLocationTag[A]): Option[A] = dimensions.get(tag).map(_.asInstanceOf[A])
-
-	override def toString = {
-		if (dimensions.isEmpty) "{ <unknown location> }"
-		else dimensions.view.map { case (k, v) => s"${k.name}: $v" }.mkString("{", ", ", "}")
-	}
+trait ContextLocation {
+	def get[A](tag: ContextLocation.Tag[A]): Option[A]
 }
 
 /**
   * @group context
   */
 object ContextLocation {
-	val empty: ContextLocation = new ContextLocation(Map.empty)
-	def of[A](tag: ContextLocationTag[A], dim: A): ContextLocation = new ContextLocation(Map(tag -> dim))
+	val empty: ContextLocation = new ContextLocationImpl(Map.empty)
 
-	case class Entry[A](tag: ContextLocationTag[A], dim: A)
-	def apply(entries: Entry[_]*): ContextLocation = new ContextLocation(entries.view.map(e => (e.tag, e.dim)).toMap)
+	case class Entry[A](tag: ContextLocation.Tag[A], dim: A)
+	def apply(entries: Entry[_]*): ContextLocation = new ContextLocationImpl(entries.view.map(e => (e.tag, e.dim)).toMap)
+
+	private class ContextLocationImpl(val dimensions: Map[ContextLocation.Tag[_], Any]) extends ContextLocation {
+		def get[A](tag: ContextLocation.Tag[A]): Option[A] = dimensions.get(tag).map(_.asInstanceOf[A])
+
+		override def toString = {
+			if (dimensions.isEmpty) "{ <unknown location> }"
+			else dimensions.view.map { case (k, v) => s"${ k.name }: $v" }.mkString("{", ", ", "}")
+		}
+	}
+
+	abstract class Tag[A](val name: String) {
+		def ->>(dim: A) = ContextLocation.Entry(this, dim)
+	}
+	object Tag {
+		/** ContextLocation dimension representing the line number of an event within its source */
+		case object LineNumber extends Tag[Long]("line")
+
+		/** ContextLocation dimension representing the column offset of an event within its respective line within its source */
+		case object ColumnOffset extends Tag[Long]("col")
+
+		/** ContextLocation dimension representing the character offset of an event within its source */
+		case object CharOffset extends Tag[Long]("offset")
+	}
 }
-
-// ------------------------------------------------------
-
-/**
-  * @group context
-  */
-abstract class ContextLocationTag[A](val name: String) {
-	def ->>(dim: A) = ContextLocation.Entry(this, dim)
-}
-
-// ------------------------------------------------------
-
-/**
-  * @group context
-  */
-case object ContextLineNumber extends ContextLocationTag[Long]("line")
-
-/**
-  * @group context
-  */
-case object ContextColumnOffset extends ContextLocationTag[Long]("col")
-
-/**
-  * @group context
-  */
-case object ContextCharOffset extends ContextLocationTag[Long]("offset")
-
