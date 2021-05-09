@@ -101,7 +101,7 @@ lazy val root = (project in file("."))
 		core,
 		examples,
 		xml, xmlFs2Data, xmlJavax,
-		json, jsonJackson
+		json, jsonJackson, jsonFs2Data
 	)
 	.settings(commonSettings: _*)
 	.settings(apiDocSettings: _*)
