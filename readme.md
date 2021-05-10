@@ -34,13 +34,17 @@ or check out the [examples](https://github.com/dylemma/xml-spac/tree/main/exampl
 but here's a taste of how you'd write a parser for a relatively-complex blog post XML structure:
 
 ```scala
-val PostParser = (
+implicit val PostParser: XmlParser[Post] = (
   XmlParser.attr("date").map(LocalDate.parse(_, commentDateFormat)),
   Splitter.xml(* \ "author").as[Author].parseFirst,
   Splitter.xml(* \ "stats").as[Stats].parseFirst,
   Splitter.xml(* \ "body").text.parseFirst,
   Splitter.xml(* \ "comments" \ "comment").as[Comment].parseToList
 ).mapN(Post)
+
+val postStream: fs2.Stream[SyncIO, Post] = JavaxSource
+  .syncIO { new File("./blog.xml") }
+  .through { Splitter.xml("blog" \ "post").as[Post].toPipe }
 ```
 
 # Get it!
