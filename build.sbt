@@ -122,13 +122,21 @@ lazy val apiDocSettings = Seq(
 			if (version endsWith "-SNAPSHOT") snapshotBranch
 			else version
 		val sourceUrl = "https://github.com/dylemma/xml-spac/tree/" + sourceTree + "\u20ac{FILE_PATH}.scala"
-		Seq(
-			"-groups",
-			"-implicits",
-			s"-implicits-hide:${ classesForHiddenConversions.mkString(",") }",
-			"-sourcepath", sourcePath,
-			"-doc-source-url", sourceUrl
-		)
+		CrossVersion.partialVersion(scalaVersion.value) match {
+			case Some((2, _)) =>
+				Seq(
+					"-groups",
+					"-implicits",
+					s"-implicits-hide:${ classesForHiddenConversions.mkString(",") }",
+					"-sourcepath", sourcePath,
+					"-doc-source-url", sourceUrl
+				)
+			case _ =>
+				// ScalaDoc in Scala 3 seems like it's still working out some stuff.
+				// Flags like `groups` are supposed to work according to their documentation, but I get "bad option -groups" when I use it.
+				// For now I'm just going to leave off all of the options entirely and figure it out later.
+				Nil
+		}
 	}
 )
 
