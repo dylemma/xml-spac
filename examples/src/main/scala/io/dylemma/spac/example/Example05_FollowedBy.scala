@@ -34,7 +34,7 @@ object Example05_FollowedBy extends App {
 	implicit val userParser: XmlParser[User] = (
 		XmlParser.forMandatoryAttribute("id"),
 		XmlParser.forText
-	).mapN(User)
+	).mapN(User.apply)
 
 	// parser for a <users> element to a `UserMap`
 	implicit val userMapParser: XmlParser[UserMap] = Splitter.xml(* \ "user").as[User].parseToList.map { userList =>
@@ -48,7 +48,7 @@ object Example05_FollowedBy extends App {
 	def getMessageParser(userMap: UserMap): XmlParser[Message] = (
 		XmlParser.forMandatoryAttribute("user_id").map(userMap),
 		XmlParser.forText
-	).mapN(Message)
+	).mapN(Message.apply)
 
 	/*
 	The result of `usersParser` can now be used to create a transformer that will receive all
@@ -84,10 +84,10 @@ object Example05_FollowedBy extends App {
 	inside the `yield` block instead of creating a Dictionary=>Transformer function ahead of time
 	 */
 	case class RawMessage(userId: String, content: String)
-	implicit val rawMessageParser = (
+	implicit val rawMessageParser: XmlParser[RawMessage] = (
 		XmlParser.forMandatoryAttribute("user_id"),
 		XmlParser.forText
-	).mapN(RawMessage)
+	).mapN(RawMessage.apply)
 
 	val messagesTransformer3: Transformer[XmlEvent, Message] = for {
 		userMap <- usersParser.followedByStream

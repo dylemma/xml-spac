@@ -1,36 +1,31 @@
 ThisBuild / organization := "io.dylemma"
-ThisBuild / version := "0.9.1"
+ThisBuild / version := "0.9.2"
 ThisBuild / scalaVersion := "2.13.0"
-ThisBuild / crossScalaVersions := Seq("2.12.10", "2.13.5")
+ThisBuild / crossScalaVersions := Seq("2.12.10", "2.13.5", "3.0.0")
+ThisBuild / scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-language:higherKinds")
+ThisBuild / scalacOptions ++= (scalaBinaryVersion.value match {
+	case "2.12" => Seq("-Ypartial-unification")
+	case _ => Nil
+})
 
-lazy val commonSettings = Seq(
-	ThisBuild / scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-language:higherKinds"),
-	ThisBuild / scalacOptions ++= (scalaBinaryVersion.value match {
-		case "2.12" => Seq("-Ypartial-unification")
-		case _ => Nil
-	}),
-	addCompilerPlugin("org.typelevel" % "kind-projector" % "0.11.3" cross CrossVersion.full)
-)
-
-lazy val catsCore = "org.typelevel" %% "cats-core" % "2.6.0"
-lazy val catsEffect = "org.typelevel" %% "cats-effect" % "3.1.0"
-lazy val fs2Core = "co.fs2" %% "fs2-core" % "3.0.2"
-lazy val fs2DataJson = "org.gnieh" %% "fs2-data-json" % "1.0.0-RC2"
-lazy val fs2DataXml = "org.gnieh" %% "fs2-data-xml" % "1.0.0-RC2"
+lazy val catsCore = "org.typelevel" %% "cats-core" % "2.6.1"
+lazy val catsEffect = "org.typelevel" %% "cats-effect" % "3.1.1"
+lazy val fs2Core = "co.fs2" %% "fs2-core" % "3.0.3"
+lazy val fs2DataJson = "org.gnieh" %% "fs2-data-json" % "1.0.0-RC3"
+lazy val fs2DataXml = "org.gnieh" %% "fs2-data-xml" % "1.0.0-RC3"
 lazy val jacksonCore = "com.fasterxml.jackson.core" % "jackson-core" % "2.12.3"
-lazy val typeName = "org.tpolecat" %% "typename" % "0.1.7"
+lazy val typeName = "org.tpolecat" %% "typename" % "1.0.0"
 
 lazy val testSettings = Seq(
 	libraryDependencies ++= Seq(
-		"org.scalatest" %% "scalatest" % "3.2.6" % Test,
+		"org.scalatest" %% "scalatest" % "3.2.9" % Test,
 		"org.scalacheck" %% "scalacheck" % "1.15.3" % Test,
-		"org.scalatestplus" %% "scalacheck-1-15" % "3.2.6.0" % Test,
+		"org.scalatestplus" %% "scalacheck-1-15" % "3.2.9.0" % Test,
 	)
 )
 
 lazy val core = (project in file("core"))
 	.settings(name := "spac-core")
-	.settings(commonSettings: _*)
 	.settings(testSettings: _*)
 	.settings(apiDocSettings: _*)
 	.settings(publishingSettings: _*)
@@ -38,7 +33,6 @@ lazy val core = (project in file("core"))
 
 lazy val xml = (project in file("xml"))
 	.settings(name := "xml-spac")
-	.settings(commonSettings: _*)
 	.settings(testSettings: _*)
 	.settings(apiDocSettings: _*)
 	.settings(publishingSettings: _*)
@@ -46,7 +40,6 @@ lazy val xml = (project in file("xml"))
 
 lazy val xmlJavax = (project in file("xml-javax"))
 	.settings(name := "xml-spac-javax")
-	.settings(commonSettings: _*)
 	.settings(testSettings: _*)
 	.settings(apiDocSettings: _*)
 	.settings(publishingSettings: _*)
@@ -54,7 +47,6 @@ lazy val xmlJavax = (project in file("xml-javax"))
 
 lazy val xmlFs2Data = (project in file("xml-fs2-data"))
 	.settings(name := "xml-spac-fs2-data")
-	.settings(commonSettings: _*)
 	.settings(testSettings: _*)
 	.settings(apiDocSettings: _*)
 	.settings(publishingSettings: _*)
@@ -63,7 +55,6 @@ lazy val xmlFs2Data = (project in file("xml-fs2-data"))
 
 lazy val json = (project in file("json"))
 	.settings(name := "json-spac")
-	.settings(commonSettings: _*)
 	.settings(testSettings: _*)
 	.settings(apiDocSettings: _*)
 	.settings(publishingSettings: _*)
@@ -71,7 +62,6 @@ lazy val json = (project in file("json"))
 
 lazy val jsonJackson = (project in file("json-jackson"))
 	.settings(name := "json-spac-jackson")
-	.settings(commonSettings: _*)
 	.settings(testSettings: _*)
 	.settings(apiDocSettings: _*)
 	.settings(publishingSettings: _*)
@@ -80,7 +70,6 @@ lazy val jsonJackson = (project in file("json-jackson"))
 
 lazy val jsonFs2Data = (project in file("json-fs2-data"))
 	.settings(name := "json-spac-fs2-data")
-	.settings(commonSettings: _*)
 	.settings(testSettings: _*)
 	.settings(apiDocSettings: _*)
 	.settings(publishingSettings: _*)
@@ -88,7 +77,6 @@ lazy val jsonFs2Data = (project in file("json-fs2-data"))
 	.dependsOn(json % "compile->compile;test->test")
 
 lazy val examples = (project in file("examples"))
-	.settings(commonSettings: _*)
 	.settings(
 		publish := {},
 		publish / skip := true,
@@ -103,17 +91,15 @@ lazy val root = (project in file("."))
 		xml, xmlFs2Data, xmlJavax,
 		json, jsonJackson, jsonFs2Data
 	)
-	.settings(commonSettings: _*)
 	.settings(apiDocSettings: _*)
 	.settings(
 		publish := {},
 		publishArtifact := false,
 		publish / skip := true,
-		scalacOptions in (ScalaUnidoc, unidoc) += "-Ymacro-expand:none",
-		unidocProjectFilter in (ScalaUnidoc, unidoc) := inAnyProject -- inProjects(examples)
+		ScalaUnidoc / unidoc / scalacOptions += "-Ymacro-expand:none",
+		ScalaUnidoc / unidoc / unidocProjectFilter := inAnyProject -- inProjects(examples)
 	)
 	.enablePlugins(ScalaUnidocPlugin)
-
 
 lazy val snapshotBranch = {
 	import scala.util.control.NonFatal
@@ -129,9 +115,9 @@ lazy val snapshotBranch = {
 }
 
 lazy val apiDocSettings = Seq(
-	scalacOptions in(Compile, doc) ++= {
+	Compile / doc / scalacOptions ++= {
 		val version = Keys.version.value
-		val sourcePath = (baseDirectory in ThisBuild).value.getAbsolutePath
+		val sourcePath = (ThisBuild / baseDirectory).value.getAbsolutePath
 		val sourceTree =
 			if (version endsWith "-SNAPSHOT") snapshotBranch
 			else version
@@ -139,7 +125,7 @@ lazy val apiDocSettings = Seq(
 		Seq(
 			"-groups",
 			"-implicits",
-			s"-implicits-hide:${classesForHiddenConversions.mkString(",")}",
+			s"-implicits-hide:${ classesForHiddenConversions.mkString(",") }",
 			"-sourcepath", sourcePath,
 			"-doc-source-url", sourceUrl
 		)
@@ -171,7 +157,7 @@ lazy val publishingSettings = Seq(
 		else
 			Some("releases" at nexus + "service/local/staging/deploy/maven2")
 	},
-	publishArtifact in Test := false,
+	Test / publishArtifact := false,
 	pomIncludeRepository := { _ => false },
 	pomExtra := (
 		<url>https://github.com/dylemma/xml-spac</url>

@@ -50,13 +50,13 @@ object Example04_ParserCombine {
 	implicit val UserParser: XmlParser[User] = (
 		XmlParser.forMandatoryAttribute("id"),
 		XmlParser.forMandatoryAttribute("name")
-	).mapN(User)
+	).mapN(User.apply)
 
 	// Parse <stats upvote-count="..." downvote-count="..." /> into a Stats(upvoteCount, downvoteCount)
 	implicit val StatsParser: XmlParser[Stats] = (
 		XmlParser.forMandatoryAttribute("upvote-count").map(_.toInt),
 		XmlParser.forMandatoryAttribute("downvote-count").map(_.toInt)
-	).mapN(Stats)
+	).mapN(Stats.apply)
 
 	// note that SimpleDateFormat isn't thread-safe. You should use Joda time instead
 	val commentDateFormat = new SimpleDateFormat("yyyy-MM-dd")
@@ -66,7 +66,7 @@ object Example04_ParserCombine {
 		Splitter.xml(* \ "user").as[User].parseFirst,
 		Splitter.xml(* \ "stats").as[Stats].parseFirst,
 		Splitter.xml(* \ "body").text.parseFirst
-	).mapN(Comment)
+	).mapN(Comment.apply)
 
 	def main(args: Array[String]): Unit = {
 

@@ -253,7 +253,7 @@ package object xml {
 	implicit def elem[N](elemName: N)(implicit N: AsQName[N]): ElemContextMatcher[Unit] = {
 		SingleItemContextMatcher.predicate(
 			show"elem(${ AsQName[XmlEvent.ShowableQName].convert(elemName) })",
-			{ e: XmlEvent.ElemStart => N.equals(elemName, e.qName[N]) }
+			{ (e: XmlEvent.ElemStart) => N.equals(elemName, e.qName[N]) }
 		)
 	}
 
@@ -273,7 +273,7 @@ package object xml {
 	  * @group contextMatcherSyntax
 	  */
 	def extractElemQName[N: AsQName]: ElemContextMatcher[N] = {
-		SingleItemContextMatcher("elem(?)", { e: XmlEvent.ElemStart => Some(e.qName[N]) })
+		SingleItemContextMatcher("elem(?)", { (e: XmlEvent.ElemStart) => Some(e.qName[N]) })
 	}
 
 	/** Context matcher that extracts the given attribute from the element at the head of the stack.
@@ -286,7 +286,7 @@ package object xml {
 	def attr[N: AsQName](attrName: N): ElemContextMatcher[String] = {
 		SingleItemContextMatcher(
 			show"attr(${AsQName show attrName})",
-			{ e: XmlEvent.ElemStart => e.attr(attrName) }
+			{ (e: XmlEvent.ElemStart) => e.attr(attrName) }
 		)
 	}
 
@@ -302,7 +302,7 @@ package object xml {
 	def attrOpt[N: AsQName](attrName: N): ElemContextMatcher[Option[String]] = {
 		SingleItemContextMatcher(
 			show"attrOpt(${AsQName show attrName})",
-			{ e: XmlEvent.ElemStart => Some(e.attr(attrName)) }
+			{ (e: XmlEvent.ElemStart) => Some(e.attr(attrName)) }
 		)
 	}
 

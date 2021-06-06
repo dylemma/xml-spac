@@ -79,7 +79,7 @@ object SpacException {
 	class CaughtError(val nonSpacCause: Throwable, spacTrace: Chain[SpacTraceElement])
 		extends SpacException[CaughtError](spacTrace, nonSpacCause)
 	{
-		val causeOriginalStackTrace = Option(nonSpacCause).map(_.getStackTrace).getOrElse(Array.empty)
+		val causeOriginalStackTrace = Option(nonSpacCause).map(_.getStackTrace).getOrElse(Array.empty[StackTraceElement])
 		locally {
 			val implStackIndex = causeOriginalStackTrace.indexWhere(_.getClassName.startsWith("io.dylemma.spac.impl"))
 			if (implStackIndex >= 0) {

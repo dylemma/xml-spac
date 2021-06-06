@@ -27,7 +27,7 @@ object Example02a_BrokenContext extends App {
 		Parser.pure(idFromContext),
 		XmlParser.forMandatoryAttribute("user"),
 		XmlParser.forText
-	).mapN(Comment)
+	).mapN(Comment.apply)
 
 	val contextMatcher = "blog" \ ("post" & attr("id").map(_.toInt)) \ "comment"
 

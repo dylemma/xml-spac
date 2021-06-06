@@ -112,7 +112,7 @@ object Example02_Contexts extends App {
 	 */
 	case class Comment(body: String, context: PostContext)
 	def commentParser(context: PostContext): XmlParser[Comment] = {
-		(XmlParser.forText, Parser.pure(context)).mapN(Comment)
+		(XmlParser.forText, Parser.pure(context)).mapN(Comment.apply)
 	}
 
 	/*

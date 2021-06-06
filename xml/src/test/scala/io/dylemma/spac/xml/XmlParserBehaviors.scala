@@ -152,7 +152,7 @@ trait XmlParserBehaviors { this: AnyFunSpec with Matchers =>
 
 				// the two inner parsers should receive the same 'A' instance passed to this parser from a splitter
 				def parseAText(context: A, elem: String) = {
-					(Parser.pure(context), Splitter.xml(* \ elem).text.parseFirst).mapN(AText)
+					(Parser.pure(context), Splitter.xml(* \ elem).text.parseFirst).mapN(AText.apply)
 				}
 
 				val combinedContextualParser: XmlParser[(AText, AText)] = splitter.map { a =>

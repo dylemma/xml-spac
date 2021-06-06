@@ -56,7 +56,7 @@ object Example08_RecursiveTypes {
 	implicit val groupContextParser: XmlParser[GroupContext] = (
 		Splitter.xml(* \ "id").text.map(_.toInt).parseFirst,
 		Splitter.xml(* \ "name").text.parseFirst
-	).mapN(GroupContext)
+	).mapN(GroupContext.apply)
 
 	// given a <group> element, parse a GroupContext, then get a Transformer that can find the subGroups,
 	// making sure that the GroupContext we parsed is treated as a "parent" for recursion involving the `stack`

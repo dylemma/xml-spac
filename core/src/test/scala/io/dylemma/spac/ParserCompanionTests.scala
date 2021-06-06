@@ -1,7 +1,6 @@
 package io.dylemma.spac
 
 import cats.data.Chain
-import cats.effect.SyncIO
 import cats.implicits._
 import cats.{Applicative, Traverse}
 import io.dylemma.spac.impl.ParserCompoundN
@@ -11,6 +10,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import scala.collection.mutable
+import scala.language.existentials
 import scala.reflect.ClassTag
 
 class ParserCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChecks with SpacTestUtils {
@@ -353,7 +353,7 @@ class ParserCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPrope
 	}
 
 	describe("Applicative[Parser]") {
-		val F = Applicative[Parser[Int, *]]
+		val F = Applicative[({ type F[A] = Parser[Int, A] })#F]
 
 		val p1 = Parser[Int].toList.withName("P1")
 		val p2 = Parser[Int].firstOpt.withName("P2")
@@ -369,7 +369,7 @@ class ParserCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPrope
 		}
 
 		def inspectCompound[F[+_], In, Out](parser: Parser[In, Out]) = parser match {
-			case compound: ParserCompoundN[In, Out] => Some(compound.members)
+			case compound: ParserCompoundN[_, _] => Some(compound.members)
 			case _ => None
 		}
 

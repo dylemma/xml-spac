@@ -241,7 +241,7 @@ trait JsonParserBehaviors { this: AnyFunSpec with Matchers =>
 				val parser = (
 					Splitter.json("info").joinBy(JsonParser.listOf[Int]).parseFirst,
 					Splitter.json("name").joinBy(JsonParser[String]).parseFirst
-					).mapN(Result)
+					).mapN(Result.apply)
 				parser.parse(json) should be(Result(List(1, 2, 3), "Jason"))
 			}
 		}

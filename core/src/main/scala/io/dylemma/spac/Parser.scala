@@ -29,7 +29,7 @@ import scala.util.Try
   * @groupprio combinators 2
   * @group primary
   */
-trait Parser[-In, +Out] { self =>
+trait Parser[-In <: Any, +Out] { self =>
 
 	/** Parser's main abstract method; constructs a new Handler representing this parser's logic.
 	  * Parsers are expected to be immutable, but Handlers may be internally-mutable.
@@ -514,7 +514,7 @@ object Parser {
 	}
 
 	/** Applicative for Parser with a fixed `In` type. */
-	implicit def catsApplicativeForParser[In](implicit callerPos: CallerPos): Applicative[Parser[In, *]] = new Applicative[Parser[In, *]] {
+	implicit def catsApplicativeForParser[In](implicit callerPos: CallerPos): Applicative[({ type F[A] = Parser[In, A] })#F] = new Applicative[({ type F[A] = Parser[In, A] })#F] {
 		def pure[A](x: A) = new ParserPure(x)
 		def ap[A, B](ff: Parser[In, A => B])(fa: Parser[In, A]) = product(fa, ff).map { case (a, f) => f(a) }
 		override def product[A, B](fa: Parser[In, A], fb: Parser[In, B]) = {

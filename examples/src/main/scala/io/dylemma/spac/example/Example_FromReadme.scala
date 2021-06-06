@@ -46,20 +46,20 @@ object Example_FromReadme extends App {
 	implicit val AuthorParser: XmlParser[Author] = (
 		XmlParser.attr("id"),
 		XmlParser.attr("name")
-	).mapN(Author)
+	).mapN(Author.apply)
 
 	val authorElementParser = Splitter.xml(* \ "author").as[Author].parseFirst
 
 	implicit val StatsParser: XmlParser[Stats] = (
 		XmlParser.attr("likes").map(_.toInt),
 		XmlParser.attr("tweets").map(_.toInt)
-	).mapN(Stats)
+	).mapN(Stats.apply)
 
 	implicit val CommentParser: XmlParser[Comment] = (
 		dateAttributeParser,
 		authorElementParser,
 		Splitter.xml(* \ "body").text.parseFirst
-	).mapN(Comment)
+	).mapN(Comment.apply)
 
 	implicit val PostParser: XmlParser[Post] = (
 		dateAttributeParser,
@@ -67,7 +67,7 @@ object Example_FromReadme extends App {
 		Splitter.xml(* \ "stats").as[Stats].parseFirst,
 		Splitter.xml(* \ "body").text.parseFirst,
 		Splitter.xml(* \ "comments" \ "comment").as[Comment].parseToList
-	).mapN(Post)
+	).mapN(Post.apply)
 
 	val postTransformer: Transformer[XmlEvent, Post] = Splitter.xml("blog" \ "post") joinBy PostParser
 	val postTransformerAlt = Splitter.xml("blog" \ "post").as[Post] // available because PostParser is marked implicit

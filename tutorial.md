@@ -70,7 +70,7 @@ case class Author(id: String, name: String)
 implicit val AuthorParser: XmlParser[Author] = (
   XmlParser.attr("id"),
   XmlParser.attr("name")
-).mapN(Author)
+).mapN(Author.apply)
 ```
 
 What happened here is that we actually defined two parsers, then joined them together.
@@ -79,8 +79,8 @@ Similarly, `attr("name")` is a parser that takes the "name" attribute.
 
 We combine the "id" and "name" parsers using 
 The `mapN` method comes from the [Cats](https://typelevel.org/cats/) library when we did `import cats.syntax.apply._` since `Parser` is a member of Cats's [`Applicative`](https://typelevel.org/cats/typeclasses/applicative.html) typeclass.
-This allows us to combine the "id" and "name" parsers to create a single parser that runs both of them and passes their outputs to the function we provide (`Author`).
-Passing `Author` to `mapN` here is possible because `Author` is a case class, which makes its auto-generated companion object extend `(String, String) => Author`.
+This allows us to combine the "id" and "name" parsers to create a single parser that runs both of them and passes their outputs to the function we provide (`Author.apply`).
+(Note that in Scala 2.x we could've just passed `Author` since it is the companion to a case class and so it extends `(String, String) => Author`, but in Scala 3 you'll get a warning about auto-insertion of the `apply` method).
 We mark the `AuthorParser` as implicit so that it can be used with some convenience methods later on.
 
 Note that `mapN` is a method that Cats adds to tuples of any arity (up to 22 at the time of writing) in which each member is an instance of some `F[_]` type that belongs to the `Applicative` typeclass.
@@ -163,7 +163,7 @@ implicit val CommentParser: XmlParser[Comment] = (
   dateAttributeParser,
   Splitter.xml(* \ "author").as[Author].parseFirst,
   Splitter.xml(* \ "body").text.parseFirst
-).mapN(Comment)
+).mapN(Comment.apply)
 ```
 
 ### XMLParser[Post]
@@ -191,7 +191,7 @@ case class Stats(numLikes: Int, numTweets: Int)
 implicit val StatsParser: XmlParser[Stats] = (
   XmlParser.attr("likes").map(_.toInt),
   XmlParser.attr("tweets").map(_.toInt)
-).mapN(Stats)
+).mapN(Stats.apply)
 
 case class Post(date: LocalDate, author: Author, stats: Stats, body: String, comments: List[Comment])
 
@@ -201,7 +201,7 @@ implicit val PostParser: XmlParser[Post] = (
   Splitter.xml(* \ "stats").as[Stats].parseFirst,
   Splitter.xml(* \ "body").text.parseFirst,
   Splitter.xml(* \ "comments" \ "comment").as[Comment].parseToList
-).mapN(Post)
+).mapN(Post.apply)
 ```
 
 Note the use of `parseToList` instead of `parseFirst` for the comments. 

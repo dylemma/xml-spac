@@ -115,7 +115,7 @@ object Example11_SpacException extends App {
 			Splitter.xml("data" \ "bar").joinBy(barParser).parseFirstOpt,
 		).tupled
 
-		println("--fourth example (id.toInt exception, but from a Stream")
+		println("--fourth example (id.toInt exception, but from a Stream)")
 		JavaxSource
 			.syncIO(rawXml)
 			.through { Splitter.xml("root" \ "thing" \ "data").joinBy(dataParser).toPipe }
