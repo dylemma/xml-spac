@@ -19,7 +19,7 @@ object CallerPos {
 		import quotes.reflect._
 		val pos = Position.ofMacroExpansion
 		val filename = Expr { pos.sourceFile.jpath.getFileName.toString }
-		// note: scala 3 seems to use 0-based line numbers so I'm adding 1 until I get clarification on whether that's intentional or a bug
+		// note: scala 3 uses 0-based line numbers - https://github.com/lampepfl/dotty/discussions/12728
 		val line = Expr { pos.startLine + 1 }
 		'{ CallerPos(${filename}, ${line}) }
 	}
