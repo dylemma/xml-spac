@@ -2,7 +2,6 @@ package io.dylemma.spac
 package example
 
 import cats.syntax.apply._
-import io.dylemma.spac.xml.JavaxSupport._
 import io.dylemma.spac.xml._
 
 import java.time.LocalDate
@@ -72,5 +71,5 @@ object Example_FromReadme extends App {
 	val postTransformer: Transformer[XmlEvent, Post] = Splitter.xml("blog" \ "post") joinBy PostParser
 	val postTransformerAlt = Splitter.xml("blog" \ "post").as[Post] // available because PostParser is marked implicit
 
-	postTransformer.parseTap(println) parse rawXml
+	postTransformer.parseTap(println) parse JavaxSource.fromString(rawXml)
 }

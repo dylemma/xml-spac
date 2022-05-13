@@ -4,11 +4,10 @@ package example
 import cats.syntax.apply._
 import io.dylemma.spac.xml.XmlEvent.ElemStart
 import io.dylemma.spac.xml._
-import io.dylemma.spac.xml.JavaxSupport._
 
 object Example02_Contexts extends App {
 
-	val rawXml = s"""<blog title="Cool Beans">
+	val rawXml = JavaxSource.fromString(s"""<blog title="Cool Beans">
 		| <post id="1" author="Dylan">
 		|  <comment>Hello there</comment>
 		|  <comment>Oh, hi</comment>
@@ -17,7 +16,7 @@ object Example02_Contexts extends App {
 		|  <comment>Test comment!</comment>
 		|  <comment>I'm testing too!</comment>
 		| </post>
-		|</blog>""".stripMargin
+		|</blog>""".stripMargin)
 
 	/*
 	This example introduces `ContextMatcher`s, which are responsible for

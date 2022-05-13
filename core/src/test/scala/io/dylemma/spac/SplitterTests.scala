@@ -9,7 +9,7 @@ class SplitterTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChec
 		val listsStartingWithOne = Splitter[Int].splitOnMatch(_ == 1).joinBy(Parser.toList) into Parser.toList
 
 		it("should create a new substream when an input matches the predicate") {
-			listsStartingWithOne.parse(List(1, 2, 3, 1, 2, 1, 2, 3, 4, 5)) shouldEqual List(
+			listsStartingWithOne.parse(Iterator(1, 2, 3, 1, 2, 1, 2, 3, 4, 5)) shouldEqual List(
 				List(1, 2, 3),
 				List(1, 2),
 				List(1, 2, 3, 4, 5)
@@ -17,18 +17,18 @@ class SplitterTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChec
 		}
 
 		it("should ignore prefix inputs if a substream hasn't started") {
-			listsStartingWithOne.parse(List(5, 4, 3, 2, 1, 2, 3, 1, 2, 3)) shouldEqual List(
+			listsStartingWithOne.parse(Iterator(5, 4, 3, 2, 1, 2, 3, 1, 2, 3)) shouldEqual List(
 				List(1, 2, 3),
 				List(1, 2, 3)
 			)
 		}
 
 		it("should ignore all inputs if the predicate never matches") {
-			listsStartingWithOne.parse(List(2, 3, 4, 5, 6, 7, 8, 9)) shouldEqual Nil
+			listsStartingWithOne.parse(Iterator(2, 3, 4, 5, 6, 7, 8, 9)) shouldEqual Nil
 		}
 
 		it("should handle an immediate EOF without starting any substreams") {
-			listsStartingWithOne.parse(List.empty[Int]) shouldEqual Nil
+			listsStartingWithOne.parse(Iterator.empty[Int]) shouldEqual Nil
 		}
 	}
 
@@ -40,7 +40,7 @@ class SplitterTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChec
 			consecutiveAlphas
 				.joinBy(parseToString)
 				.parseToList
-				.parse("123ABC456DEF789": Iterable[Char])
+				.parse("123ABC456DEF789".iterator)
 				.shouldEqual { List("ABC", "DEF") }
 		}
 
@@ -48,7 +48,7 @@ class SplitterTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChec
 			consecutiveAlphas
 				.map { Parser.pure }
 				.parseToList
-				.parse("123ABC456DEF789": Iterable[Char])
+				.parse("123ABC456DEF789".iterator)
 				.shouldEqual { List('A', 'D') }
 		}
 	}

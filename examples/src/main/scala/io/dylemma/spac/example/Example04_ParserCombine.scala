@@ -1,23 +1,22 @@
 package io.dylemma.spac
 package example
 
-import java.text.SimpleDateFormat
-import java.util.Date
-
 import cats.syntax.apply._
 import io.dylemma.spac.xml._
-import io.dylemma.spac.xml.JavaxSupport._
+
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 /**
  * Created by dylan on 10/11/2015.
  */
 object Example04_ParserCombine {
 
-	case class Comment(date: Date, user: User, stats: Stats, body: String)
+	case class Comment(date: LocalDate, user: User, stats: Stats, body: String)
 	case class User(id: String, name: String)
 	case class Stats(upvoteCount: Int, downvoteCount: Int)
 
-	val rawXml = """<comments>
+	val rawXml = JavaxSource.fromString("""<comments>
 		|	<comment date="2014-07-20">
 		|		<user name="alice" id="98qja34j3"/>
 		|		<stats upvote-count="123" downvote-count="20"/>
@@ -36,14 +35,13 @@ object Example04_ParserCombine {
 		|	<comment date="2015-10-11">
 		|		<user name="dylemma" id="038oqfdje"/>
 		|		<stats upvote-count="23841" downvote-count="4"/>
-		|		<body>I made a new library to make XML parsing less awful! Try xml-stream, it'll change your life.</body>
+		|		<body>I made a new library to make XML parsing less awful! Try xml-spac, it'll change your life.</body>
 		|	</comment>
-		|</comments>""".stripMargin
+		|</comments>""".stripMargin)
 
 	/*
 	Note that we're marking the `UserParser` and `StatsParser` below as implicit.
-	This is simply for convenience so that we can use `XMLSplitter(...).first[User]`
-	and `XMLSplitter(...).first[Stats]` later on.
+	This is for convenience so that we can use `splitter.as[User]` and `splitter.as[Stats]` later.
 	 */
 
 	// Parse <user id="..." name="..." /> into a User(id, name)
@@ -58,11 +56,10 @@ object Example04_ParserCombine {
 		XmlParser.forMandatoryAttribute("downvote-count").map(_.toInt)
 	).mapN(Stats.apply)
 
-	// note that SimpleDateFormat isn't thread-safe. You should use Joda time instead
-	val commentDateFormat = new SimpleDateFormat("yyyy-MM-dd")
+	val commentDateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 	// Parser for Comment
 	implicit val CommentParser: XmlParser[Comment] = (
-		XmlParser.forMandatoryAttribute("date").map(commentDateFormat.parse),
+		XmlParser.forMandatoryAttribute("date").map(LocalDate.parse(_, commentDateFormat)),
 		Splitter.xml(* \ "user").as[User].parseFirst,
 		Splitter.xml(* \ "stats").as[Stats].parseFirst,
 		Splitter.xml(* \ "body").text.parseFirst

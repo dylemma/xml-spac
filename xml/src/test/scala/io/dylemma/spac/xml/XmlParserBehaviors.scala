@@ -9,21 +9,25 @@ import scala.util.{Failure, Success, Try}
 
 trait XmlParserBehaviors { this: AnyFunSpec with Matchers =>
 
-	def xmlParserWithStringSource(implicit stringParsable: Parsable[cats.Id, String, XmlEvent]) = {
+	def xmlParserWithStringSource(stringToSource: String => Source[XmlEvent]) = {
+
+		implicit class XmlStringContext(c: StringContext) {
+			def xml(args: Any*) = stringToSource(c.s(args: _*))
+		}
 
 		describe("Parser.forText") {
 			val textParser = XmlParser.forText
 
 			it("should concatenate text events") {
 				textParser
-					.parse {"<foo>Hello<bar>World</bar><bar>Floopy</bar>Doop</foo>"}
-					.shouldEqual {"HelloWorldFloopyDoop"}
+					.parse { xml"<foo>Hello<bar>World</bar><bar>Floopy</bar>Doop</foo>" }
+					.shouldEqual { "HelloWorldFloopyDoop" }
 			}
 
 			it("should preserve whitespace") {
 				textParser
-					.parse {"<foo>\n\tHello\n</foo>"}
-					.shouldEqual {"\n\tHello\n"}
+					.parse { xml"<foo>\n\tHello\n</foo>" }
+					.shouldEqual { "\n\tHello\n" }
 			}
 		}
 
@@ -31,26 +35,26 @@ trait XmlParserBehaviors { this: AnyFunSpec with Matchers =>
 			val attrParser = XmlParser.forMandatoryAttribute("a")
 			it("should return the attribute from the first encountered element") {
 				attrParser
-					.parse {"""<foo a="123"/>"""}
-					.shouldEqual {"123"}
+					.parse { xml"""<foo a="123"/>""" }
+					.shouldEqual { "123" }
 			}
 
 			it("should return an error if the attribute is missing from the first encountered element") {
 				an[XmlSpacException.MissingMandatoryAttributeException] should be thrownBy {
 					attrParser
-						.parse {"<foo/>"}
+						.parse { xml"<foo/>" }
 				}
 			}
 
 			it("should not return the attribute from an inner element") {
 				an[XmlSpacException.MissingMandatoryAttributeException] should be thrownBy {
 					attrParser
-						.parse {"""<foo><bar a="123"/></foo>"""}
+						.parse { xml"""<foo><bar a="123"/></foo>""" }
 				}
 
 				attrParser
-					.parse {"""<foo a="123"><bar a="456"/></foo>"""}
-					.shouldEqual {"123"}
+					.parse { xml"""<foo a="123"><bar a="456"/></foo>""" }
+					.shouldEqual { "123" }
 			}
 		}
 
@@ -59,24 +63,24 @@ trait XmlParserBehaviors { this: AnyFunSpec with Matchers =>
 
 			it("should return the attribute from the first encountered element, in a Some") {
 				attrOptParser
-					.parse {"""<foo a="123"/>"""}
-					.shouldEqual {Some("123")}
+					.parse { xml"""<foo a="123"/>""" }
+					.shouldEqual { Some("123") }
 			}
 
 			it("should return None if the attribute is missing from the first encountered element") {
 				attrOptParser
-					.parse {"<foo/>"}
-					.shouldEqual {None}
+					.parse { xml"<foo/>" }
+					.shouldEqual { None }
 			}
 
 			it("should not return the attribute from an inner element") {
 				attrOptParser
-					.parse {"""<foo><bar a="123"/></foo>"""}
-					.shouldEqual {None}
+					.parse { xml"""<foo><bar a="123"/></foo>""" }
+					.shouldEqual { None }
 
 				attrOptParser
-					.parse {"""<foo a="123"><bar a="456"/></foo>"""}
-					.shouldEqual {Some("123")}
+					.parse { xml"""<foo a="123"><bar a="456"/></foo>""" }
+					.shouldEqual { Some("123") }
 			}
 		}
 
@@ -84,7 +88,7 @@ trait XmlParserBehaviors { this: AnyFunSpec with Matchers =>
 			it("should cause an exception to be thrown while running a parser") {
 				intercept[Exception] {
 					XmlParser.toList.parse {
-						"<doop oh hello this is just gibberish"
+						stringToSource("<doop oh hello this is just gibberish")
 					}
 				}
 			}
@@ -93,13 +97,13 @@ trait XmlParserBehaviors { this: AnyFunSpec with Matchers =>
 		describe("Parser#map") {
 			it("should produce successful mapped results for valid inputs") {
 				XmlParser.forText.map(_.toInt)
-					.parse("<foo>123</foo>")
+					.parse(xml"<foo>123</foo>")
 					.shouldEqual(123)
 			}
 
 			it("should produce error results for invalid inputs") {
 				an[Exception] should be thrownBy {
-					XmlParser.forText.map(_.toInt) parse "<foo>ABC</foo>"
+					XmlParser.forText.map(_.toInt) parse xml"<foo>ABC</foo>"
 				}
 			}
 		}
@@ -107,12 +111,12 @@ trait XmlParserBehaviors { this: AnyFunSpec with Matchers =>
 		describe("XMLSplitter") {
 			it("should filter out unmached events") {
 				Splitter.xml(* \ "bar").text.parseToList
-					.parse("<foo><bar>Hello</bar><baz>World</baz></foo>")
-					.shouldEqual {List("Hello")}
+					.parse(xml"<foo><bar>Hello</bar><baz>World</baz></foo>")
+					.shouldEqual { List("Hello") }
 			}
 
 			it("should split the events into substreams") {
-				val rawXml = "<foo><bar>Hello</bar><bar>World</bar></foo>"
+				val rawXml = xml"<foo><bar>Hello</bar><bar>World</bar></foo>"
 				val splitParser = Splitter.xml(* \ "bar").text.parseToList
 				val unsplitParser = XmlParser.forText
 
@@ -123,14 +127,14 @@ trait XmlParserBehaviors { this: AnyFunSpec with Matchers =>
 
 		describe("Parser.and") {
 			it("should combine successful results of the combined parsers") {
-				val rawXml = """<foo a="123">hello world</foo>"""
+				val rawXml = xml"""<foo a="123">hello world</foo>"""
 
 				val preCombined = (
 					XmlParser.forMandatoryAttribute("a"),
 					XmlParser.forText
 				)
 
-				preCombined.tupled.parse(rawXml) shouldEqual {"123" -> "hello world"}
+				preCombined.tupled.parse(rawXml) shouldEqual { "123" -> "hello world" }
 				preCombined.mapN(_ + _).parse(rawXml) shouldEqual "123hello world"
 
 			}
@@ -138,7 +142,7 @@ trait XmlParserBehaviors { this: AnyFunSpec with Matchers =>
 			it("should result in an Error when any of the combined parsers does") {
 				val parser = (XmlParser.forMandatoryAttribute("a").map(_.toInt), XmlParser.forText).tupled
 				intercept[SpacException.CaughtError] {
-					parser parse """<foo a="abc">hello world</foo>"""
+					parser parse xml"""<foo a="abc">hello world</foo>"""
 				} should matchPattern {
 					case SpacException.CaughtError(e: NumberFormatException) =>
 				}
@@ -148,7 +152,7 @@ trait XmlParserBehaviors { this: AnyFunSpec with Matchers =>
 				class A
 				case class AText(a: A, text: String)
 				val splitter = Splitter.xml(attr("a").map(_ => new A))
-				val rawXml = """<foo a="123"><x>Hello</x><y>Goodbye</y></foo>"""
+				val rawXml = xml"""<foo a="123"><x>Hello</x><y>Goodbye</y></foo>"""
 
 				// the two inner parsers should receive the same 'A' instance passed to this parser from a splitter
 				def parseAText(context: A, elem: String) = {
@@ -165,13 +169,13 @@ trait XmlParserBehaviors { this: AnyFunSpec with Matchers =>
 
 		describe("XMLSplitter.map") {
 			val rawXml =
-				"""<foo>
-				  |	<a>1</a>
-				  |	<a>2</a>
-				  |	<b>3</b>
-				  |	<a>4</a>
-				  |	<b>5</b>
-				  |</foo>"""
+				xml"""<foo>
+				     |	<a>1</a>
+				     |	<a>2</a>
+				     |	<b>3</b>
+				     |	<a>4</a>
+				     |	<b>5</b>
+				     |</foo>"""
 			val splitter = Splitter.xml("foo" \ extractElemName)
 
 			sealed trait AB
@@ -192,7 +196,7 @@ trait XmlParserBehaviors { this: AnyFunSpec with Matchers =>
 
 		describe("Parser.followedBy") {
 			it("should pass the result of the followed parser to create the resulting parser") {
-				val xml = "<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
+				val xml = xml"<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
 				val idParser = Splitter.xml(* \ "id").text.parseFirst
 				val msgsParser = idParser.followedByParser { id =>
 					Splitter.xml(* \ "msg").text.map(msg => s"$id:$msg").parseToList
@@ -200,7 +204,7 @@ trait XmlParserBehaviors { this: AnyFunSpec with Matchers =>
 				msgsParser.parse(xml) shouldEqual List("123:Hello", "123:Goodbye")
 			}
 			it("should provide convenient flatMap syntax that works the same way") {
-				val xml = "<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
+				val xml = xml"<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
 				val msgsParser = for {
 					id <- Splitter.xml(* \ "id").text.parseFirst.followedByParser
 					msgs <- Splitter.xml(* \ "msg").text.map(msg => s"$id:$msg").parseToList
@@ -208,7 +212,7 @@ trait XmlParserBehaviors { this: AnyFunSpec with Matchers =>
 				msgsParser.parse(xml) shouldEqual List("123:Hello", "123:Goodbye")
 			}
 			it("should not pass a result until the followed parser has finished") {
-				val xml = "<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
+				val xml = xml"<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
 				// this parser does not give a result until the containing element ends,
 				// so the "following" parser will never receive any events (besides the stack replay)
 				val idsParser = Splitter.xml(* \ "id").text.parseToList.map(_.mkString)
@@ -216,7 +220,7 @@ trait XmlParserBehaviors { this: AnyFunSpec with Matchers =>
 				msgsParser.parse(xml) shouldEqual Nil
 			}
 			it("should yield an error if the followed parser yields an error") {
-				val xml = "<x><id>ABC</id><msg>Hello</msg><msg>Goodbye</msg></x>"
+				val xml = xml"<x><id>ABC</id><msg>Hello</msg><msg>Goodbye</msg></x>"
 				val idParser = Splitter.xml(* \ "id").text.parseFirst.map(_.toInt) // will yield a Failure because of "ABC".toInt
 				val msgsParser = idParser.followedByParser(id => Splitter.xml(* \ "msg").text.map(msg => s"$id:$msg").parseToList)
 
@@ -229,13 +233,13 @@ trait XmlParserBehaviors { this: AnyFunSpec with Matchers =>
 
 		describe("Parser.followedByStream") {
 			it("should pass the result of the followed parser to create the resulting transformer") {
-				val xml = "<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
+				val xml = xml"<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
 				val idParser = Splitter.xml(* \ "id").text.parseFirst
 				val msgsStream = idParser.followedByStream { id => Splitter.xml(* \ "msg").text.map(msg => s"$id:$msg") }
 				msgsStream.parseToList.parse(xml) shouldEqual List("123:Hello", "123:Goodbye")
 			}
 			it("should provide convenient flatMap syntax that works the same way") {
-				val xml = "<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
+				val xml = xml"<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
 				val msgsStream = for {
 					id <- Splitter.xml(* \ "id").text.parseFirst.followedByStream
 					msg <- Splitter.xml(* \ "msg").text
@@ -243,7 +247,7 @@ trait XmlParserBehaviors { this: AnyFunSpec with Matchers =>
 				msgsStream.parseToList.parse(xml) shouldEqual List("123:Hello", "123:Goodbye")
 			}
 			it("should not pass a result until the followed parser has finished") {
-				val xml = "<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
+				val xml = xml"<x><id>123</id><msg>Hello</msg><msg>Goodbye</msg></x>"
 				// this parser does not give a result until the containing element ends,
 				// so the "following" parser will never receive any events (besides the stack replay)
 				val idsParser = Splitter.xml(* \ "id").text.parseToList.map(_.mkString)
@@ -251,7 +255,7 @@ trait XmlParserBehaviors { this: AnyFunSpec with Matchers =>
 				msgsParser.parseToList.parse(xml) shouldEqual Nil
 			}
 			it("should yield a *single* error if the followed parser yields an error") {
-				val xml = "<x><id>ABC</id><msg>Hello</msg><msg>Goodbye</msg></x>"
+				val xml = xml"<x><id>ABC</id><msg>Hello</msg><msg>Goodbye</msg></x>"
 				val idParser = Splitter.xml(* \ "id").text.parseFirst.map(_.toInt) // will yield a Failure because of "ABC".toInt
 				val msgsStream = idParser.followedByStream(id => Splitter.xml(* \ "msg").text.map(msg => s"$id:$msg"))
 				intercept[SpacException.CaughtError] {
@@ -261,10 +265,10 @@ trait XmlParserBehaviors { this: AnyFunSpec with Matchers =>
 				}
 			}
 			it("should yield whatever errors the 'following' parser yields") {
-				val xml = "<x><name>dylemma</name><num>1</num><num>B</num><num>3</num></x>"
+				val xml = xml"<x><name>dylemma</name><num>1</num><num>B</num><num>3</num></x>"
 				val nameParser = Splitter.xml(* \ "name").text.parseFirst
 				val numsStream = nameParser.followedByStream { name =>
-					Splitter.xml(* \ "num").text.map(s => Try(s"$name:${s.toInt}"))
+					Splitter.xml(* \ "num").text.map(s => Try(s"$name:${ s.toInt }"))
 				}
 				numsStream.parseToList.parse(xml) should matchPattern {
 					case Success("dylemma:1") :: Failure(_) :: Success("dylemma:3") :: Nil =>
@@ -275,10 +279,10 @@ trait XmlParserBehaviors { this: AnyFunSpec with Matchers =>
 		describe("Parser.beforeContext") {
 			it("should allow an optional parser to fail-fast before its .followedBy") {
 				val xml =
-					"""<root>
-					  |  <data>1</data>
-					  |  <data>2</data>
-					  |</root>"""
+					xml"""<root>
+					     |  <data>1</data>
+					     |  <data>2</data>
+					     |</root>"""
 				val dataContext = * \ "data"
 
 				def dataTransformer(prelude: Option[String]) = Splitter.xml(dataContext).text.map(prelude -> _)
@@ -294,9 +298,9 @@ trait XmlParserBehaviors { this: AnyFunSpec with Matchers =>
 			}
 		}
 
-		describe("Transformer.transform"){
-			it("should work with arbitrary XML transforms from splitters"){
-				val raw = "<a><b>hello</b><b>goodbye</b><b>so long...</b></a>"
+		describe("Transformer.transform") {
+			it("should work with arbitrary XML transforms from splitters") {
+				val raw = xml"<a><b>hello</b><b>goodbye</b><b>so long...</b></a>"
 				val eventsFromRaw = XmlParser.toList.parse(raw)
 				val transformer = Splitter.xml("a" \ "b").text
 				val itr = transformer.transform(eventsFromRaw.iterator)

@@ -1,16 +1,12 @@
 package io.dylemma.spac.xml
 
-import cats.effect.{Resource, Sync, SyncIO}
-import fs2.Stream
-import io.dylemma.spac.ChunkSize
-import javax.xml.stream.XMLInputFactory
+import io.dylemma.spac.Source
 
-/** Provides convenience constructors for Iterators and Streams of `XmlEvent` for source types belonging to the `IntoXmlEventReader` typeclass.
-  *
-  * @group support
-  */
+import java.io._
+import javax.xml.stream.{XMLEventReader, XMLInputFactory}
+import scala.io.Codec
+
 object JavaxSource {
-
 	/** Default `XMLInputFactory` used when creating an underlying `XMLEventReader`
 	  * with the methods in this object.
 	  *
@@ -32,125 +28,74 @@ object JavaxSource {
 		factory
 	}
 
-	/** Partial apply for JavaxSource, where the `F` you pass will be the effect type.
+	/** Returns a single-use `Source[XmlEvent]` which interprets the contents of the given `InputStream` as raw XML bytes.
 	  *
-	  * Example usage:
-	  * {{{
-	  *   val file = new java.io.File("./stuff.xml")
-	  *   JavaxSource[IO].iteratorResource(file)
-	  *   JavaxSource[IO](file)
-	  *   JavaxSource[IO].unmanaged(new ByteArrayInputStream(???))
-	  * }}}
+	  * The returned `Source` will *not* attempt to close the `rawXml` stream;
+	  * responsibility for closing `rawXml` lies with whoever created it.
 	  *
-	  * @tparam F The effect type used by the stream/resource when finishing this "partial apply"
-	  * @return An intermediate object with methods that let you construct a stream or resource
+	  * @param rawXml  An InputStream containing raw XML bytes
+	  * @param factory Factory instance for the underlying Javax parser
+	  * @param codec   Implicit Codec used to interpret the bytes to characters. Default is `null`
+	  * @return A single-use `Source[XmlEvent]`
 	  */
-	def apply[F[_]] = new JavaxSourcePartiallyApplied[F]
-
-	/** Alias for `apply[SyncIO]`.
-	  *
-	  * Example usage:
-	  * {{{
-	  *    val file = new java.io.File("./stuff.xml")
-	  *    JavaxSource.syncIO.iteratorResource(file)
-	  *    JavaxSource.syncIO(file)
-	  *    JavaxSource.syncIO.unmanaged(new ByteArrayInputStream(???))
-	  * }}}
-	  */
-	def syncIO = new JavaxSourcePartiallyApplied[SyncIO]
-
-	/** Intermediate object returned by `apply` and `syncIO`, with methods for actually creating event streams. */
-	class JavaxSourcePartiallyApplied[F[_]] {
-		/** Treats the given `source` as an `Resource` which allocates an Iterator of XmlEvents.
-		  * The resource will open the underlying file/stream/whatever, wrapping it as an Iterator,
-		  * and will close that underlying resource when the resource is closed.
-		  *
-		  * Example usage:
-		  * {{{
-		  *    JavaxSource
-		  *      .syncIO
-		  *      .iteratorResource(new File("./stuff.xml"))
-		  *      .use { _.foreach(println) }
-		  *      .unsafeRunSync()
-		  * }}}
-		  *
-		  * @param source Some source of XML data, e.g. a File or String, or a Resource that allocates an InputStream or Reader
-		  * @param F Evidence that the `F[_]` type is "Sync"
-		  * @param S Evidence that the `source` can be "opened" as an XMLEventReader
-		  * @param factory The XMLInputFactory used to construct the underlying XML event reader. Defaults to `defaultFactory` if no other factory is available in implicit scope
-		  * @tparam S The source type
-		  * @return A resource which can allocate an iterator of XMLEvents originating from the `source`
-		  */
-		def iteratorResource[S](source: S)(implicit F: Sync[F], S: IntoXmlEventReader[F, S], factory: XMLInputFactory = defaultFactory): Resource[F, Iterator[XmlEvent]] = {
-			S(factory, source).flatMap { EventReader =>
-				Resource.fromAutoCloseable(F.pure(new WrappedEventReader(EventReader)))
-			}
+	def fromInputStream(rawXml: InputStream, factory: XMLInputFactory = defaultFactory)(implicit codec: Codec = null): Source[XmlEvent] = Source.deferOnce {
+		val guardedStream = new FilterInputStream(rawXml) {
+			override def close() = ()
 		}
-
-		/** Treats the given `source` as an `fs2.Stream` of XmlEvent.
-		  *
-		  * The opening and closing of underlying resources like File handles or streams will be handled internally by the returned stream.
-		  *
-		  * Example usage:
-		  * {{{
-		  *    JavaxSource[IO](new File("./stuff.xml"))
-		  *      .compile
-		  *      .toList
-		  *      .unsafeRunSync()
-		  * }}}
-		  *
-		  * @param source Some source of XML data, e.g. a File or String, or a Resource that allocates an InputStream or Reader
-		  * @param F Evidence that the `F[_]` type is "Sync"
-		  * @param S Evidence that the `source` can be "opened" as an XMLEventReader
-		  * @param factory The XMLInputFactory used to construct the underlying XML event reader. Defaults to `defaultFactory` if no other factory is available in implicit scope
-		  * @param chunkSize The number of elements to pull from the underlying XMLEventReader at once.
-		  *                  Under the hood, the returned stream uses `Stream.fromBlockingIterator`; this parameter is passed as the `chunkSize` to that call.
-		  *                  Defaults to 25. To override this, define an implicit `ChunkSize` in implicit scope before calling this method.
-		  * @tparam S The source type
-		  * @return An `fs2.Stream[F, XmlEvent]` which when run will open the underlying source and parse XmlEvents from it
-		  */
-		def apply[S](source: S)(implicit F: Sync[F], S: IntoXmlEventReader[F, S], factory: XMLInputFactory = defaultFactory, chunkSize: ChunkSize = ChunkSize.default): Stream[F, XmlEvent] = {
-			Stream
-				.resource { iteratorResource(source) }
-				.flatMap { Stream.fromBlockingIterator[F](_, chunkSize.i) }
-		}
-
-		/** Treats the given `source` as an `fs2.Stream` of XmlEvent, but does not attempt to open or close the source.
-		  *
-		  * This is essentially an alias for `apply` in cases where the source is an `InputStream` or `Reader` that should not be closed.
-		  * Normally, InputStream and Reader are not directly supported by the `IntoXmlEventReader` typeclass.
-		  * Instead, they must be wrapped in a `Resource` to dictate the open/close semantics.
-		  * This method automatically wraps the `source` with `Resource.pure`, effectively disabling the `close()` method
-		  * on the source for streaming purposes.
-		  *
-		  * Note that the stream returned by this method should not be run more than once, since running the stream will
-		  * cause the `source` stream/reader to advance.
-		  *
-		  * Example usage:
-		  * {{{
-		  *    val rawXmlBytes: Array[Byte] = ???
-		  *    val eventsList: List[XmlEvent] = JavaxSource[IO]
-		  *      .unmanaged(new ByteArrayInputStream(rawXmlBytes))
-		  *      .compile
-		  *      .toList
-		  *      .unsafeRunSync()
-		  * }}}
-		  *
-		  * @param source An InputStream or Reader from which to pull raw XML data. Neither this method nor the stream
-		  *               it returns will attempt to `close` the source.
-		  * @param F Evidence that the `F[_]` type is "Sync"
-		  * @param S Evidence that the `source` could be "opened" as an XMLEventReader if it had first been wrapped as a `Resource`
-		  * @param factory The XMLInputFactory used to construct the underlying XML event reader. Defaults to `defaultFactory` if no other factory is available in implicit scope
-		  * @param chunkSize The number of elements to pull from the underlying XMLEventReader at once.
-		  *                  Under the hood, the returned stream uses `Stream.fromBlockingIterator`; this parameter is passed as the `chunkSize` to that call.
-		  *                  Defaults to 25. To override this, define an implicit `ChunkSize` in implicit scope before calling this method.
-		  * @tparam S The source type; for this method it will either be `java.io.InputStream` or `java.io.Reader`.
-		  * @return An `fs2.Stream[F, XmlEvent]` which when run will consume the `source` to pull XmlEvents from it
-		  */
-		def unmanaged[S](source: S)(implicit F: Sync[F], S: IntoXmlEventReader[F, Resource[F, S]], factory: XMLInputFactory = defaultFactory, chunkSize: ChunkSize = ChunkSize.default): Stream[F, XmlEvent] = {
-			apply(Resource.pure[F, S](source))
-		}
-
+		val eventReader =
+			if (codec == null) factory.createXMLEventReader(guardedStream)
+			else factory.createXMLEventReader(guardedStream, codec.name)
+		apply(eventReader)
 	}
 
+	/** Returns a single-use `Source[XmlEvent]` which interprets the contents of the given `Reader` as raw XML characters.
+	  *
+	  * The returned `Source` will *not* attempt to close the `rawXml` reader;
+	  * responsibility for closing `rawXml` lies with whoever created it.
+	  *
+	  * @param rawXml  A Reader containing raw XML character data
+	  * @param factory Factory instance for the underlying Javax parser
+	  * @return A single-use `Source[XmlEvent]`
+	  */
+	def fromReader(rawXml: Reader, factory: XMLInputFactory = defaultFactory): Source[XmlEvent] = Source.deferOnce {
+		val guardedReader = new FilterReader(rawXml) {
+			override def close() = ()
+		}
+		val eventReader = factory.createXMLEventReader(guardedReader)
+		apply(eventReader)
+	}
+
+	/** Returns a `Source[XmlEvent]` which can open the given file to read raw XML data.
+	  *
+	  * The returned `Source` is reusable. The underlying streams are managed by the `open`
+	  * method and the `close` function it returns.
+	  *
+	  * @param file    A file containing XML
+	  * @param factory Factory instance for the underlying Javax parser
+	  * @param codec   Implicit Codec used to interpret the bytes to characters. Default is `null`
+	  * @return A reusable `Source[XmlEvent]`
+	  */
+	def fromFile(file: File, factory: XMLInputFactory = defaultFactory)(implicit codec: Codec = null): Source[XmlEvent] = () => {
+		val rawXml = new FileInputStream(file)
+		val (itr, innerClose) = fromInputStream(rawXml, factory).open()
+		val close = () => try innerClose() finally rawXml.close()
+		itr -> close
+	}
+
+	/** Returns a `Source[XmlEvent]` which interprets the given string as raw XML.
+	  *
+	  * @param rawXml  A string of raw XML
+	  * @param factory Factory instance for the underlying Javax parser
+	  * @return A reusable `Source[XmlEvent]`
+	  */
+	def fromString(rawXml: String, factory: XMLInputFactory = defaultFactory): Source[XmlEvent] = () => {
+		val eventReader = factory.createXMLEventReader(new StringReader(rawXml))
+		val (itr, innerClose) = apply(eventReader).open()
+		val close = () => try innerClose() finally eventReader.close()
+		itr -> close
+	}
+
+	def apply(eventReader: XMLEventReader): Source[XmlEvent] = {
+		Source.singleUse(new WrappedEventReader(eventReader))
+	}
 }

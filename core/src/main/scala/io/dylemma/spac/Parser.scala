@@ -2,7 +2,6 @@ package io.dylemma.spac
 
 import cats.Applicative
 import cats.data.Chain
-import fs2.Pipe
 import io.dylemma.spac.impl._
 import org.tpolecat.typename.TypeName
 
@@ -174,33 +173,64 @@ trait Parser[-In <: Any, +Out] { self =>
 	  */
 	def asTransformer: Transformer[In, Out] = new ParserAsTransformer(this)
 
-	/** Interpret the given `source` as a data stream of type `In`, using this parser to produce a result of type `Out`.
-	  * Exceptions thrown by the underlying parser logic will bubble up and be thrown by this method.
+	/** Consume the given `inputs` iterator to produce an output or possibly throw a `SpacException`.
 	  *
-	  * @param source The source of a data stream
-	  * @param S      Typeclass instance that provides the logic for feeding values from `source` into this parser
+	  * After calling this method, the `inputs` should be discarded, since consuming an Iterator is a destructive operation.
+	  *
+	  * @param inputs A series of `In` values, e.g. `XmlEvent` or `JsonEvent`
 	  * @param pos    Captures the caller filename and line number, used to fill in the 'spac trace' if the parser throws an exception
-	  * @tparam S The source type. Will typically be a `File` or a `List[In]`.
-	  * @return
+	  * @return The parser result based on the given `inputs`
 	  * @group consumers
 	  */
 	@throws[SpacException[_]]
-	def parse[S](source: S)(implicit S: Parsable[cats.Id, S, In], pos: CallerPos): Out = {
-		S.parse[Out](source, SpacTraceElement.InParse("parser", "parse", pos), this)
+	def parse(inputs: Iterator[In])(implicit pos: CallerPos): Out = {
+		@tailrec def loop(handler: Parser.Handler[In, Out]): Out = {
+			if (inputs.hasNext) {
+				val in = inputs.next()
+				handler.step(in) match {
+					case Left(out) => out
+					case Right(cont) => loop(cont)
+				}
+			} else {
+				handler.finish()
+			}
+		}
+
+		loop(start("parse"))
 	}
 
-	/** Convert this parser to a FS2 "Pipe".
-	  * The resulting pipe will forward inputs from the upstream into this parser,
-	  * emitting a single value to the downstream when this parser finishes.
-	  * Since a `Parser` may abort early (e.g. with `Parser.first`),
-	  * the pipe may not pull the entire input stream.
+	/** Consume the given `source` to produce an output or possibly throw a `SpacException`.
 	  *
-	  * @param pos
-	  * @tparam F
-	  * @return
+	  * The `Source[A]` type is like `Iterable[A]` but uses the "lender" pattern to acquire the iterator
+	  * and close any resources associated with the iterator after the iterator is consumed.
+	  *
+	  * XML and JSON-specific `Source` constructors are provided by the "parser backend" libraries
+	  * i.e. `xml-spac-javax` and `json-spac-jackson`.
+	  *
+	  * @param source An object that can provide a series of `In` values, e.g. `XmlEvent` or `JsonEvent`
+	  * @param pos    Captures the caller filename and line number, used to fill in the 'spac trace' if the parser throws an exception
+	  * @return The parser result based on the given `source`
 	  * @group consumers
 	  */
-	def toPipe[F[_]](implicit pos: CallerPos): Pipe[F, In, Out] = ParserToPipe(this, SpacTraceElement.InParse("parser", "toPipe", pos))
+	def parse(source: Source[In])(implicit pos: CallerPos): Out = {
+		source.iterateWith(parse)
+	}
+
+	/** Low-level consumer method: creates a new handler and binds the caller position for its SpacTraceElement.
+	  *
+	  * Used internally by the `parse` methods.
+	  * Start with this method if you have some sequence-like datatype that doesn't provide an `Iterator`.
+	  *
+	  * This is just a convenience for `newHandler.asTopLevelhandler` which helps construct a useful SpacTraceElement.
+	  *
+	  * @param methodName The method name used to construct the SpacTraceElement for the handler. Defaults to `"start"`
+	  * @param pos        Captures the caller filename and line number, used to fill in the 'spac trace' if the parser throws an exception
+	  * @return A parser handler that can be used to eventually produce a result by calling its `step` and/or `finish` methods
+	  * @group consumers
+	  */
+	def start(methodName: String = "start")(implicit pos: CallerPos): Parser.Handler[In, Out] = {
+		newHandler.asTopLevelHandler(SpacTraceElement.InParse("parser", methodName, pos))
+	}
 
 }
 
@@ -304,26 +334,6 @@ object Parser {
 		  * Used internally by `Parser`'s `parse` methods.
 		  */
 		def asTopLevelHandler(caller: SpacTraceElement): Handler[In, Out] = new TopLevelParserHandler(this, caller)
-	}
-
-	implicit final class InvariantOps[In, Out](private val self: Parser[In, Out]) extends AnyVal {
-		/** Interpret the given `source` as a data stream of type `In`, using this parser to produce a result of type `Out`.
-		  * In this version of the `parse` method, the data-pull and handler logic is run in the `F` context.
-		  * Exceptions thrown by the underlying parser logic will be raised in the F context instead of thrown.
-		  *
-		  * @param source The source of a data stream
-		  * @param S      Typeclass instance that provides the logic for feeding values from `source` into this parser
-		  * @param pos    Captures the caller filename and line number, used to fill in the 'spac trace' if the parser throws an exception
-		  * @tparam F An effect type in which the data-pull and handler logic will be run
-		  * @tparam S The source type. Will typically be a `File` or a `List[In]`.
-		  * @return An effect which, when evaluated, will consume data events from the `source` using this parser to produce a result.
-		  *         Note that if the `F` type isn't "lazy", the actual evaluation of the stream may happen as part of the *construction*
-		  *         of the `F[Out]`, rather than during the *evaluation*.
-		  * @group consumers
-		  */
-		def parseF[F[_], S](source: S)(implicit S: Parsable[F, S, In], pos: CallerPos): F[Out] = {
-			S.parse[Out](source, SpacTraceElement.InParse("parser", "parseF", pos), self)
-		}
 	}
 
 	/** Convenience for creating parsers whose input type is bound to `In`.

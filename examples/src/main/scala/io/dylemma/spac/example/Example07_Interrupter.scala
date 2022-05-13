@@ -2,11 +2,10 @@ package io.dylemma.spac
 package example
 
 import io.dylemma.spac.xml._
-import io.dylemma.spac.xml.JavaxSupport._
 
 object Example07_Interrupter extends App {
 
-	val rawXml1 =
+	val rawXml1 = JavaxSource.fromString {
 		"""<stuff>
 		  |  <context id="Hello"/>
 		  |  <data>World</data>
@@ -14,14 +13,16 @@ object Example07_Interrupter extends App {
 		  |  <data>There</data>
 		  |</stuff>
 		""".stripMargin
+	}
 
-	val rawXml2 =
+	val rawXml2 = JavaxSource.fromString {
 		"""<stuff>
 		  |  <data>World</data>
 		  |  <data>Moon</data>
 		  |  <data>There</data>
 		  |</stuff>
 		""".stripMargin
+	}
 
 	// capture an optional <context> element's id
 	val captureOptionalContext: XmlParser[Option[String]] = Splitter.xml("stuff" \ "context").attr("id").parseFirstOpt

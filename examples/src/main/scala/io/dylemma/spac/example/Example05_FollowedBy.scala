@@ -3,10 +3,9 @@ package example
 
 import cats.syntax.apply._
 import io.dylemma.spac.xml._
-import io.dylemma.spac.xml.JavaxSupport._
 
 object Example05_FollowedBy extends App {
-	val xml ="""<doc>
+	val xml = JavaxSource.fromString("""<doc>
 		| <users>
 		|  <user id="1">dylemma</user>
 		|  <user id="2">someone else</user>
@@ -14,7 +13,7 @@ object Example05_FollowedBy extends App {
 		| <message user_id="1">Hello</message>
 		| <message user_id="2">'sup?</message>
 		| <message user_id="1">cool new library features</message>
-		|</doc>""".stripMargin
+		|</doc>""".stripMargin)
 
 	/*
 	Sometimes you encounter a situation like the above, where you have some "dictionary" element (`<users>`)

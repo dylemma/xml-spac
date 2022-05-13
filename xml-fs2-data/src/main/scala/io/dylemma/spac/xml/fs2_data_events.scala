@@ -4,7 +4,17 @@ import cats.effect.SyncIO
 import fs2._
 import fs2.data.xml.{Attr, QName, referenceResolver, XmlEvent => Fs2XmlEvent}
 import io.dylemma.spac.ContextLocation
-import io.dylemma.spac.xml.Fs2DataSupport.fs2DataQNameAsQName
+import io.dylemma.spac.xml.Fs2DataQName.fs2DataQNameAsQName
+
+object Fs2DataQName {
+	/** AsQName instance for `fs2.data.xml.QName` */
+	implicit val fs2DataQNameAsQName: AsQName[QName] = new AsQName[QName] {
+		def name(n: QName): String = n.local
+		def namespaceUri(n: QName): Option[String] = n.prefix
+		def convert[N2](from: N2)(implicit N2: AsQName[N2]): QName = QName(N2.namespaceUri(from), N2.name(from))
+		def equals[N2](l: QName, r: N2)(implicit N2: AsQName[N2]): Boolean = l.local == N2.name(r) && l.prefix == N2.namespaceUri(r)
+	}
+}
 
 private class Fs2StartTagAsElemStart(private val wrapped: Fs2XmlEvent.StartTag) extends XmlEvent.ElemStart {
 	def qName[N](implicit N: AsQName[N]): N = N.convert(wrapped.name)

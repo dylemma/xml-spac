@@ -1,7 +1,5 @@
 package io.dylemma
 
-import cats.data.Chain
-
 /** SPaC (short for "<strong>S</strong>treaming <strong>Pa</strong>rser <strong>C</strong>ombinators")
   * is a library for building stream consumers in a declarative style, specialized for tree-like data
   * types like XML and JSON.

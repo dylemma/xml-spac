@@ -1,10 +1,10 @@
 package io.dylemma.spac
 package json
 
-import cats.effect.SyncIO
 import fs2._
 import fs2.data.json.{Token, tokens}
 import fs2.data.text.CharLikeChunks
+import io.dylemma.spac.interop.fs2._
 import io.dylemma.spac.json.impl.JsonStackFixer
 
 /** Provides helpers for creating FS2 streams of `io.dylemma.spac.json.JsonEvent`,
@@ -41,22 +41,12 @@ import io.dylemma.spac.json.impl.JsonStackFixer
   */
 object Fs2DataSource {
 
-	/** Partial apply method for creating a `Stream[F, JsonEvent]` from some `source` */
-	def apply[F[_]] = new Fs2DataSourcePartiallyApplied[F]
-	/** Partial apply method for creating a `Stream[SyncIO, JsonEvent]` from some `source` */
-	def syncIO = new Fs2DataSourcePartiallyApplied[SyncIO]
+	def fromRawJsonStream[F[_], A](rawJsonStream: Stream[F, A])(implicit A: CharLikeChunks[F, A], F: RaiseThrowable[F], callerPos: CallerPos): Stream[F, JsonEvent] = {
+		rawJsonStream through tokens[F, A] through convert[F]
+	}
 
-	class Fs2DataSourcePartiallyApplied[F[_]] {
-		/** Given an implicit conversion from the `source` to a stream of fs2-data-json "Token" values,
-		  * apply that conversion and then pipe the resulting stream through the `convert` pipe to get
-		  * a stream of `JsonEvents` which can be parsed by json-spac parsers.
-		  *
-		  * Via the default-available implicits, the source can be a `String`, a `Stream[F, String]`,
-		  * a `Stream[F, Char]`, or a `Stream[F, fs2.data.json.Token]`.
-		  */
-		def apply[S](source: S)(implicit S: ToFs2JsonTokenStream[F, S], callerPos: CallerPos): Stream[F, JsonEvent] = {
-			S(source) through convert[F]
-		}
+	def fromString[F[_]](rawJson: String)(implicit F: RaiseThrowable[F], callerPos: CallerPos): Stream[F, JsonEvent] = {
+		fromRawJsonStream(Stream.emit[F, String](rawJson))
 	}
 
 	/** Pipe for converting `fs2.data.json.Token` to `io.dylemma.spac.json.JsonEvent`.
@@ -94,28 +84,10 @@ object Fs2DataSource {
 	private def jsonNumber(raw: String) = {
 		val asLong =
 			try Some(raw.toLong)
-			catch {case _: NumberFormatException => None}
+			catch { case _: NumberFormatException => None }
 		asLong.map(JsonEvent.JLong(_, ContextLocation.empty)).getOrElse {
 			JsonEvent.JDouble(raw.toDouble, ContextLocation.empty)
 		}
 	}
 
-	/** Typeclass for source types that can be converted to a stream of fs2-data-json Token events */
-	trait ToFs2JsonTokenStream[F[_], -S] {
-		def apply(source: S): Stream[F, Token]
-	}
-	object ToFs2JsonTokenStream {
-		/** No-op conversion for an already-existing stream of fs2-data-json Tokens */
-		implicit def identity[F[_]]: ToFs2JsonTokenStream[F, Stream[F, Token]] = source => source
-
-		/** Pipes a stream of string/char through the fs2-data-json `tokens` pipe */
-		implicit def fromRawJsonChunks[F[_], T](implicit F: RaiseThrowable[F], T: CharLikeChunks[F, T]): ToFs2JsonTokenStream[F, Stream[F, T]] = {
-			_ through tokens[F, T]
-		}
-
-		/** Pipes a single string (assumed to contain a complete JSON value) through the fs2-data-json `tokens` pipe */
-		implicit def fromRawJson[F[_]](implicit F: RaiseThrowable[F]): ToFs2JsonTokenStream[F, String] = {
-			source => Stream.emit(source) through tokens[F, String]
-		}
-	}
 }

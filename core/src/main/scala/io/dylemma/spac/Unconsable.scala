@@ -1,7 +1,6 @@
 package io.dylemma.spac
 
 import cats.data.Chain
-import fs2.Chunk
 
 /** Typeclass for collections that can be efficiently split into a
   * `head` element and a `tail` collection as long as they are not empty.
@@ -31,15 +30,6 @@ object Unconsable {
 		def uncons[A](coll: List[A]): Option[(A, List[A])] = coll match {
 			case Nil => None
 			case head :: tail => Some(head -> tail)
-		}
-	}
-	implicit val fs2ChunkUnconsable: Unconsable[Chunk] = new Unconsable[Chunk] {
-		def uncons[A](chunk: Chunk[A]) = {
-			if (chunk.isEmpty) None
-			else {
-				val (headChunk, tail) = chunk.splitAt(1)
-				headChunk.head.map(_ -> tail)
-			}
 		}
 	}
 }

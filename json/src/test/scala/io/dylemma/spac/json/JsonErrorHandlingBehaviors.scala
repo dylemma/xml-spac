@@ -4,6 +4,7 @@ package json
 import cats.effect.SyncIO
 import cats.syntax.apply._
 import fs2.Stream
+import io.dylemma.spac.interop.fs2.{ParserFs2Ops, TransformerFs2Ops}
 import io.dylemma.spac.json.JsonEvent.{JString, _}
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
@@ -12,28 +13,21 @@ trait JsonErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 	/** Behavior suite that inspect the 'spac trace' of exceptions thrown in a handful of
 	  * situations where the parse logic is somehow "wrong".
 	  */
-	def jsonErrorHandlingParserWithStringSource(stringToJsonStream: String => Stream[SyncIO, JsonEvent])(implicit stringParsable: Parsable[cats.Id, String, JsonEvent], support: ContextLineNumberSupport) = {
+	def jsonErrorHandlingParserWithStringSource(
+		stringToSource: String => Source[JsonEvent],
+		stringToStream: String => Stream[SyncIO, JsonEvent]
+	)(implicit support: ContextLineNumberSupport) = {
 		case class ParserCase[A](parser: JsonParser[A], rawJson: String) {
-			lazy val events = JsonParser.toList.parse(rawJson)
-			def eventsItr = events.iterator
-
-			def runParse(): A = parser.parse(rawJson)
-			def runParseSeq(): A = parser.parse(events)
-			def runParseIterator(): A = parser.parse(fs2.Stream.fromIterator[SyncIO](eventsItr, 1))
-			def runParserAsPipe(): A = stringToJsonStream(rawJson).through(parser.toPipe).compile.lastOrError.unsafeRunSync()
-
 			def checkBehaviorsWith(baseBehavior: (String, () => A) => Unit) = {
-				describe(".parse(rawSource)") {
-					it should behave like baseBehavior("parse", runParse _)
-				}
-				describe(".parse(eventSequence)") {
-					it should behave like baseBehavior("parse", runParseSeq _)
-				}
-				describe(".parse(eventStream)") {
-					it should behave like baseBehavior("parse", runParseIterator _)
+				describe(".parse") {
+					it should behave like baseBehavior("parse", () => parser.parse(stringToSource(rawJson)))
 				}
 				describe(".toPipe") {
-					it should behave like baseBehavior("toPipe", runParserAsPipe _)
+					def parseFromPipe() = parser.toPipe[SyncIO].apply(stringToStream(rawJson)).compile.lastOrError.unsafeRunSync()
+					it should behave like baseBehavior("toPipe", parseFromPipe _)
+				}
+				describe(".parseF") {
+					it should behave like baseBehavior("parseF", () => parser.parseF(stringToStream(rawJson)).unsafeRunSync())
 				}
 			}
 		}
@@ -225,7 +219,7 @@ trait JsonErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 
 			it("as an iterator should provide 'spac trace' information") {
 				val TransformLine = new LineNumberCell
-				val rawEvents = JsonParser.toList.parse(rawJson)
+				val rawEvents = JsonParser.toList.parse(stringToSource(rawJson))
 				val outputItr = transformer.transform(rawEvents.iterator) &: TransformLine
 				val caught = intercept[SpacException.UnexpectedInputException[_]] { outputItr.toList }
 				caught.spacTrace.toList should matchPattern(expectedSpacTrace("transform", TransformLine))
@@ -233,7 +227,7 @@ trait JsonErrorHandlingBehaviors { self: AnyFunSpec with Matchers =>
 
 			it("as an fs2.Pipe should provide 'spac trace' information") {
 				val ToPipeLine = new LineNumberCell
-				val drainStreamIO = ToPipeLine & stringToJsonStream(rawJson).through(transformer.toPipe).compile.drain
+				val drainStreamIO = ToPipeLine & stringToStream(rawJson).through(transformer.toPipe).compile.drain
 				intercept[SpacException.UnexpectedInputException[_]] { drainStreamIO.unsafeRunSync() }
 					.spacTrace.toList
 					.should(matchPattern(expectedSpacTrace("toPipe", ToPipeLine)))

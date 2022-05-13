@@ -1,7 +1,8 @@
-package io.dylemma.spac
+package io.dylemma.spac.interop.fs2
 package impl
 
-import fs2.{Pipe, Pull, Stream}
+import _root_.fs2.{Pipe, Pull, Stream}
+import io.dylemma.spac.{Parser, SpacTraceElement}
 
 object ParserToPipe {
 

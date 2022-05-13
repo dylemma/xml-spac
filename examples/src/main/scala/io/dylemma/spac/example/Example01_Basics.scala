@@ -2,25 +2,39 @@ package io.dylemma.spac.example
 
 import io.dylemma.spac._
 import io.dylemma.spac.xml._
-import io.dylemma.spac.xml.JavaxSupport._
 
 import scala.util.Try
 
 object Example01_Basics extends App {
 
-	val libraryXml = """<library>
+	/* Parsers work by consuming "tokens". I.e. an `XmlParser` consumes `XmlEvent`s
+	 * and a `JsonParser` consumes `JsonEvent`s. Converting raw data into a stream
+	 * of tokens is not the focus of this library, but helpers are provided to
+	 * delegate to other libraries to accomplish the conversion.
+	 *
+	 * The simplest way to use a parser is to call its `parse` method, which expects
+	 * a `Source` of the parser's `In` type. A `Source[A]` provides an `Iterator[A]`
+	 * and a close function, so it can be used to represent resources like File handles
+	 * which must be closed after being consumed.
+	 *
+	 * To get a `Source[XmlEvent]`, you can use the helpers from `JavaxSource`, which
+	 * is provided by the `"io.dylemma" %% "xml-spac-javax"` dependency. The `JavaxSource`
+	 * helpers delegate to the `javax.xml.stream` classes from Java to handle the
+	 * underlying parsing.
+	 */
+	val libraryXml: Source[XmlEvent] = JavaxSource.fromString("""<library>
 		| <book>Don Quixote</book>
 		| <book>A Tale of Two Cities</book>
 		| <book>The Lord of the Rings</book>
 		| <book>The Little Prince</book>
 		| <book>Harry Potter and the Sorcerer's Stone</book>
 		| <book>And Then There Were None</book>
-		|</library>""".stripMargin
+		|</library>""".stripMargin)
 
 	/*
-	An `XMLParser[Out]` is able to parse a stream of XMLEvents to produce an `Out`.
+	An `XmlParser[Out]` is able to parse a stream of XMLEvents to produce an `Out`.
 
-	The `XMLParser.forText` parser will collect all of the `Characters` events it encounters, and concatenate them.
+	The `XmlParser.forText` parser will collect all of the `Characters` events it encounters, and concatenate them.
 	 */
 	val bookParser: XmlParser[String] = XmlParser.forText
 
@@ -35,7 +49,7 @@ object Example01_Basics extends App {
 	/*
 	We probably want the titles of each book separately. To do this, we use a `Splitter`.
 	A `Splitter` divides the incoming stream of events into substreams. This one will make
-	a new substream for each `<book>` elememnt inside a `<library>` element, i.e. there
+	a new substream for each `<book>` element inside a `<library>` element, i.e. there
 	will be a substream for `"<book>Don Quixote</book>"` and another substream for
 	`"<book>A Tale of Two Cities</book>"`, and so on.
 
@@ -47,13 +61,13 @@ object Example01_Basics extends App {
 	/*
 	By attaching a parser to a splitter, you run the parser on each individual substream.
 	This way we can get a separate event for each book.
-	The result of combining a Splitter and an XMLParser is called a "Transformer" because it
+	The result of combining a Splitter and an XmlParser is called a "Transformer" because it
 	"transforms" an stream of inputs into a stream of something else.
 	*/
 	val bookTransformer: Transformer[XmlEvent, String] = bookSplitter.joinBy(bookParser)
 
 	/*
-	To actually get a result from a stream, you'll either need an `XMLParser`.
+	To actually get a result from a stream, you'll either need an `XmlParser`.
 
 	Transformers can be turned into Parsers via a handful of convenience methods.
 	 */
@@ -65,15 +79,12 @@ object Example01_Basics extends App {
 	cases where these errors need to be caught, you can use the `wrapSafe` method on a Consumer.
 	This will wrap its output in a `scala.util.Try` class, where exceptions will appear as
 	`Failure` instances, and regular outputs will appear inside `Success` instances.
+	This is particularly useful when the Parser is being used as a component of another Parser.
 	 */
 	val safeBookListConsumer: XmlParser[Try[List[String]]] = bookListParser.wrapSafe
 
 	/*
 	The bookList parser and consumer will yield the same result; the list of titles emitted by the `bookTransformer`.
-
-	Note that the `parse` method works on a large number of types.
-	See the docs for specifics, but for example, you could parse a File, String,
-	InputStream, Iterable[XMLEvent], or Iterator[XMLEvent].
 	 */
 	val allBooksResult1 = bookListParser parse libraryXml
 	println(allBooksResult1)
@@ -84,5 +95,14 @@ object Example01_Basics extends App {
 	 */
 	val foreachConsumer = bookTransformer.parseTap{ title => println(s"book: $title") }
 	foreachConsumer parse libraryXml
+
+	/*
+	You could also use the Transformer's `transform` method directly on the `Iterator[XmlEvent]`
+	 */
+	libraryXml.iterateWith { xmlEvents =>
+		println("---")
+		val bookIterator: Iterator[String] = bookTransformer.transform(xmlEvents)
+		bookIterator.foreach(println)
+	}
 
 }

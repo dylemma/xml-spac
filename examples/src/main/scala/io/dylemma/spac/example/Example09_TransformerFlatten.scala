@@ -3,19 +3,19 @@ package example
 
 import cats.syntax.apply._
 import io.dylemma.spac.xml._
-import io.dylemma.spac.xml.JavaxSupport._
 
 object Example09_TransformerFlatten {
 
 	/* In this example, we want to parse all of the names, including aliases,
 	 * as a stream of Strings. To do this, we want to create a `Transformer[XMLEvent, String]`.
 	 */
-	val xml =
+	val xml = JavaxSource.fromString {
 		"""<people>
 		  |   <person alias="Bobby">Robert</person>
 		  |   <person>Dylan</person>
 		  |</people>
 		""".stripMargin
+	}
 
 	/* To start with, you'll typically create an XmlParser for the `<person>` element,
 	 * and since a person can have an optional alias along with their normal name,
