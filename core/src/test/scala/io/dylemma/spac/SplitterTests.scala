@@ -28,7 +28,7 @@ class SplitterTests extends AnyFunSpec with Matchers with ScalaCheckPropertyChec
 		}
 
 		it("should handle an immediate EOF without starting any substreams") {
-			listsStartingWithOne.parse(Iterator.empty[Int]) shouldEqual Nil
+			listsStartingWithOne.parse(Iterator.empty) shouldEqual Nil
 		}
 	}
 
