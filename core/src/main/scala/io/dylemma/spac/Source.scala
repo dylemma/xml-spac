@@ -10,6 +10,7 @@ import cats.data.Chain
   * a stand-in for both `cats.effect.Resource` and `fs2.Stream` for non-async usage.
   *
   * @tparam A Type of item emitted by Iterators from this Source
+  * @group util
   */
 trait Source[+A] {
 	/** Lender pattern that opens a new iterator from this source, passes it to the given consumer function `f`,
@@ -35,6 +36,8 @@ trait Source[+A] {
 /** Note: this companion object provides a few very basic Source-constructor helpers,
   * but the real useful functionality is provided by the "parser backend" modules like
   * `xml-spac-javax` and `json-spac-jackson`, via `JavaxSource` and `JacksonSource`.
+  *
+  * @group util
   */
 object Source {
 

@@ -140,6 +140,7 @@ lazy val apiDocSettings = Seq(
 					"-groups",
 					"-implicits",
 					s"-implicits-hide:${ classesForHiddenConversions.mkString(",") }",
+					"-skip-packages", scaladocIgnoredPackages.mkString(":"),
 					"-sourcepath", sourcePath,
 					"-doc-source-url", sourceUrl
 				)
@@ -155,7 +156,6 @@ lazy val apiDocSettings = Seq(
 lazy val classesForHiddenConversions = Seq(
 	// these end up being added to literally every class,
 	// despite the fact that they should never actually be applied to a spac class
-	"io.dylemma.spac.SourceToPullable",
 	"io.dylemma.spac.xml.elem",
 
 	// for some reason, specifying any `-implicits-hide` flag to the scaladoc task
@@ -166,6 +166,11 @@ lazy val classesForHiddenConversions = Seq(
 	"scala.Predef.Ensuring",
 	"scala.Predef.StringFormat",
 	"scala.Predef.ArrowAssoc"
+)
+lazy val scaladocIgnoredPackages = Seq(
+	"io.dylemma.spac.impl",
+	"io.dylemma.spac.xml.impl",
+	"io.dylemma.spac.json.impl"
 )
 
 lazy val publishingSettings = Seq(
