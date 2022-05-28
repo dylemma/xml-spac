@@ -54,17 +54,18 @@ Splitter
 Add (your choice of) the following to your `build.sbt` file:
 
 ```sbt
+val spacVersion = "0.10.0" 
 libraryDependencies ++= Seq(
-  "io.dylemma" %% "spac-core" % "0.9.2",         // core classes like Parser and Transformer 
-  "io.dylemma" %% "spac-interop-fs2" % "0.9.2",   // adds interop with fs2.Stream and fs2.Pipe
+  "io.dylemma" %% "spac-core" % spacVersion,         // core classes like Parser and Transformer 
+  "io.dylemma" %% "spac-interop-fs2" % spacVersion,   // adds interop with fs2.Stream and fs2.Pipe
    
-  "io.dylemma" %% "xml-spac" % "0.9.2",          // classes for XML-specific parsers
-  "io.dylemma" %% "xml-spac-javax" % "0.9.2",    // XML parser backend using javax.xml.stream
-  "io.dylemma" %% "xml-spac-fs2-data" % "0.9.2", // XML parser backend using fs2-data-xml
+  "io.dylemma" %% "xml-spac" % spacVersion,          // classes for XML-specific parsers
+  "io.dylemma" %% "xml-spac-javax" % spacVersion,    // XML parser backend using javax.xml.stream
+  "io.dylemma" %% "xml-spac-fs2-data" % spacVersion, // XML parser backend using fs2-data-xml
 
-  "io.dylemma" %% "json-spac" % "0.9.2",         // classes for JSON-specific parsers
-  "io.dylemma" %% "json-spac-jackson" % "0.9.2", // JSON parser backend using the Jackson library
-  "io.dylemma" %% "json-spac-fs2-data" % "0.9.2" // JSON parser backend using fs2-data-json
+  "io.dylemma" %% "json-spac" % spacVersion,         // classes for JSON-specific parsers
+  "io.dylemma" %% "json-spac-jackson" % spacVersion, // JSON parser backend using the Jackson library
+  "io.dylemma" %% "json-spac-fs2-data" % spacVersion // JSON parser backend using fs2-data-json
 )
 ```
 

@@ -1,5 +1,5 @@
 ThisBuild / organization := "io.dylemma"
-ThisBuild / version := "0.9.2"
+ThisBuild / version := "0.10.0"
 ThisBuild / scalaVersion := "2.13.0"
 ThisBuild / crossScalaVersions := Seq("2.12.15", "2.13.8", "3.1.2")
 ThisBuild / scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-language:higherKinds")
