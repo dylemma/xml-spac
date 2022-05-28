@@ -1,18 +1,18 @@
 ThisBuild / organization := "io.dylemma"
 ThisBuild / version := "0.9.2"
 ThisBuild / scalaVersion := "2.13.0"
-ThisBuild / crossScalaVersions := Seq("2.12.10", "2.13.5", "3.0.0")
+ThisBuild / crossScalaVersions := Seq("2.12.15", "2.13.8", "3.1.2")
 ThisBuild / scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-language:higherKinds")
 ThisBuild / scalacOptions ++= (scalaBinaryVersion.value match {
 	case "2.12" => Seq("-Ypartial-unification")
 	case _ => Nil
 })
 
-lazy val catsCore = "org.typelevel" %% "cats-core" % "2.6.1"
-lazy val catsEffect = "org.typelevel" %% "cats-effect" % "3.1.1"
-lazy val fs2Core = "co.fs2" %% "fs2-core" % "3.0.3"
-lazy val fs2DataJson = "org.gnieh" %% "fs2-data-json" % "1.0.0-RC3"
-lazy val fs2DataXml = "org.gnieh" %% "fs2-data-xml" % "1.0.0-RC3"
+lazy val catsCore = "org.typelevel" %% "cats-core" % "2.7.0"
+lazy val catsEffect = "org.typelevel" %% "cats-effect" % "3.3.12"
+lazy val fs2Core = "co.fs2" %% "fs2-core" % "3.1.0"
+lazy val fs2DataJson = "org.gnieh" %% "fs2-data-json" % "1.3.1"
+lazy val fs2DataXml = "org.gnieh" %% "fs2-data-xml" % "1.3.1"
 lazy val jacksonCore = "com.fasterxml.jackson.core" % "jackson-core" % "2.12.3"
 lazy val typeName = "org.tpolecat" %% "typename" % "1.0.0"
 
