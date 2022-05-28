@@ -99,6 +99,7 @@ lazy val examples = (project in file("examples"))
 lazy val root = (project in file("."))
 	.aggregate(
 		core,
+		coreFs2,
 		examples,
 		xml, xmlFs2Data, xmlJavax,
 		json, jsonJackson, jsonFs2Data
