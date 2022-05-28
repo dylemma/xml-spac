@@ -1,7 +1,7 @@
 package io.dylemma.spac
 
-import cats.Applicative
 import cats.data.Chain
+import cats.{Applicative, FlatMap}
 import io.dylemma.spac.impl._
 import org.tpolecat.typename.TypeName
 
@@ -447,6 +447,24 @@ object Parser {
 	  * @tparam Out
 	  */
 	def oneOf[In, Out](parsers: Parser[In, Out]*): Parser[In, Out] = ParserOrElseChain(Chain.fromSeq(parsers))
+
+	implicit class ParserFlatten[In, A, F[_]](private val parser: Parser[In, F[F[A]]]) extends AnyVal {
+
+		/** Convenience for `.map(_.flatten)`, e.g. to simplify a `Parser[In, Option[Option[Out]]` to `Parser[In, Option[Out]]`.
+		  *
+		  * Example:
+		  * {{{
+		  *    Splitter.json(...).asNullable[String].parseFirstOpt.flatten
+		  * }}}
+		  *
+		  * @param F A type constructor that can be `flatMap`ped, such as Option or List
+		  * @return A new Parser whose output type has been flattened
+		  * @group combinators
+		  */
+		def flatten(implicit F: FlatMap[F]): Parser[In, F[A]] = parser
+			.map(F.flatten)
+			.withName(s"$parser.map(_.flatten)")
+	}
 
 	/** Adds `followedBy` and `followedByStream` to Parser (they aren't defined in the Parser trait due to the `In` type needing to be invariant here) */
 	implicit class ParserFollowedByOps[In, A](parser: Parser[In, A]) {

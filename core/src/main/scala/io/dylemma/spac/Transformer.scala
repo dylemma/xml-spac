@@ -251,6 +251,20 @@ trait Transformer[-In, +Out] {
 	  */
 	def transform(itr: Iterator[In])(implicit pos: CallerPos): Iterator[Out] = new IteratorTransform(itr, this, SpacTraceElement.InParse("transformer", "transform", pos))
 
+	/** Applies this transformer's logic to a Source, returning a new Source which yields values
+	  * emitted by this transformer when run on the underlying iterator.
+	  *
+	  * @param source A Source
+	  * @param pos Captures the call site for the top level SpacTraceElement
+	  * @return A wrapped version of `source`, transformed via this transformer
+	  * @group transform
+	  */
+	def transform(source: Source[In])(implicit pos: CallerPos): Source[Out] = () => {
+		val (itr, close) = source.open()
+		val itr2 = transform(itr)
+		itr2 -> close
+	}
+
 }
 
 /**

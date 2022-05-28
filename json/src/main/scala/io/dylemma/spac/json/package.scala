@@ -126,7 +126,7 @@ package object json {
 		  * @return A JsonParser which parses `null` as `None`, or else delegates to the underlying `parser`
 		  * @group primitive
 		  */
-		def nullable[T](implicit parser: JsonParser[T]): JsonParser[Option[T]] = JsonParser.oneOf(parser.map(Some(_)), forNull)
+		def nullable[T](implicit parser: JsonParser[T]): JsonParser[Option[T]] = parserApply.oneOf(parser.map(Some(_)), forNull)
 
 		/** A JsonParser that captures the string value from a `JsString` event, failing if the first event is not a `JsString`.
 		  *
@@ -539,6 +539,19 @@ package object json {
 		  * @return A new JsonSplitter that will split a stream into sub-streams identified by the `matcher`
 		  */
 		def json[C](matcher: ContextMatcher[JsonStackElem, C])(implicit pos: CallerPos): JsonSplitter[C] = splitter.fromMatcher(matcher)
+	}
+
+	/** Adds `splitter.asNullable[A]`, for handling possibly-null values in a JSON substream
+	  *
+	  * @group extensions
+	  */
+	implicit class JsonSplitterOps[C](private val splitter: JsonSplitter[C]) extends AnyVal {
+
+		/** Alternative to `splitter.as[A]` which also accepts `null` in place of the normal JSON for `A`.
+		  *
+		  * @tparam A Any type for which an implicit `JsonParser[A]` exists
+		  */
+		def asNullable[A: JsonParser]: JsonTransformer[Option[A]] = splitter.joinBy(JsonParser.nullable[A])
 	}
 
 	// ------------------------------------------------------
