@@ -1,7 +1,8 @@
 package io.dylemma.spac.example
 
-import cats.effect.SyncIO
-import fs2._
+import cats.effect.{IO, SyncIO}
+import fs2.Stream
+import fs2.io.file.{Files, Path}
 import io.dylemma.spac._
 import io.dylemma.spac.interop.fs2._
 import io.dylemma.spac.xml._
@@ -55,6 +56,25 @@ object Example12_Fs2DataSupport extends App {
 
 		val parsedFromBytes = parser.parseF(xmlEventsFromBytes).unsafeRunSync()
 		println(s"Parsed From Bytes:  $parsedFromBytes")
+
+		// You could also directly use the `Fs2DataSource.fromRawXmlStream` pipe to convert
+		// a `Stream[F, Byte]` (e.g. from reading a file) to a `Stream[F, XmlEvent]`. From
+		// there you could treat a Parser or Transformer as a pipe to further convert the stream.
+		locally {
+			import cats.effect.unsafe.implicits.global
+			import fs2.data.text.latin1._ // for IO unsafeRunSync
+
+			val libraryXmlFile = Path.fromNioPath(Helpers.exampleResource("/library.xml"))
+
+			val parsedFromFile = Files[IO]
+				.readAll(libraryXmlFile)
+				.through(Fs2DataSource.fromRawXmlStream(_))
+				.through(parser.toPipe)
+				.compile
+				.lastOrError
+				.unsafeRunSync()
+			println(s"Parsed From File:   $parsedFromFile")
+		}
 	}
 
 }

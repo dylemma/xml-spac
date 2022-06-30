@@ -10,7 +10,8 @@ ThisBuild / scalacOptions ++= (scalaBinaryVersion.value match {
 
 lazy val catsCore = "org.typelevel" %% "cats-core" % "2.7.0"
 lazy val catsEffect = "org.typelevel" %% "cats-effect" % "3.3.12"
-lazy val fs2Core = "co.fs2" %% "fs2-core" % "3.1.0"
+lazy val fs2Core = "co.fs2" %% "fs2-core" % "3.2.7"
+lazy val fs2Io = "co.fs2" %% "fs2-io" % "3.2.7"
 lazy val fs2DataJson = "org.gnieh" %% "fs2-data-json" % "1.3.1"
 lazy val fs2DataXml = "org.gnieh" %% "fs2-data-xml" % "1.3.1"
 lazy val jacksonCore = "com.fasterxml.jackson.core" % "jackson-core" % "2.12.3"
@@ -92,7 +93,7 @@ lazy val examples = (project in file("examples"))
 	.settings(
 		publish := {},
 		publish / skip := true,
-		libraryDependencies ++= Seq(catsEffect, fs2Core),
+		libraryDependencies ++= Seq(catsEffect, fs2Core, fs2Io),
 	)
 	.dependsOn(core, coreFs2, xml, xmlJavax, xmlFs2Data)
 
