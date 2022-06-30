@@ -10,6 +10,9 @@ import javax.xml.stream.events._
 import javax.xml.stream.{Location, XMLStreamConstants}
 import scala.annotation.switch
 
+/**
+  * @group support
+  */
 object JavaxQName {
 	/** Allows `javax.xml.namespace.QName` to be passed to name-based methods like `elem` and `attr` */
 	implicit val javaxQNameAsQName: AsQName[QName] = new AsQName[QName] {

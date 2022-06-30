@@ -172,7 +172,8 @@ lazy val classesForHiddenConversions = Seq(
 lazy val scaladocIgnoredPackages = Seq(
 	"io.dylemma.spac.impl",
 	"io.dylemma.spac.xml.impl",
-	"io.dylemma.spac.json.impl"
+	"io.dylemma.spac.json.impl",
+	"io.dylemma.spac.interop.fs2.impl"
 )
 
 lazy val publishingSettings = Seq(

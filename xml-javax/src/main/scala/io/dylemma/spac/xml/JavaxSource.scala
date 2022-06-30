@@ -6,6 +6,11 @@ import java.io._
 import javax.xml.stream.{XMLEventReader, XMLInputFactory}
 import scala.io.Codec
 
+/** Provides helpers for creating `Source[XmlEvent]` using `javax.xml.stream`
+  * for the underlying event provider.
+  *
+  * @group support
+  */
 object JavaxSource {
 	/** Default `XMLInputFactory` used when creating an underlying `XMLEventReader`
 	  * with the methods in this object.

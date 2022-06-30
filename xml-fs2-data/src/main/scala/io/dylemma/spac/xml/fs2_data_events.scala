@@ -6,6 +6,9 @@ import fs2.data.xml.{Attr, QName, referenceResolver, XmlEvent => Fs2XmlEvent}
 import io.dylemma.spac.ContextLocation
 import io.dylemma.spac.xml.Fs2DataQName.fs2DataQNameAsQName
 
+/**
+  * @group support
+  */
 object Fs2DataQName {
 	/** AsQName instance for `fs2.data.xml.QName` */
 	implicit val fs2DataQNameAsQName: AsQName[QName] = new AsQName[QName] {
