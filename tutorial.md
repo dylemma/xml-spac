@@ -27,10 +27,11 @@ Let's write a parser for this pretend blog data file.
       </comment>
     </comments>
   </post>
+  <!-- Continue ad-infinitum -->
 </blog>
 ```
 
-For this example, we'll use the following classes:
+We'll represent that data in blog with these classes, ultimately treating the blog as a series of `Post`.
 
 ```scala
 case class Post(date: LocalDate, author: Author, stats: Stats, body: String, comments: List[Comment])
@@ -39,23 +40,38 @@ case class Stats(numLikes: Int, numTweets: Int)
 case class Comment(date: LocalDate, author: Author, body: String)
 ```
 
-And the following imports:
+# Setup
+
+Start by adding the library dependencies.
+In this example we use `xml-spac-javax` to get access to the `JavaxSource` helper,
+which delegates the low-level parsing to the JVM's native `javax.xml.stream` classes.
+Note that including `xml-spac-javax` should cause the others to be included transitively,
+so you don't necessarily have to type out all four.
 
 ```scala
-// import core classes like Parser and Splitter
-import io.dylemma.spac._
-// import xml-specific parser creation utilities
-import io.dylemma.spac.xml._
-// use java.xml.stream as the parser backend, allowing us to `.parse` Strings and Files
-import io.dylemma.spac.xml.JavaxSupport._
-// adds methods like mapN to tuples of parsers
-import cats.syntax.apply._
+// build.sbt
+libraryDependencies ++= Seq(
+   "io.dylemma" %% "spac-core" % spacVersion,      // base classes like Parser and Transformer
+   "io.dylemma" %% "xml-spac" % spacVersion,       // xml-specific Parser support
+   "io.dylemma" %% "xml-spac-javax" % spacVersion, // javax integration
+   "org.typelevel" %% "cats-core" % catsVersion    // helpers like `.mapN`
+)
 ```
+
+Add the following imports:
+
+```scala
+import io.dylemma.spac._     // for Parser | Transformer | Splitter | Source
+import io.dylemma.spac.xml._ // for XmlParser | Splitter.xml
+import cats.syntax.apply._   // for `.mapN`
+```
+
+# Writing Parsers
 
 The best approach to take when creating a complex parser is to start at the "bottom" of the DOM.
 Create a simple parser that knows how to handle a simple element, then work your way up, creating more complex parsers in terms of the simpler parsers.
 
-### XmlParser[Author]
+## XmlParser[Author]
 
 We'll start by defining a parser for the `Author` class:
 
@@ -86,7 +102,7 @@ We mark the `AuthorParser` as implicit so that it can be used with some convenie
 Note that `mapN` is a method that Cats adds to tuples of any arity (up to 22 at the time of writing) in which each member is an instance of some `F[_]` type that belongs to the `Applicative` typeclass.
 E.g. since `XmlParser` is applicative, you could do `(xmlParser1, xmlParser2, ..., xmlParserN).mapN { (r1, r2, ..., rN) => computeResult }`
 
-### XmlParser[LocalDate]
+## XmlParser[LocalDate]
 
 Multiple different elements in the example XML above use a `date` attribute with the same format.
 
@@ -115,7 +131,7 @@ Note that if the function passed to a parser's `map` throws an exception while r
 the exception will be caught, wrapped as a `SpacException.CaughtError`, and rethrown.
 SPaC provides useful debugging information via the `SpacException` class, but ultimately it is up to you to properly handle edge cases and error conditions in your data and parser.
 
-### XMLParser[Comment]
+## XMLParser[Comment]
 
 ```xml
 <!-- snippet from the xml above -->
@@ -166,7 +182,7 @@ implicit val CommentParser: XmlParser[Comment] = (
 ).mapN(Comment.apply)
 ```
 
-### XMLParser[Post]
+## XMLParser[Post]
 
 To create the `Post` parser for a `<post>` element, we use the parsers and patterns shown above, combining them with the `mapN` method.
 Technically we're missing a parser for the `<stats>` element, but it can be easily created similarly to how the `<author>` element's parser was created.
@@ -207,17 +223,12 @@ implicit val PostParser: XmlParser[Post] = (
 Note the use of `parseToList` instead of `parseFirst` for the comments. 
 Instead of just taking the first `<comment>`, we gather all of them into a list.
 
-## Using the Parser
+## Transformer[Post]
 
 Now that we have a parser for the `<post>` element, we're just about done.
 The entire XML document is a single `<blog>` element that contains multiple `<post>` elements.
-
-At this point we have a choice: 
-
-1. Create a Parser that consumes the entire document, interpreting each `<post>` element to build a `List[Post]`
-2. Create a Transformer that allows us to treat the document as a stream of `Post` values, emitting one for each `<post>` element
-
-In either approach, we need to "relativize" the `<post>` parser to the `<blog>` element:
+If we tried to run `PostParser` on the entire file, it would fail, since it's expecting a `<post>` as the top-level element.
+To treat the file as a series of `Post`, we use `Splitter` again to select the context of the `<post>` elements. 
 
 ```xml
 <blog>
@@ -229,51 +240,38 @@ In either approach, we need to "relativize" the `<post>` parser to the `<blog>` 
 ```scala
 val postTransformer: XmlTransformer[Post] = Splitter.xml("blog" \ "post").as[Post]
 ```
+*Note that in previous examples, we used `*` to represent the "current element".
+We could have done that here, but it can be sometimes be helpful to see the actual name of the top-level element when defining the top-level parser.*
 
-Note that in previous examples, we used `*` to represent the "current element".
-We could have done that here, but it can be sometimes be helpful to see the actual name of the top-level element when defining the top-level parser.
+Now, we can decide how to consume that series of posts by calling one of `postTransformer`'s `parse*` methods:
+
+```scala
+val postPrinter: XmlParser[Unit] = postTransformer.parseTap(println)
+val postCollector: XmlParser[List[Post]] = postTransformer.parseToList
+```
+
+These parsers are ready to handle the entire blog file.
+
+# Using Parsers
+
+Until this point we've only declared *how* we want to handle data; now it's time to actually *handle* data.
+
+Parsers operate on streams of data; an XmlParser consumes a stream of `XmlEvent`. 
+To get that stream, you need to convert your raw XML into a `Source[XmlEvent]`.
+That's what the `xml-spac-javax` library is for; it provides the `JavaxSource` object which contains helpers to construct a `Source[XmlEvent]` from various underlying data types.
 
 If you want to treat the document as a stream of Posts, obtain a `fs2.Stream` or `Iterator` of `XmlEvent`
 (generally by using one of the utility methods on `JavaxSource` or `Fs2DataSource`),
 then use Transformer's `toPipe` or `transform` method to convert it.
 
 ```scala
-import cats.effect.SyncIO
-
 val blogFile = new File("./blog.xml")
+val blogSource = JavaxSource.fromFile(blogFile)
 
-// use an fs2 Stream, transformed via `postTransformer.toPipe`
-JavaxSource
-   .syncIO(blogFile) // Stream[SyncIO, XmlEvent]
-   .through(postTransformer.toPipe) // Stream[SyncIO, Post]
-   .foreach(post => SyncIO { println(s"Output: $post") }) // Stream[SyncIO, Nothing]
-   .compile // intermediate object
-   .drain // SyncIO[Unit]
-   .unsafeRunSync() // Unit
-
-// obtain an iterator of events wrapped as a Resource
-JavaxSource
-   .syncIO // intermediate object
-   .iteratorResource(blogFile) // Resource[SyncIO, Iterator[XmlEvent]]
-   .map(postTransformer.transform) // Resource[SyncIO, Iterator[Post]]
-   .use(postItr => SyncIO {
-      postItr.foreach { post => println(s"Output: $post") }
-   }) // SyncIO[Unit]
-   .unsafeRunSync() // Unit
+postPrinter.parse(blogFile)
+// or
+val posts: List[Post] = postCollector.parse(blogFile)
 ```
 
-If you want to build a list of all of the Posts, use Parser's `parse` or `parseF` method.
-
-```scala
-val blogParser: XmlParser[List[Post]] = postTransformer.parseToList
-val blogFile = new File("./blog.xml")
-
-// synchronous execution
-val allPosts: List[Post] = blogParser.parse(blogFile)
-
-// deferred execution
-val readAllPosts: SyncIO[List[Post]] = blogParser.parseF[SyncIO, File](blogFile)
-```
-
-Note that the `JavaxSource` utility methods and the `parse/parseF` methods are generic, using typeclasses to support multiple different source types.
-The examples above used `File` as the source, but it could've just as easily used `String` or `Resource[F, InputStream]` or one of several other sources.
+Congratulations on reaching the end of the tutorial!
+For even more information on how to use xml-spac, check out [the examples](./examples).
