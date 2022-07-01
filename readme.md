@@ -1,37 +1,13 @@
-XML SPaC
-========
+spac
+====
 
-**API Docs:** 
-[spac-core](https://javadoc.io/doc/io.dylemma/spac-core_2.13/latest/io/dylemma/spac/index.html) | 
-[xml-spac](https://javadoc.io/doc/io.dylemma/xml-spac_2.13/latest/io/dylemma/spac/xml/index.html) | 
-[json-spac](https://javadoc.io/doc/io.dylemma/json-spac_2.13/latest/io/dylemma/spac/json/index.html) |
-[xml-spac-javax](https://javadoc.io/doc/io.dylemma/xml-spac-javax_2.13/latest/io/dylemma/spac/xml/index.html) |
-[xml-spac-fs2-data](https://javadoc.io/doc/io.dylemma/xml-spac-fs2-data_2.13/latest/io/dylemma/spac/xml/index.html) |
-[json-spac-jackson](https://javadoc.io/doc/io.dylemma/json-spac-jackson_2.13/latest/io/dylemma/spac/json/index.html) |
-[json-spac-fs2-data](https://javadoc.io/doc/io.dylemma/json-spac-fs2-data_2.13/latest/io/dylemma/spac/json/index.html)
-
-***S***treaming ***Pa***rser ***C***ombinators is a Scala library for building stream consumers in a declarative style, specialized for tree-like data types like XML and JSON.
-
-It delegates to a backend of your choice to obtain a stream of events:
-
- - **XML** support via:
-   - [javax.xml.stream](https://docs.oracle.com/javase/8/docs/api/javax/xml/stream/package-summary.html), a.k.a. "StAX"
-   - [fs2-data-xml](https://fs2-data.gnieh.org/)
- - **JSON** support via:
-   - [Jackson](https://github.com/FasterXML/jackson-core)
-   - [fs2-data-json](https://fs2-data.gnieh.org/)
-
-And provides you the ability to create event consumers that are:
+Spac is a Scala library for building stream consumers in a declarative style, specialized for tree-like data types like XML and JSON. Parsers are:
 
  - **Declarative** - You write *what* you want to get, not *how* to get it
  - **Immutable** - Parsers may be shared and reused without worry
  - **Composable** - Combine and transform parsers to handle complex data structures
  - **Fast** - With minimal abstraction to get in the way, speed rivals any hand-written handler
  - **Streaming** - Parse huge XML/JSON documents from events, not a DOM
-
-You can jump into a full [tutorial](https://github.com/dylemma/xml-spac/blob/main/tutorial.md), 
-or check out the [examples](https://github.com/dylemma/xml-spac/tree/main/examples/src/main/scala/io/dylemma/spac/example),
-but here's a taste of how you'd write a parser for a relatively-complex blog post XML structure:
 
 ```scala
 implicit val PostParser: XmlParser[Post] = (
@@ -49,7 +25,23 @@ Splitter
    .parse(JavaxSource.fromFile { new File("./blog.xml") })
 ```
 
-# Get it!
+It delegates to a backend of your choice to obtain a stream of events:
+
+ - **XML** support via:
+   - [javax.xml.stream](https://docs.oracle.com/javase/8/docs/api/javax/xml/stream/package-summary.html), a.k.a. "StAX"
+   - [fs2-data-xml](https://fs2-data.gnieh.org/)
+ - **JSON** support via:
+   - [Jackson](https://github.com/FasterXML/jackson-core)
+   - [fs2-data-json](https://fs2-data.gnieh.org/)
+
+# Resources
+
+- The [tutorial](https://github.com/dylemma/xml-spac/blob/main/tutorial.md)
+- The [examples](https://github.com/dylemma/xml-spac/tree/main/examples/src/main/scala/io/dylemma/spac/example)
+- The [API docs](http://dylemma.github.io/xml-spac/api/latest)
+- This file (keep scrolling!)
+
+# Setup
 
 Add (your choice of) the following to your `build.sbt` file:
 
@@ -57,7 +49,7 @@ Add (your choice of) the following to your `build.sbt` file:
 val spacVersion = "0.10.0" 
 libraryDependencies ++= Seq(
   "io.dylemma" %% "spac-core" % spacVersion,         // core classes like Parser and Transformer 
-  "io.dylemma" %% "spac-interop-fs2" % spacVersion,   // adds interop with fs2.Stream and fs2.Pipe
+  "io.dylemma" %% "spac-interop-fs2" % spacVersion,  // adds interop with fs2.Stream and fs2.Pipe
    
   "io.dylemma" %% "xml-spac" % spacVersion,          // classes for XML-specific parsers
   "io.dylemma" %% "xml-spac-javax" % spacVersion,    // XML parser backend using javax.xml.stream
