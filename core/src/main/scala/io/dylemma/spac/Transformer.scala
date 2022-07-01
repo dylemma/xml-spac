@@ -1,7 +1,6 @@
 package io.dylemma.spac
 
 import cats.data.Chain
-import fs2.Pipe
 import io.dylemma.spac.impl._
 import org.tpolecat.typename.TypeName
 
@@ -252,14 +251,20 @@ trait Transformer[-In, +Out] {
 	  */
 	def transform(itr: Iterator[In])(implicit pos: CallerPos): Iterator[Out] = new IteratorTransform(itr, this, SpacTraceElement.InParse("transformer", "transform", pos))
 
-	/** Convert this transformer to a `Pipe` which will apply this transformer's logic to an fs2 `Stream`.
+	/** Applies this transformer's logic to a Source, returning a new Source which yields values
+	  * emitted by this transformer when run on the underlying iterator.
 	  *
-	  * @param pos Captures the caller filename and line number, used to fill in the 'spac trace' if the parser throws an exception
-	  * @tparam F Effect type for the Pipe/Stream
-	  * @return An `fs2.Pipe[F, In, Out]` that will apply this transformer's logic
+	  * @param source A Source
+	  * @param pos Captures the call site for the top level SpacTraceElement
+	  * @return A wrapped version of `source`, transformed via this transformer
 	  * @group transform
 	  */
-	def toPipe[F[_]](implicit pos: CallerPos): Pipe[F, In, Out] = TransformerToPipe(this, SpacTraceElement.InParse("transformer", "toPipe", pos))
+	def transform(source: Source[In])(implicit pos: CallerPos): Source[Out] = () => {
+		val (itr, close) = source.open()
+		val itr2 = transform(itr)
+		itr2 -> close
+	}
+
 }
 
 /**

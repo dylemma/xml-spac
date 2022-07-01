@@ -19,17 +19,17 @@ class ParserCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPrope
 		def firstOptParser[In: Arbitrary](parser: Parser[In, Option[In]]) = {
 			it("should return the first element of the source stream") {
 				forAll { (list: List[In]) =>
-					parser.parse(list) shouldEqual list.headOption
+					parser.parse(list.iterator) shouldEqual list.headOption
 				}
 			}
 			it("should return None if the source stream is empty") {
-				parser.parse(Nil) shouldEqual None
+				parser.parse(Iterator.empty) shouldEqual None
 			}
 			it("`.parse` should consume exactly one element from the source sequence") {
-				countPullsIn.arbitrary[In] { parser.parse(_) } shouldEqual 1
+				countPullsIn.arbitrary[In] { c => parser.parse(c.iterator) } shouldEqual 1
 			}
 			it("`.parse` should consume exactly one element from the source stream") {
-				countPullsIn.arbitrary[In] { parser.parse(_) } shouldEqual 1
+				countPullsIn.arbitrary[In] { c => parser.parse(c.iterator) } shouldEqual 1
 			}
 		}
 
@@ -46,20 +46,20 @@ class ParserCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPrope
 			it("should return the first element of a non-empty source") {
 				forAll { (list: List[In]) =>
 					whenever(list.nonEmpty) {
-						parser.parse(list) shouldEqual list.head
+						parser.parse(list.iterator) shouldEqual list.head
 					}
 				}
 			}
 			it("should throw a MissingFirstException when parsing an empty sequence") {
 				assertThrows[SpacException.MissingFirstException[In]] {
-					parser.parse(Nil)
+					parser.parse(Iterator.empty)
 				}
 			}
 			it("`.parse` should consume exactly one element from the source sequence") {
-				countPullsIn.arbitrary[In] { parser.parse(_) } shouldEqual 1
+				countPullsIn.arbitrary[In] { c => parser.parse(c.iterator) } shouldEqual 1
 			}
 			it("`.parse` should consume exactly one element from the source stream") {
-				countPullsIn.arbitrary[In] { parser.parse(_) } shouldEqual 1
+				countPullsIn.arbitrary[In] { c => parser.parse(c.iterator) } shouldEqual 1
 			}
 		}
 
@@ -83,28 +83,28 @@ class ParserCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPrope
 			}
 
 			it("should return None when parsing an empty list") {
-				parser.parse(Nil) shouldEqual None
+				parser.parse(Iterator.empty) shouldEqual None
 			}
 			it("should return Some when parsing a list which contains a matching value") {
-				parser.parse(List(2)) shouldEqual Some(2)
+				parser.parse(Iterator(2)) shouldEqual Some(2)
 			}
 			it("should return None when parsing a list which does not contain any matching value") {
-				parser.parse(List(1, 3, 5, 7, 9)) shouldEqual None
+				parser.parse(Iterator(1, 3, 5, 7, 9)) shouldEqual None
 			}
 			describe(".parse") {
 				it("should not pull values past the point where a matching value is found") {
-					countPullsIn(List(1, 2, 3, 4)) { parser.parse(_) } shouldEqual 2
+					countPullsIn(List(1, 2, 3, 4)) { c => parser.parse(c.iterator) } shouldEqual 2
 				}
 				it("should pull the entire input if no matching value is found") {
-					countPullsIn(List(1, 3, 5, 7)) { parser.parse(_) } shouldEqual 4
+					countPullsIn(List(1, 3, 5, 7)) { c => parser.parse(c.iterator) } shouldEqual 4
 				}
 			}
 			describe("with an exception-throwing predicate") {
 				it("should capture thrown exceptions in the effect context") {
-					intercept[Exception] { errorProneParser.parse(List(0)) } should matchPattern { case SpacException.CaughtError(`dummyException`) => }
+					intercept[Exception] { errorProneParser.parse(Iterator(0)) } should matchPattern { case SpacException.CaughtError(`dummyException`) => }
 				}
 				it("should stop pulling values from the source when an exception is thrown") {
-					countPullsIn(List(3, 2, 0, 1)) { s => intercept[Exception] { errorProneParser.parse(s) } } shouldEqual 3
+					countPullsIn(List(3, 2, 0, 1)) { s => intercept[Exception] { errorProneParser.parse(s.iterator) } } shouldEqual 3
 				}
 			}
 		}
@@ -128,24 +128,24 @@ class ParserCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPrope
 			}
 
 			it("should return the initial value when parsing an empty list") {
-				parser.parse(Nil) shouldEqual ""
+				parser.parse(Iterator.empty) shouldEqual ""
 			}
 			it("should aggregate the inputs in the order they are encountered") {
-				parser.parse(List(4, 2, 0, 6, 9)) shouldEqual "42069"
+				parser.parse(Iterator(4, 2, 0, 6, 9)) shouldEqual "42069"
 			}
 			describe("with an exception-throwing aggregator function") {
 				it("should capture thrown exceptions in the effect context") {
-					intercept[Exception] { errorProneParser.parse(List(3, 2, 1, 0)) } should matchPattern { case SpacException.CaughtError(`dummyException`) => }
+					intercept[Exception] { errorProneParser.parse(Iterator(3, 2, 1, 0)) } should matchPattern { case SpacException.CaughtError(`dummyException`) => }
 				}
 				it("should stop consuming inputs after an exception is thrown") {
 					countPullsIn(List(3, 2, 1, 0, 1, 2, 3)) { s =>
-						intercept[Exception] { errorProneParser.parse(s) }
+						intercept[Exception] { errorProneParser.parse(s.iterator) }
 					} shouldEqual 4
 				}
 			}
 			it("`.parse` should pull all inputs") {
-				countPullsIn(List(1, 2, 3, 4)) { parser.parse(_) } shouldEqual 4
-				countPullsIn[Int](Nil) { parser.parse(_) } shouldEqual 0
+				countPullsIn(List(1, 2, 3, 4)) { s => parser.parse(s.iterator) } shouldEqual 4
+				countPullsIn[Int](Nil) { s => parser.parse(s.iterator) } shouldEqual 0
 			}
 		}
 
@@ -162,17 +162,17 @@ class ParserCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPrope
 			val parser = makeParser(42)
 			it("should return the value and ignore the inputs from the source") {
 				forAll { (list: List[Int]) =>
-					parser.parse(list) shouldEqual 42
+					parser.parse(list.iterator) shouldEqual 42
 				}
 			}
 			it("should return the wrapped value even if the source is empty") {
-				parser.parse(Nil) shouldEqual 42
+				parser.parse(Iterator.empty) shouldEqual 42
 			}
 			it("`.parse` should pull only input") {
-				countPullsIn.arbitrary[Int] { parser.parse(_) } shouldEqual 1
+				countPullsIn.arbitrary[Int] { s => parser.parse(s.iterator) } shouldEqual 1
 			}
 			it("`.parse` should pull only 1 input") {
-				countPullsIn.arbitrary[Int] { parser.parse(_) } shouldEqual 1
+				countPullsIn.arbitrary[Int] { s => parser.parse(s.iterator) } shouldEqual 1
 			}
 		}
 
@@ -200,14 +200,14 @@ class ParserCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPrope
 
 			it("should return the same value that the eval-returned parser would") {
 				forAll { (list: List[Int]) =>
-					parser1.parse(list) shouldEqual innerParser1.parse(list)
-					parser2.parse(list) shouldEqual innerParser2.parse(list)
+					parser1.parse(list.iterator) shouldEqual innerParser1.parse(list.iterator)
+					parser2.parse(list.iterator) shouldEqual innerParser2.parse(list.iterator)
 				}
 			}
 
 			it("should only pull as many values from the source as the eval-returned parser would") {
-				countPullsIn(List(1, 2, 3)) { parser1.parse(_) } shouldEqual 1
-				countPullsIn(List(1, 2, 3)) { parser2.parse(_) } shouldEqual 3
+				countPullsIn(List(1, 2, 3)) { s => parser1.parse(s.iterator) } shouldEqual 1
+				countPullsIn(List(1, 2, 3)) { s => parser2.parse(s.iterator) } shouldEqual 3
 			}
 
 			it("should bubble up exceptions thrown by the parser constructor when asked create a handler") {
@@ -278,17 +278,17 @@ class ParserCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPrope
 		) = {
 			it(s"should collect all inputs from the source into a $collectionName") {
 				forAll { (list: List[A]) =>
-					parser.parse(list) shouldEqual materializeCollection(list)
+					parser.parse(list.iterator) shouldEqual materializeCollection(list)
 				}
 			}
 			it("should always pull all inputs from the source") {
 				forAll { (list: List[A]) =>
-					countPullsIn(list) { parser.parse(_) } shouldEqual list.size
+					countPullsIn(list) { s => parser.parse(s.iterator) } shouldEqual list.size
 				}
 			}
 			it("should be reusable") {
 				forAll { (list: List[A]) =>
-					parser.parse(list) shouldEqual parser.parse(list)
+					parser.parse(list.iterator) shouldEqual parser.parse(list.iterator)
 				}
 			}
 		}
@@ -320,14 +320,14 @@ class ParserCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPrope
 			it("should add each input from the source to the builder, returning the result at the end of the stream") {
 				val parser = makeParser { List.newBuilder }
 				forAll { (list: List[Int]) =>
-					parser.parse(list) shouldEqual list
+					parser.parse(list.iterator) shouldEqual list
 				}
 			}
 			it("should construct a new builder when it is asked to parse a source, to avoid sharing builders") {
 				// effectively the same test as above, but with a different motivation
 				val parser = makeParser { List.newBuilder }
-				val result1 = parser.parse(List(1, 2, 3))
-				val result2 = parser.parse(List(1, 2, 3))
+				val result1 = parser.parse(Iterator(1, 2, 3))
+				val result2 = parser.parse(Iterator(1, 2, 3))
 				result1 shouldEqual result2
 				result1 shouldEqual List(1, 2, 3)
 			}
@@ -336,8 +336,8 @@ class ParserCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPrope
 					// this is what you SHOULD NOT do when using Parser.impureBuild
 					val sharedBuilder = List.newBuilder[Int]
 					val sharingParser = makeParser(sharedBuilder)
-					val result1 = sharingParser.parse(List(1, 2, 3))
-					val result2 = sharingParser.parse(List(4, 5, 6))
+					val result1 = sharingParser.parse(Iterator(1, 2, 3))
+					val result2 = sharingParser.parse(Iterator(4, 5, 6))
 					result1 shouldEqual List(1, 2, 3)
 					result2 shouldEqual List(1, 2, 3, 4, 5, 6) // i.e. be careful not to share builders!
 				}
@@ -382,29 +382,29 @@ class ParserCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPrope
 			}
 			it("should combine the output from the underlying parsers") {
 				val pN = F.product(p1, p2)
-				pN.parse(List(1, 2, 3)) shouldEqual {
+				pN.parse(Iterator(1, 2, 3)) shouldEqual {
 					List(1, 2, 3) -> Some(1)
 				}
 			}
 			it("should only pull each event from the source once") {
 				val pN = F.product(p1, p3)
 				forAll { (list: List[Int]) =>
-					countPullsIn(list) { pN.parse(_) } shouldEqual list.size
+					countPullsIn(list) { s => pN.parse(s.iterator) } shouldEqual list.size
 				}
 			}
 			it("should catch and raise errors from the underlying parsers") {
 				val pN = F.product(p2, pErr)
 				forAll { (list: List[Int]) =>
-					intercept[Exception] { pN.parse(list) } should matchPattern { case SpacException.CaughtError(`dummyException`) => }
+					intercept[Exception] { pN.parse(list.iterator) } should matchPattern { case SpacException.CaughtError(`dummyException`) => }
 				}
 			}
 			it("should abort execution upon encountering an error from an underlying parser") {
-				countPullsIn.arbitrary[Int] { F.product(p2, pErr).wrapSafe.parse(_) } shouldEqual 1
+				countPullsIn.arbitrary[Int] { s => F.product(p2, pErr).wrapSafe.parse(s.iterator) } shouldEqual 1
 				forAll { (list: List[Int]) =>
 					val indexOf0 = list.indexOf(0)
 					val numPullsExpected = if (indexOf0 < 0) list.size else indexOf0 + 1
 					val pN = F.product(p1, pConditionalError)
-					countPullsIn(list) { pN.wrapSafe.parse(_) } shouldEqual numPullsExpected
+					countPullsIn(list) { s => pN.wrapSafe.parse(s.iterator) } shouldEqual numPullsExpected
 				}
 			}
 		}
@@ -421,11 +421,11 @@ class ParserCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPrope
 					forAll { (list: List[Int]) =>
 						val compoundResults = p
 							.attempt
-							.parse(list)
+							.parse(list.iterator)
 							.asInstanceOf[Either[Throwable, Product]]
 							.map(tryFlattenTuple)
 						val expectedResults = Traverse[List]
-							.sequence(parsers.map(_.attempt.parse(list)))
+							.sequence(parsers.map(_.attempt.parse(list.iterator)))
 
 						expectedResults match {
 							case Left(err) => compoundResults should matchPattern { case Left(SpacException.CaughtError(`err`)) => }
@@ -474,7 +474,7 @@ class ParserCompanionTests extends AnyFunSpec with Matchers with ScalaCheckPrope
 				val pB: Parser[Int, List[Int]] = Parser.toList[Int]
 				val pC = new impl.ParserDefer(() => pA)
 				val parser = (pA, pB, pC).tupled
-				parser.parse(List(1, 2, 3)) shouldEqual ((42, List(1, 2, 3), 42))
+				parser.parse(Iterator(1, 2, 3)) shouldEqual ((42, List(1, 2, 3), 42))
 			}
 		}
 	}

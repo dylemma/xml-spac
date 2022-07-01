@@ -1,9 +1,10 @@
 package io.dylemma.spac
 package example
 
+import cats.effect.SyncIO
 import cats.syntax.apply._
-import io.dylemma.spac.xml.JavaxSupport._
 import io.dylemma.spac.xml._
+import io.dylemma.spac.interop.fs2._
 
 import scala.util.control.NonFatal
 
@@ -12,7 +13,7 @@ import scala.util.control.NonFatal
   * about the current input, caller, and any splitters that are currently "in play".
   */
 object Example11_SpacException extends App {
-	val rawXml =
+	val xmlSource = JavaxSource.fromString {
 		"""<root>
 		  |   <thing>
 		  |      <data id="hello">
@@ -25,6 +26,7 @@ object Example11_SpacException extends App {
 		  |      </data>
 		  |   </thing>
 		  |</root>""".stripMargin
+	}
 
 	locally {
 		val barParser = XmlParser.attr("id")
@@ -37,7 +39,7 @@ object Example11_SpacException extends App {
 		val rootParser = Splitter.xml("root" \ "thing" \ "data").joinBy(dataParser).parseToList
 
 		println("--first example (all good)")
-		rootParser.parse(rawXml) foreach println
+		rootParser.parse(xmlSource) foreach println
 		/* Prints:
 		(hello,List(None, Some(A)),Some(B))
 		(123,List(Some(C)),None)
@@ -56,7 +58,7 @@ object Example11_SpacException extends App {
 		val rootParser = Splitter.xml("root" \ "thing" \ "data").joinBy(dataParser).parseToList
 
 		println("--second example (missing first <bar>)")
-		try rootParser.parse(rawXml)
+		try rootParser.parse(xmlSource)
 		catch { case NonFatal(e) => e.printStackTrace() }
 		/* Prints:
 		io.dylemma.spac.SpacException$MissingFirstException: Parser context ended before the first String could be found.
@@ -83,7 +85,7 @@ object Example11_SpacException extends App {
 		val rootParser = Splitter.xml("root" \ "thing" \ "data").joinBy(dataParser).parseToList
 
 		println("--third example (id.toInt exception)")
-		try rootParser.parse(rawXml)
+		try rootParser.parse(xmlSource)
 		catch { case NonFatal(e) => e.printStackTrace() }
 		/* Prints:
 		io.dylemma.spac.SpacException$CaughtError: Downstream logic error: java.lang.NumberFormatException: For input string: "hello"
@@ -116,8 +118,8 @@ object Example11_SpacException extends App {
 		).tupled
 
 		println("--fourth example (id.toInt exception, but from a Stream)")
-		JavaxSource
-			.syncIO(rawXml)
+		xmlSource
+			.toStream[SyncIO](chunkSize = 32)
 			.through { Splitter.xml("root" \ "thing" \ "data").joinBy(dataParser).toPipe }
 			.compile
 			.toList

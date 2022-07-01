@@ -1,7 +1,7 @@
-package io.dylemma.spac
-package impl
+package io.dylemma.spac.interop.fs2.impl
 
-import fs2.{Chunk, Pipe, Pull, Stream}
+import _root_.fs2.{Chunk, Pipe, Pull, Stream}
+import io.dylemma.spac.{SpacTraceElement, Transformer}
 
 import scala.collection.immutable.VectorBuilder
 

@@ -1,10 +1,8 @@
 package io.dylemma.spac
 package example
 
-import cats.effect.{Resource, SyncIO}
 import cats.syntax.apply._
 import io.dylemma.spac.xml._
-import io.dylemma.spac.xml.JavaxSupport._
 
 // based on https://github.com/dylemma/xml-spac/issues/19
 object Example08_RecursiveTypes {
@@ -13,7 +11,7 @@ object Example08_RecursiveTypes {
 	 *     case class Group(id: Int, name: String, subGroups: Stream[Group])
 	 * which is represented in XML as:
 	 */
-	val xml =
+	val xmlSource = JavaxSource.fromString {
 		"""<group>
 		  |  <id>1</id>
 		  |  <name>a</name>
@@ -25,6 +23,7 @@ object Example08_RecursiveTypes {
 		  |  </groups>
 		  |</group>
 		""".stripMargin
+	}
 
 	/* The problem is that (to my knowledge) java.xml.stream doesn't support a "mark/reset"
 	 * interaction for an XmlEvent stream. So it would be impossible to actually return a
@@ -90,8 +89,7 @@ object Example08_RecursiveTypes {
 	}
 
 	def main(args: Array[String]): Unit = {
-		val eventSource: Resource[SyncIO, Iterator[XmlEvent]] = JavaxSource.syncIO.iteratorResource(xml)
-		eventSource.use(xmlEvents => SyncIO {
+		xmlSource.iterateWith { xmlEvents =>
 			val itr = groupTransformer(Nil).transform(xmlEvents)
 
 			// this will print:
@@ -99,6 +97,6 @@ object Example08_RecursiveTypes {
 			// List(GroupContext(2, b), GroupContext(1, a))
 			for (ctx <- itr) println(ctx)
 			/* What to do with this `itr` is left as an exercise for the reader */
-		}).unsafeRunSync()
+		}
 	}
 }

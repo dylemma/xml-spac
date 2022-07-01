@@ -2,6 +2,8 @@ package io.dylemma.spac
 
 /** Value used by `Transformer.Handler` to indicate to its upstream producer
   * whether or not the handler wants to continue receiving values.
+  *
+  * @group util
   */
 sealed trait Signal {
 	def isStop: Boolean
@@ -30,6 +32,9 @@ sealed trait Signal {
 		else Signal.Continue
 	}
 }
+/**
+  * @group util
+  */
 object Signal {
 	def stopIf(shouldStop: Boolean): Signal = if (shouldStop) Stop else Continue
 	def continueIf(shouldContinue: Boolean): Signal = if (shouldContinue) Continue else Stop

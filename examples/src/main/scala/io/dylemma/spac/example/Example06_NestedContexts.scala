@@ -2,7 +2,6 @@ package io.dylemma.spac
 package example
 
 import io.dylemma.spac.xml._
-import io.dylemma.spac.xml.JavaxSupport._
 
 object Example06_NestedContexts extends App {
 
@@ -20,7 +19,7 @@ object Example06_NestedContexts extends App {
 	/* We want to parse this `xml` as a stream of `Data` instances,
 	 * without resorting to collecting a List[Data] for each <thing>.
 	 */
-	val xml =
+	val xml = JavaxSource.fromString {
 		"""<stuff>
 		  |  <info id="DYLAN"/>
 		  |  <thing>
@@ -37,6 +36,7 @@ object Example06_NestedContexts extends App {
 		  |  </thing>
 		  |</stuff>
 		""".stripMargin
+	}
 
 	// We'll define some standalone parsers/transformers ahead of time...
 
@@ -103,5 +103,5 @@ object Example06_NestedContexts extends App {
 	// ...
 	// Data(DYLAN, B, 568
 	// Data(DYLAN, B, 569)
-	/*printEvent >>*/ verboseSelectDataFromStuff into printData parse xml
+	printEvent through verboseSelectDataFromStuff into printData parse xml
 }

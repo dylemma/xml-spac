@@ -18,7 +18,7 @@ object CallerPos {
 	def deriveCallerPos(using quotes: Quotes): Expr[CallerPos] = {
 		import quotes.reflect._
 		val pos = Position.ofMacroExpansion
-		val filename = Expr { pos.sourceFile.jpath.getFileName.toString }
+		val filename = Expr { pos.sourceFile.name }
 		// note: scala 3 uses 0-based line numbers - https://github.com/lampepfl/dotty/discussions/12728
 		val line = Expr { pos.startLine + 1 }
 		'{ CallerPos(${filename}, ${line}) }

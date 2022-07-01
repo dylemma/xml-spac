@@ -2,7 +2,6 @@ package io.dylemma.spac
 package example
 
 import io.dylemma.spac.xml._
-import io.dylemma.spac.xml.JavaxSupport._
 
 /**
  * Created by dylan on 11/24/2015.
@@ -18,7 +17,7 @@ object Example03_EntryList extends App {
 
 	case class Entry(key: String, values: List[Int])
 
-	val rawXml = """<entrylist>
+	val rawXml = JavaxSource.fromString("""<entrylist>
 		|  <key>hello</key>
 		|  <value>5</value>
 		|  <value>2</value>
@@ -32,7 +31,7 @@ object Example03_EntryList extends App {
 		|  <value>4</value>
 		|  <value>5</value>
 		|</entrylist>
-		|""".stripMargin
+		|""".stripMargin)
 
 
 	/*

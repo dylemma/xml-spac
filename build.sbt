@@ -1,18 +1,19 @@
 ThisBuild / organization := "io.dylemma"
-ThisBuild / version := "0.9.2"
+ThisBuild / version := "0.10.0"
 ThisBuild / scalaVersion := "2.13.0"
-ThisBuild / crossScalaVersions := Seq("2.12.10", "2.13.5", "3.0.0")
+ThisBuild / crossScalaVersions := Seq("2.12.16", "2.13.8", "3.1.3")
 ThisBuild / scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-language:higherKinds")
 ThisBuild / scalacOptions ++= (scalaBinaryVersion.value match {
 	case "2.12" => Seq("-Ypartial-unification")
 	case _ => Nil
 })
 
-lazy val catsCore = "org.typelevel" %% "cats-core" % "2.6.1"
-lazy val catsEffect = "org.typelevel" %% "cats-effect" % "3.1.1"
-lazy val fs2Core = "co.fs2" %% "fs2-core" % "3.0.3"
-lazy val fs2DataJson = "org.gnieh" %% "fs2-data-json" % "1.0.0-RC3"
-lazy val fs2DataXml = "org.gnieh" %% "fs2-data-xml" % "1.0.0-RC3"
+lazy val catsCore = "org.typelevel" %% "cats-core" % "2.8.0"
+lazy val catsEffect = "org.typelevel" %% "cats-effect" % "3.3.13"
+lazy val fs2Core = "co.fs2" %% "fs2-core" % "3.2.7"
+lazy val fs2Io = "co.fs2" %% "fs2-io" % "3.2.7"
+lazy val fs2DataJson = "org.gnieh" %% "fs2-data-json" % "1.4.1"
+lazy val fs2DataXml = "org.gnieh" %% "fs2-data-xml" % "1.4.1"
 lazy val jacksonCore = "com.fasterxml.jackson.core" % "jackson-core" % "2.12.3"
 lazy val typeName = "org.tpolecat" %% "typename" % "1.0.0"
 
@@ -29,7 +30,15 @@ lazy val core = (project in file("core"))
 	.settings(testSettings: _*)
 	.settings(apiDocSettings: _*)
 	.settings(publishingSettings: _*)
-	.settings(libraryDependencies ++= Seq(catsCore, catsEffect, fs2Core, typeName))
+	.settings(libraryDependencies ++= Seq(catsCore, typeName))
+
+lazy val coreFs2 = (project in file("core-fs2"))
+	.settings(name := "spac-interop-fs2")
+	.settings(testSettings: _*)
+	.settings(apiDocSettings: _*)
+	.settings(publishingSettings: _*)
+	.settings(libraryDependencies ++= Seq(catsCore, catsEffect, fs2Core))
+	.dependsOn(core % "compile->compile;test->test")
 
 lazy val xml = (project in file("xml"))
 	.settings(name := "xml-spac")
@@ -37,6 +46,8 @@ lazy val xml = (project in file("xml"))
 	.settings(apiDocSettings: _*)
 	.settings(publishingSettings: _*)
 	.dependsOn(core % "compile->compile;test->test")
+	.dependsOn(coreFs2 % "test->test")
+	.settings(libraryDependencies ++= Seq(catsEffect, fs2Core).map(_ % Test))
 
 lazy val xmlJavax = (project in file("xml-javax"))
 	.settings(name := "xml-spac-javax")
@@ -58,6 +69,7 @@ lazy val json = (project in file("json"))
 	.settings(testSettings: _*)
 	.settings(apiDocSettings: _*)
 	.settings(publishingSettings: _*)
+	.dependsOn(coreFs2 % "test->test")
 	.dependsOn(core % "compile->compile;test->test")
 
 lazy val jsonJackson = (project in file("json-jackson"))
@@ -74,19 +86,21 @@ lazy val jsonFs2Data = (project in file("json-fs2-data"))
 	.settings(apiDocSettings: _*)
 	.settings(publishingSettings: _*)
 	.settings(libraryDependencies += fs2DataJson)
+	.dependsOn(coreFs2)
 	.dependsOn(json % "compile->compile;test->test")
 
 lazy val examples = (project in file("examples"))
 	.settings(
 		publish := {},
 		publish / skip := true,
-		libraryDependencies ++= Seq(catsEffect, fs2Core),
+		libraryDependencies ++= Seq(catsEffect, fs2Core, fs2Io),
 	)
-	.dependsOn(core, xml, xmlJavax, xmlFs2Data)
+	.dependsOn(core, coreFs2, xml, xmlJavax, xmlFs2Data)
 
 lazy val root = (project in file("."))
 	.aggregate(
 		core,
+		coreFs2,
 		examples,
 		xml, xmlFs2Data, xmlJavax,
 		json, jsonJackson, jsonFs2Data
@@ -128,6 +142,7 @@ lazy val apiDocSettings = Seq(
 					"-groups",
 					"-implicits",
 					s"-implicits-hide:${ classesForHiddenConversions.mkString(",") }",
+					"-skip-packages", scaladocIgnoredPackages.mkString(":"),
 					"-sourcepath", sourcePath,
 					"-doc-source-url", sourceUrl
 				)
@@ -143,7 +158,6 @@ lazy val apiDocSettings = Seq(
 lazy val classesForHiddenConversions = Seq(
 	// these end up being added to literally every class,
 	// despite the fact that they should never actually be applied to a spac class
-	"io.dylemma.spac.SourceToPullable",
 	"io.dylemma.spac.xml.elem",
 
 	// for some reason, specifying any `-implicits-hide` flag to the scaladoc task
@@ -154,6 +168,12 @@ lazy val classesForHiddenConversions = Seq(
 	"scala.Predef.Ensuring",
 	"scala.Predef.StringFormat",
 	"scala.Predef.ArrowAssoc"
+)
+lazy val scaladocIgnoredPackages = Seq(
+	"io.dylemma.spac.impl",
+	"io.dylemma.spac.xml.impl",
+	"io.dylemma.spac.json.impl",
+	"io.dylemma.spac.interop.fs2.impl"
 )
 
 lazy val publishingSettings = Seq(

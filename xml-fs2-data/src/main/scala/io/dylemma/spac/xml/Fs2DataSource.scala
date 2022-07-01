@@ -1,7 +1,6 @@
 package io.dylemma.spac.xml
 
 import cats.MonadError
-import cats.effect.SyncIO
 import fs2.data.text.CharLikeChunks
 import fs2.data.xml.{XmlEvent => Fs2XmlEvent, _}
 import fs2.{Pipe, Stream}
@@ -24,12 +23,12 @@ import fs2.{Pipe, Stream}
   *        .through(namespaceResolver)
   *        .through(reverenceResolver())
   *        .through(normalize)
-  *        .through(Fs2DataSource.convertEvents)
+  *        .through(Fs2DataSource.convert)
   *    }
   *
   *    // could be replaced with
   *    val xmlStream2: Stream[IO, XmlEvent] = {
-  *      Fs2DataSource[IO](charStream)
+  *      Fs2DataSource.fromRawXmlStream(charStream)
   *    }
   * }}}
   *
@@ -41,23 +40,36 @@ import fs2.{Pipe, Stream}
   */
 object Fs2DataSource {
 
-	/** Partial apply method for creating a `Stream[F, XmlEvent]` from some `source` */
-	def apply[F[_]] = new Fs2DataSourcePartiallyApplied[F]
-	/** Partial apply method for creating a `Stream[SyncIO, XmlEvent]` from some `source` */
-	def syncIO = new Fs2DataSourcePartiallyApplied[SyncIO]
+	/** Converts a stream of raw XML data (such as Strings, Characters, or Bytes) to a stream of XmlEvents.
+	  *
+	  * Under the hood, this calls `events[F, A]` from `fs2-data-xml`, piped through the `cleanup` functions
+	  * (i.e. `namespaceResolver, referenceResolver, normalize`), then converts the fs2-data based XML events
+	  * to the SPaC model of `XmlEvent`
+	  *
+	  * @param rawXmlStream The raw XML data
+	  * @param cleanup      Cleanup function used on the fs2-data XmlEvents. By default this will pass the events
+	  *                     through `namespaceResolver through referenceResolver() through normalize`.
+	  * @param A            Evidence that the `A` type can be treated as raw xml by fs2-data-xml
+	  * @param F            Evidence that errors can be thrown in the `F` effect context
+	  * @tparam F Stream effect type
+	  * @tparam A The chunk type of the raw XML data, i.e. String, Char, or Byte
+	  * @return A stream of SPaC `XmlEvent`s
+	  */
+	def fromRawXmlStream[F[_], A](rawXmlStream: Stream[F, A], cleanup: Cleanup = Cleanup)(implicit A: CharLikeChunks[F, A], F: MonadError[F, Throwable]): Stream[F, XmlEvent] = {
+		rawXmlStream through events[F, A]() through cleanup.pipe through convert[F]
+	}
 
-	class Fs2DataSourcePartiallyApplied[F[_]] {
-		/** Given an implicit conversion from the `source` to a stream of fs2-data-xml XmlEvents,
-		  * apply that conversion and further convert it to a stream of xml-spac XmlEvents.
-		  *
-		  * Via the default-available implicits, the source can be a `String`, a `Stream[F, String]`,
-		  * or a `Stream[F, fs2.data.xml.XmlEvent]`. For String and String-Stream sources, a
-		  * `Middleware` can be provided implicitly to override the default XmlEvent stream creation
-		  * e.g. for the purposes of using custom normalization or entity resolution.
-		  */
-		def apply[S](source: S)(implicit S: ToFs2XmlEventStream[F, S]): Stream[F, XmlEvent] = {
-			S(source) through convert
-		}
+	/** Converts a raw XML string (expected to contain a complete XML document) to a stream of XmlEvents.
+	  *
+	  * @param rawXml  The raw XML data
+	  * @param cleanup Cleanup function used on the fs2-data XmlEvents. By default this will pass the events
+	  *                through `namespaceResolver through referenceResolver() through normalize`.
+	  * @param F       Evidence that errors can be thrown in the `F` effect context
+	  * @tparam F Stream effect type
+	  * @return A stream of SPaC `XmlEvent`s
+	  */
+	def fromString[F[_]](rawXml: String, cleanup: Cleanup = Cleanup)(implicit F: MonadError[F, Throwable]): Stream[F, XmlEvent] = {
+		fromRawXmlStream(Stream.emit(rawXml).covary[F], cleanup)
 	}
 
 	/** Pipe for converting `fs2.data.xml.XmlEvent` to `io.dylemma.spac.xml.XmlEvent`.
@@ -72,50 +84,25 @@ object Fs2DataSource {
 		case texty: Fs2XmlEvent.XmlTexty => new Fs2XmlTextyAsText(texty)
 	}
 
-	/** Typeclass allowing for automatic conversion from some `source` to a stream of `fs2.data.xml.XmlEvent`,
-	  * typically via `fs2.data.xml.events` followed by post-processing defined by a `Middleware`,
-	  * e.g. resolving references, namespaces, and normalization.
-	  */
-	trait ToFs2XmlEventStream[F[_], -S] {
-		def apply(source: S): Stream[F, Fs2XmlEvent]
-	}
-	object ToFs2XmlEventStream {
-		/** No-op conversion for an already-existing stream of fs2-data XmlEvents */
-		implicit def identity[F[_]]: ToFs2XmlEventStream[F, Stream[F, Fs2XmlEvent]] = source => source
-
-		/** Pipes a stream of string/char through the fs2-data-xml `events` and then the `middleware` pipe */
-		implicit def fromRawXmlChunks[F[_], T](implicit F: MonadError[F, Throwable], T: CharLikeChunks[F, T], middleware: Middleware = Middleware.default): ToFs2XmlEventStream[F, Stream[F, T]] = {
-			_ through events[F, T] through middleware.pipe
-		}
-
-		/** Pipes a single string (assumed to contain a complete XML document) through the fs2-data-xml `events` pipe and then the `middleware` pipe */
-		implicit def fromRawXml[F[_]](implicit F: MonadError[F, Throwable], middleware: Middleware = Middleware.default): ToFs2XmlEventStream[F, String] = {
-			source => Stream.emit(source) through events[F, String] through middleware.pipe
-		}
-	}
-
 	/** Represents some post-processing on a stream of fs2-data-xml `XmlEvent`,
 	  * e.g. piping the stream through a resolver and/or normalizer.
 	  *
 	  * This is how the `ToFs2XmlEventStream` typeclass allows you to override the stream creation
 	  * behavior for the instances that use the `events` pipe themselves.
 	  */
-	trait Middleware {
+	trait Cleanup {
 		def pipe[F[_]](implicit F: MonadError[F, Throwable]): Pipe[F, Fs2XmlEvent, Fs2XmlEvent]
 	}
-	object Middleware {
-		/** Default middleware which passes the input stream through `namespaceResolver`, then a default `referenceResolver`, then `normalize` */
-		lazy val default: Middleware = new Middleware {
-			def pipe[F[_]](implicit F: MonadError[F, Throwable]): Pipe[F, Fs2XmlEvent, Fs2XmlEvent] = {
-				_ through namespaceResolver through referenceResolver() through normalize
-			}
-		}
 
-		/** No-op middleware which returns the input stream unmodified */
-		lazy val none: Middleware = new Middleware {
-			def pipe[F[_]](implicit F: MonadError[F, Throwable]): Pipe[F, Fs2XmlEvent, Fs2XmlEvent] = {
-				identity
-			}
+	/** Default cleanup function which passes the input stream through `namespaceResolver` (with default args), then a default `referenceResolver`, then `normalize` */
+	object Cleanup extends Cleanup {
+		def pipe[F[_]](implicit F: MonadError[F, Throwable]): Pipe[F, Fs2XmlEvent, Fs2XmlEvent] = {
+			_ through namespaceResolver through referenceResolver() through normalize
 		}
+	}
+
+	/** No-op cleanup function which returns the input stream unmodified */
+	object NoCleanup extends Cleanup {
+		def pipe[F[_]](implicit F: MonadError[F, Throwable]): Pipe[F, Fs2XmlEvent, Fs2XmlEvent] = identity
 	}
 }

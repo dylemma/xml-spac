@@ -1,12 +1,36 @@
 package io.dylemma.spac
 package xml
 
-import io.dylemma.spac.xml.JavaxSupport.javaxQNameAsQName
+import io.dylemma.spac.xml.JavaxQName.javaxQNameAsQName
 import io.dylemma.spac.xml.XmlEvent._
 
+import javax.xml.XMLConstants
+import javax.xml.namespace.QName
 import javax.xml.stream.events._
 import javax.xml.stream.{Location, XMLStreamConstants}
 import scala.annotation.switch
+
+/**
+  * @group support
+  */
+object JavaxQName {
+	/** Allows `javax.xml.namespace.QName` to be passed to name-based methods like `elem` and `attr` */
+	implicit val javaxQNameAsQName: AsQName[QName] = new AsQName[QName] {
+		def name(n: QName): String = n.getLocalPart
+		def namespaceUri(n: QName): Option[String] = n.getNamespaceURI match {
+			case null | XMLConstants.NULL_NS_URI => None
+			case s => Some(s)
+		}
+		def convert[N2](from: N2)(implicit N2: AsQName[N2]): QName = from match {
+			case q: QName => q // just a cast instead of constructing a new instance
+			case n2 => new QName(null, N2.name(n2), N2.namespaceUri(n2).getOrElse(XMLConstants.DEFAULT_NS_PREFIX))
+		}
+		def equals[N2](n: QName, r: N2)(implicit N2: AsQName[N2]): Boolean = r match {
+			case q: QName => n == q
+			case n2 => (n.getLocalPart == N2.name(n2)) && (n.getNamespaceURI == N2.namespaceUri(n2).getOrElse(XMLConstants.NULL_NS_URI))
+		}
+	}
+}
 
 private object JavaxLocation {
 	def convert(loc: Location): ContextLocation = new Wrapper(loc)
