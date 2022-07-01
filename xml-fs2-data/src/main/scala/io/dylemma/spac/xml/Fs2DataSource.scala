@@ -56,7 +56,7 @@ object Fs2DataSource {
 	  * @return A stream of SPaC `XmlEvent`s
 	  */
 	def fromRawXmlStream[F[_], A](rawXmlStream: Stream[F, A], cleanup: Cleanup = Cleanup)(implicit A: CharLikeChunks[F, A], F: MonadError[F, Throwable]): Stream[F, XmlEvent] = {
-		rawXmlStream through events[F, A] through cleanup.pipe through convert[F]
+		rawXmlStream through events[F, A]() through cleanup.pipe through convert[F]
 	}
 
 	/** Converts a raw XML string (expected to contain a complete XML document) to a stream of XmlEvents.
