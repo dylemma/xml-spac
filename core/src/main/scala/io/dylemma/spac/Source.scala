@@ -65,10 +65,23 @@ object Source {
 		}
 	}
 
+	/** Creates a reusable source which will construct a new underlying source, by calling
+	  * `getUnderlying`, each time its `open` is called.
+	  *
+	  * @param getUnderlying A call-by-name expression that constructs the underlying source.
+	  *                      The expression is expected to be reusable, i.e. it might construct
+	  *                      a new InputStream internally, and should not "close over" an
+	  *                      existing stream that cannot be reused
+	  * @tparam A
+	  * @return
+	  */
+	def defer[A](getUnderlying: => Source[A]): Source[A] = () => getUnderlying.open()
+
 	/** Creates a new Source which delegates to an underlying Source constructed from
 	  * a call-by-name parameter, and ensures the new Source can only be opened once.
 	  *
 	  * @param getUnderlying A call-by-name expression that constructs the underlying source
+	  *                      that should be used at most once
 	  * @tparam A The source item type
 	  * @return A new Source
 	  */

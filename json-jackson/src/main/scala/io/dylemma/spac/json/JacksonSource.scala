@@ -46,7 +46,7 @@ object JacksonSource {
 	  * @param factory A Jackson JsonFactory used to construct the underlying JsonParser for the string
 	  * @return A reusable JSON event source
 	  */
-	def fromString(rawJson: String, factory: JsonFactory = defaultFactory): Source[JsonEvent] = {
+	def fromString(rawJson: String, factory: JsonFactory = defaultFactory): Source[JsonEvent] = Source.defer {
 		apply(factory.createParser(rawJson).disable(JacksonParser.Feature.AUTO_CLOSE_SOURCE))
 	}
 

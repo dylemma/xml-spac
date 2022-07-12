@@ -46,7 +46,7 @@ It delegates to a backend of your choice to obtain a stream of events:
 Add (your choice of) the following to your `build.sbt` file:
 
 ```sbt
-val spacVersion = "0.10.0" 
+val spacVersion = "0.11.0" 
 libraryDependencies ++= Seq(
   "io.dylemma" %% "spac-core" % spacVersion,         // core classes like Parser and Transformer 
   "io.dylemma" %% "spac-interop-fs2" % spacVersion,  // adds interop with fs2.Stream and fs2.Pipe
