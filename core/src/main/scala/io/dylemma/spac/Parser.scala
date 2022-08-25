@@ -87,6 +87,56 @@ trait Parser[-In <: Any, +Out] { self =>
 	  */
 	def attempt: Parser[In, Either[Throwable, Out]] = wrapSafe.map(_.toEither)
 
+	/** Combines this parser with another, creating a new parser that will yield `true` if either inner parser yields `true`,
+	  * or `false` if both inner parsers yield `false`.
+	  *
+	  * The returned parser has "eager" semantics, where it will abort as soon as it can. For example, if `this` parser
+	  * yields a `true` before `that` parser encounters an input that would cause it to throw an exception, the returned
+	  * parser will return `true` and abort, never encountering the error. For non-eager semantics, use Parser's Applicative
+	  * to combine the two parsers, e.g. `(this, that).mapN(_ || _)`
+	  *
+	  * @param that Another parser with a Boolean output type
+	  * @param booleanOut Evidence that this parser's output type is Boolean
+	  * @tparam In2 Upper bound for `this` and `that`'s input type
+	  * @return An eagerly-evaluating disjunction of the two parsers
+	  */
+	def or[In2 <: In](that: Parser[In2, Boolean])(implicit booleanOut: Out <:< Boolean): Parser[In2, Boolean] = (this.upcast[Boolean], that) match {
+		case (ParserEagerDisjunction(theseParsers), ParserEagerDisjunction(thoseParsers)) => ParserEagerDisjunction(theseParsers ++ thoseParsers)
+		case (ParserEagerDisjunction(theseParsers), that) => ParserEagerDisjunction(theseParsers :+ that)
+		case (self, ParserEagerDisjunction(thoseParsers)) => ParserEagerDisjunction(self +: thoseParsers)
+		case (self, that) => ParserEagerDisjunction(Vector(self, that))
+	}
+
+	/** Operator version of `or`
+	  * @see [[or]]
+	  */
+	final def || [In2 <: In](that: Parser[In2, Boolean])(implicit booleanOut: Out <:< Boolean): Parser[In2, Boolean] = this or that
+
+	/** Combines this parser with another, creating a new parser that will yield `false` if either inner parser yields `false`,
+	  * or `true` if both inner parsers yield `true`.
+	  *
+	  * The returned parser has "eager" semantics, where it will abort as soon as it can. For example, if `this` parser
+	  * yields ` false` before `that` parser encounters an input that would cause it to throw an exception, the returned
+	  * parser will return `false` and abort, never encountering the error. For non-eager semantics, use Parser's Applicative
+	  * to combine the two parsers, e.g. `(this, that).mapN(_ && _)`
+	  *
+	  * @param that Another parser with a Boolean output type
+	  * @param booleanOut Evidence that this parser's output type is Boolean
+	  * @tparam In2 Upper bound for `this` and `that`'s input type
+	  * @return An eagerly-evaluating conjunction of the two parsers
+	  */
+	def and[In2 <: In](that: Parser[In2, Boolean])(implicit booleanOut: Out <:< Boolean): Parser[In2, Boolean] = (this.upcast[Boolean], that) match {
+		case (ParserEagerConjunction(theseParsers), ParserEagerConjunction(thoseParsers)) => ParserEagerConjunction(theseParsers ++ thoseParsers)
+		case (ParserEagerConjunction(theseParsers), that) => ParserEagerConjunction(theseParsers :+ that)
+		case (self, ParserEagerConjunction(thoseParsers)) => ParserEagerConjunction(self +: thoseParsers)
+		case (self, that) => ParserEagerConjunction(Vector(self, that))
+	}
+
+	/** Operator version of `and`
+	  * @see [[and]]
+	  */
+	final def && [In2 <: In](that: Parser[In2, Boolean])(implicit booleanOut: Out <:< Boolean): Parser[In2, Boolean] = this and that
+
 	/** Like `unwrapSafe`, but rethrows exceptions from `Left` or returns results from `Right`.
 	  * This operation is the opposite of `attempt`.
 	  *

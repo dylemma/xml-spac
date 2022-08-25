@@ -17,6 +17,26 @@ object ArrayHelper {
 				throw new IllegalArgumentException(s"$rightIndex was not >= $leftIndex")
 			}
 		}
+
 		loop(arr(leftIndex), intoIndex)
 	}
+
+	def filterMapInPlace[A, B](array: Array[A], limit: Int)(f: A => Either[B, Option[A]]) = {
+		// either returns the first B returned by the `f` function, or returns the new length limit for the array
+		@tailrec def loop(i: Int, placeIndex: Int): Either[B, Int] = {
+			if (i >= limit) Right(placeIndex)
+			else {
+				f(array(i)) match {
+					case Left(b) => Left(b)
+					case Right(None) => loop(i + 1, placeIndex)
+					case Right(Some(a2)) =>
+						array(placeIndex) = a2
+						loop(i + 1, placeIndex + 1)
+				}
+			}
+		}
+
+		loop(0, 0)
+	}
+
 }
