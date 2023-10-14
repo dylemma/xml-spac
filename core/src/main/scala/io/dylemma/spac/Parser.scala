@@ -99,6 +99,7 @@ trait Parser[-In <: Any, +Out] { self =>
 	  * @param booleanOut Evidence that this parser's output type is Boolean
 	  * @tparam In2 Upper bound for `this` and `that`'s input type
 	  * @return An eagerly-evaluating disjunction of the two parsers
+	  * @group combinators
 	  */
 	def or[In2 <: In](that: Parser[In2, Boolean])(implicit booleanOut: Out <:< Boolean): Parser[In2, Boolean] = (this.upcast[Boolean], that) match {
 		case (ParserEagerDisjunction(theseParsers), ParserEagerDisjunction(thoseParsers)) => ParserEagerDisjunction(theseParsers ++ thoseParsers)
@@ -109,6 +110,7 @@ trait Parser[-In <: Any, +Out] { self =>
 
 	/** Operator version of `or`
 	  * @see [[or]]
+	  * @group combinators
 	  */
 	final def || [In2 <: In](that: Parser[In2, Boolean])(implicit booleanOut: Out <:< Boolean): Parser[In2, Boolean] = this or that
 
@@ -124,6 +126,7 @@ trait Parser[-In <: Any, +Out] { self =>
 	  * @param booleanOut Evidence that this parser's output type is Boolean
 	  * @tparam In2 Upper bound for `this` and `that`'s input type
 	  * @return An eagerly-evaluating conjunction of the two parsers
+	  * @group combinators
 	  */
 	def and[In2 <: In](that: Parser[In2, Boolean])(implicit booleanOut: Out <:< Boolean): Parser[In2, Boolean] = (this.upcast[Boolean], that) match {
 		case (ParserEagerConjunction(theseParsers), ParserEagerConjunction(thoseParsers)) => ParserEagerConjunction(theseParsers ++ thoseParsers)
@@ -134,6 +137,7 @@ trait Parser[-In <: Any, +Out] { self =>
 
 	/** Operator version of `and`
 	  * @see [[and]]
+	  * @group combinators
 	  */
 	final def && [In2 <: In](that: Parser[In2, Boolean])(implicit booleanOut: Out <:< Boolean): Parser[In2, Boolean] = this and that
 

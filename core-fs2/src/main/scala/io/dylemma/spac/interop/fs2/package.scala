@@ -58,6 +58,7 @@ package object fs2 {
 		  * @param pos call-point information used to generate the top SpacTraceElement for error handling
 		  * @tparam F The stream effect type, e.g. `cats.effect.IO`
 		  * @tparam G The stream-compiler output type. Usually the same as `F`
+		  * @group consumers
 		  * @return
 		  */
 		def parseF[F[_], G[_]](stream: Stream[F, In])(implicit compiler: Compiler[F, G], G: MonadError[G, Throwable], pos: CallerPos): G[Out] = {

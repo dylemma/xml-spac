@@ -24,7 +24,7 @@ import io.dylemma.spac.json.impl.JsonStackFixer
   *      import fs2.data.json._
   *      charStream
   *        .through(tokens)
-  *        .through(Fs2DataSource.convertEvents)
+  *        .through(Fs2DataSource.convert)
   *    }
   *
   *    // could be replaced with
