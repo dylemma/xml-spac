@@ -78,7 +78,7 @@ object Example03_EntryList extends App {
 		Parser.toList[KeyOrValue].map { keyAndValues =>
 			// we can safely assume that there will be at least one element in the `keyAndValues`
 			// list, and that it is a `Left`, due to the `splitOnMatch` condition
-			val Left(key) :: valueRights = keyAndValues
+			val Left(key) :: valueRights = keyAndValues : @unchecked
 			val values = valueRights collect { case Right(value) => value }
 			Entry(key, values)
 		}

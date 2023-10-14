@@ -21,7 +21,7 @@ object TransformerToPipe {
 					// which we can then `take()` and turn into a chunk to emit.
 					// Then as long as the handler signal wasn't `Stop`, recurse to pull the stream `tail`
 					val signal = handler.pushMany(chunk.iterator)
-					val toEmit = Chunk.vector(downstream.take())
+					val toEmit = Chunk.from(downstream.take())
 					if (toEmit.isEmpty && signal.isStop) Pull.done
 					else if (toEmit.isEmpty) pullTransformed(tail)
 					else Pull.output(toEmit) >> pullTransformed(tail)
@@ -29,7 +29,7 @@ object TransformerToPipe {
 				case None =>
 					// EOF - finish the handler and emit whatever it might produce
 					handler.finish()
-					Pull.output(Chunk.vector(downstream.take()))
+					Pull.output(Chunk.from(downstream.take()))
 			}
 
 			pullTransformed(init)

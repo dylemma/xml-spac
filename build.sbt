@@ -1,27 +1,29 @@
+Global / onChangedBuildSource := ReloadOnSourceChanges
+
 ThisBuild / organization := "io.dylemma"
-ThisBuild / version := "0.12.0"
-ThisBuild / scalaVersion := "2.13.0"
-ThisBuild / crossScalaVersions := Seq("2.12.16", "2.13.8", "3.1.3")
+ThisBuild / version := "0.12.1"
+ThisBuild / scalaVersion := "2.13.12"
+ThisBuild / crossScalaVersions := Seq("2.12.18", "2.13.12", "3.3.1")
 ThisBuild / scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-language:higherKinds")
 ThisBuild / scalacOptions ++= (scalaBinaryVersion.value match {
 	case "2.12" => Seq("-Ypartial-unification")
 	case _ => Nil
 })
 
-lazy val catsCore = "org.typelevel" %% "cats-core" % "2.8.0"
-lazy val catsEffect = "org.typelevel" %% "cats-effect" % "3.3.13"
-lazy val fs2Core = "co.fs2" %% "fs2-core" % "3.2.7"
-lazy val fs2Io = "co.fs2" %% "fs2-io" % "3.2.7"
-lazy val fs2DataJson = "org.gnieh" %% "fs2-data-json" % "1.4.1"
-lazy val fs2DataXml = "org.gnieh" %% "fs2-data-xml" % "1.4.1"
-lazy val jacksonCore = "com.fasterxml.jackson.core" % "jackson-core" % "2.12.3"
-lazy val typeName = "org.tpolecat" %% "typename" % "1.0.0"
+lazy val catsCore = "org.typelevel" %% "cats-core" % "2.10.0"
+lazy val catsEffect = "org.typelevel" %% "cats-effect" % "3.5.2"
+lazy val fs2Core = "co.fs2" %% "fs2-core" % "3.9.2"
+lazy val fs2Io = "co.fs2" %% "fs2-io" % "3.9.2"
+lazy val fs2DataJson = "org.gnieh" %% "fs2-data-json" % "1.9.0"
+lazy val fs2DataXml = "org.gnieh" %% "fs2-data-xml" % "1.9.0"
+lazy val jacksonCore = "com.fasterxml.jackson.core" % "jackson-core" % "2.15.3"
+lazy val typeName = "org.tpolecat" %% "typename" % "1.1.0"
 
 lazy val testSettings = Seq(
 	libraryDependencies ++= Seq(
-		"org.scalatest" %% "scalatest" % "3.2.9" % Test,
-		"org.scalacheck" %% "scalacheck" % "1.15.3" % Test,
-		"org.scalatestplus" %% "scalacheck-1-15" % "3.2.9.0" % Test,
+		"org.scalatest" %% "scalatest" % "3.2.17" % Test,
+		"org.scalacheck" %% "scalacheck" % "1.17.0" % Test,
+		"org.scalatestplus" %% "scalacheck-1-17" % "3.2.17.0" % Test,
 	)
 )
 

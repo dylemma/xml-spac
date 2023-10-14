@@ -597,24 +597,24 @@ object Parser {
 		def ap[A, B](ff: Parser[In, A => B])(fa: Parser[In, A]) = product(fa, ff).map { case (a, f) => f(a) }
 		override def product[A, B](fa: Parser[In, A], fb: Parser[In, B]) = {
 			(fa, fb) match {
-				case (faCompound: ParserCompoundN[In, A], fbCompound: ParserCompoundN[In, B]) =>
-					val offset = faCompound.members.size.toInt
+				case (ParserCompoundN(aMembers, assembleA, _), ParserCompoundN(bMembers, assembleB, _)) =>
+					val offset = aMembers.size.toInt
 					new ParserCompoundN(
-						faCompound.members ++ fbCompound.members,
-						get => faCompound.assemble(get) -> fbCompound.assemble(OffsetGet(offset, get)),
+						aMembers ++ bMembers,
+						get => assembleA(get) -> assembleB(OffsetGet(offset, get)),
 						callerPos,
 					)
-				case (fa, fbCompound: ParserCompoundN[In, B]) =>
+				case (fa, ParserCompoundN(bMembers, assembleB, _)) =>
 					new ParserCompoundN(
-						fa +: fbCompound.members,
-						get => get(0).asInstanceOf[A] -> fbCompound.assemble(OffsetGet(1, get)),
+						fa +: bMembers,
+						get => get(0).asInstanceOf[A] -> assembleB(OffsetGet(1, get)),
 						callerPos,
 					)
-				case (faCompound: ParserCompoundN[In, A], fb) =>
-					val offset = faCompound.members.size.toInt
+				case (ParserCompoundN(aMembers, assembleA, _), fb) =>
+					val offset = aMembers.size.toInt
 					new ParserCompoundN(
-						faCompound.members :+ fb,
-						get => faCompound.assemble(get) -> get(offset).asInstanceOf[B],
+						aMembers :+ fb,
+						get => assembleA(get) -> get(offset).asInstanceOf[B],
 						callerPos,
 					)
 				case (fa, fb) =>
