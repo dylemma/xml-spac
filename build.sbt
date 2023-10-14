@@ -2,6 +2,7 @@ Global / onChangedBuildSource := ReloadOnSourceChanges
 
 ThisBuild / organization := "io.dylemma"
 ThisBuild / version := "0.12.1"
+ThisBuild / versionScheme := Some("early-semver")
 ThisBuild / scalaVersion := "2.13.12"
 ThisBuild / crossScalaVersions := Seq("2.12.18", "2.13.12", "3.3.1")
 ThisBuild / scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-language:higherKinds")
@@ -180,13 +181,7 @@ lazy val scaladocIgnoredPackages = Seq(
 
 lazy val publishingSettings = Seq(
 	publishMavenStyle := true,
-	publishTo := {
-		val nexus = "https://oss.sonatype.org/"
-		if (isSnapshot.value)
-			Some("snapshots" at nexus + "content/repositories/snapshots")
-		else
-			Some("releases" at nexus + "service/local/staging/deploy/maven2")
-	},
+	publishTo := sonatypePublishToBundle.value,
 	Test / publishArtifact := false,
 	pomIncludeRepository := { _ => false },
 	pomExtra := (
